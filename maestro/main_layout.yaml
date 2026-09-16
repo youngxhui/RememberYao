@@ -1,0 +1,23 @@
+appId: com.youngxhui.RememberYao
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: medica-tab
+    timeout: 30000
+# 底部三个 tab 均应存在
+- assertVisible:
+    id: home-tab
+- assertVisible:
+    id: medica-tab
+
+# 逐个点击切换，确认 tab 可交互
+- tapOn:
+    id: medica-tab
+- assertVisible:
+    id: medica-tab
+
+- tapOn:
+    id: home-tab
+- assertVisible:
+    id: home-tab

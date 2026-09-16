@@ -1,0 +1,54 @@
+appId: com.youngxhui.RememberYao
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "今日"
+    timeout: 30000
+
+# 1. 添加药品：维生素C，瓶装，片，总数量 30
+- tapOn:
+    id: "medica-tab"
+- assertVisible: "药箱"
+- tapOn: "Add"
+- assertVisible: "添加药品"
+- tapOn: "药品名称"
+- inputText: "维生素C"
+- tapOn: "总数量"
+- inputText: "30"
+- tapOn: "保存"
+- assertVisible: "维生素C"
+
+# 2. 添加用药人：爷爷
+- tapOn:
+    id: "persons-tab"
+- assertVisible: "用药人"
+- tapOn: "姓名，如：爷爷"
+- inputText: "爷爷"
+- tapOn: "添加用药人"
+- assertVisible: "爷爷"
+
+# 3. 给爷爷配置维生素C：每次 1 片，每日 1 次 08:00
+- tapOn: "添加用药配置"
+- assertVisible: "添加用药配置"
+- tapOn: "选择药品"
+- tapOn: "维生素C"
+- tapOn: "选择用药人"
+- tapOn: "爷爷"
+- tapOn: "保存"
+
+# 4. 回到今日，确认生成提醒并点击已服用
+- tapOn:
+    id: "home-tab"
+- assertVisible: "08:00"
+- assertVisible: "维生素C"
+- assertVisible: "爷爷"
+- tapOn: "已服用"
+- assertVisible: "已服用"
+
+# 5. 回到药箱详情，验证库存扣减为 29
+- tapOn:
+    id: "medica-tab"
+- tapOn: "维生素C"
+- assertVisible: "29"
+- assertVisible: "/ 30 片"

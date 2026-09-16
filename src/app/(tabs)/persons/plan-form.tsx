@@ -1,0 +1,300 @@
+import {
+  Button,
+  Column,
+  FieldGroup,
+  Host,
+  Picker,
+  Row,
+  Spacer,
+  Switch,
+  Text,
+  TextInput,
+  useNativeState,
+} from "@expo/ui";
+import { DatePicker } from "@expo/ui/swift-ui";
+import {
+  buttonStyle,
+  controlSize,
+  frame,
+  listRowInsets,
+} from "@expo/ui/swift-ui/modifiers";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+
+import {
+  addPlan,
+  dateKey,
+  dateToTime,
+  defaultTimes,
+  deletePlan,
+  medicationUnitLabel,
+  timeToDate,
+  todayKey,
+  updatePlan,
+  useAppData,
+} from "@/lib/store";
+
+const TIMES_PER_DAY = [1, 2, 3, 4];
+
+export default function PlanFormScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    id?: string;
+    personId?: string;
+    medicationId?: string;
+  }>();
+  const isEditing = Boolean(params.id);
+  const { medications, persons, plans } = useAppData();
+
+  const [loaded, setLoaded] = useState(!isEditing);
+  const [medicationId, setMedicationId] = useState(params.medicationId ?? "");
+  const [personId, setPersonId] = useState(params.personId ?? "");
+  const [timesPerDay, setTimesPerDay] = useState(1);
+  const [times, setTimes] = useState<string[]>(defaultTimes(1));
+  const [startDate, setStartDate] = useState(todayKey());
+  const [hasEndDate, setHasEndDate] = useState(false);
+  const [endDate, setEndDate] = useState(todayKey());
+  const [enabled, setEnabled] = useState(true);
+  const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const dose = useNativeState("1");
+
+  useEffect(() => {
+    if (!params.id) return;
+    const existing = plans.find((p) => p.id === params.id);
+    if (existing) {
+      setMedicationId(existing.medicationId);
+      setPersonId(existing.personId);
+      dose.value = String(existing.doseAmount);
+      setTimesPerDay(existing.times.length);
+      setTimes(existing.times);
+      setStartDate(existing.startDate);
+      setHasEndDate(Boolean(existing.endDate));
+      if (existing.endDate) setEndDate(existing.endDate);
+      setEnabled(existing.enabled);
+    }
+    setLoaded(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id, plans]);
+
+  const changeTimesPerDay = (count: number) => {
+    setTimesPerDay(count);
+    setTimes((prev) => {
+      const next = prev.slice(0, count);
+      const defaults = defaultTimes(count);
+      while (next.length < count) next.push(defaults[next.length]);
+      return next;
+    });
+  };
+
+  const changeTime = (index: number, date: Date) => {
+    setTimes((prev) =>
+      prev.map((t, i) => (i === index ? dateToTime(date) : t))
+    );
+  };
+
+  const save = async () => {
+    if (!medicationId) {
+      setError("请选择药品");
+      return;
+    }
+    if (!personId) {
+      setError("请选择用药人");
+      return;
+    }
+    const doseAmount = Number.parseInt(dose.value, 10);
+    if (!Number.isFinite(doseAmount) || doseAmount <= 0) {
+      setError("每次剂量至少为 1");
+      return;
+    }
+    if (hasEndDate && endDate < startDate) {
+      setError("结束日期不能早于开始日期");
+      return;
+    }
+    const input = {
+      medicationId,
+      personId,
+      doseAmount,
+      times,
+      startDate,
+      endDate: hasEndDate ? endDate : null,
+      enabled,
+    };
+    if (params.id) {
+      await updatePlan(params.id, input);
+    } else {
+      await addPlan(input);
+    }
+    router.back();
+  };
+
+  if (!loaded) return null;
+
+  const remove = async () => {
+    if (!params.id) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    await deletePlan(params.id);
+    router.back();
+  };
+
+  const medication = medications.find((m) => m.id === medicationId);
+
+  return (
+    <>
+      <Stack.Screen.BackButton displayMode="minimal" />
+      <Stack.Title large>{isEditing ? "编辑用药配置" : "添加用药配置"}</Stack.Title>
+      <Host seedColor="#40621a" style={{ flex: 1 }}>
+        <Column
+          modifiers={[frame({ maxHeight: Infinity, maxWidth: Infinity })]}
+        >
+          <FieldGroup>
+            <FieldGroup.Section title="药品与用药人">
+              <Picker
+                selectedValue={medicationId}
+                onValueChange={(value) => setMedicationId(value as string)}
+              >
+                <Picker.Item label="选择药品" value="" />
+                {medications.map((m) => (
+                  <Picker.Item key={m.id} label={m.name} value={m.id} />
+                ))}
+              </Picker>
+              <Picker
+                selectedValue={personId}
+                onValueChange={(value) => setPersonId(value as string)}
+              >
+                <Picker.Item label="选择用药人" value="" />
+                {persons.map((p) => (
+                  <Picker.Item key={p.id} label={p.name} value={p.id} />
+                ))}
+              </Picker>
+            </FieldGroup.Section>
+            <FieldGroup.Section title="剂量">
+              <TextInput
+                placeholder={`每次剂量（${
+                  medication ? medicationUnitLabel(medication.unit) : "片/粒"
+                }）`}
+                keyboardType="number-pad"
+                value={dose}
+              />
+              <Picker
+                selectedValue={timesPerDay}
+                onValueChange={(value) =>
+                  changeTimesPerDay(Number(value))
+                }
+              >
+                {TIMES_PER_DAY.map((n) => (
+                  <Picker.Item
+                    key={n}
+                    label={`每日 ${n} 次`}
+                    value={n}
+                  />
+                ))}
+              </Picker>
+            </FieldGroup.Section>
+            <FieldGroup.Section title="服用时间">
+              {times.map((time, index) => (
+                <DatePicker
+                  key={index}
+                  selection={timeToDate(time)}
+                  displayedComponents={["hourAndMinute"]}
+                  onDateChange={(date) => changeTime(index, date)}
+                >
+                  <Text>{`第 ${index + 1} 次`}</Text>
+                </DatePicker>
+              ))}
+            </FieldGroup.Section>
+            <FieldGroup.Section title="起止日期">
+              <DatePicker
+                selection={dateFromKey(startDate)}
+                displayedComponents={["date"]}
+                onDateChange={(date) => setStartDate(dateKey(date))}
+              >
+                <Text>开始日期</Text>
+              </DatePicker>
+              <Switch
+                label="设置结束日期"
+                value={hasEndDate}
+                onValueChange={setHasEndDate}
+              />
+              {hasEndDate ? (
+                <DatePicker
+                  selection={dateFromKey(endDate)}
+                  displayedComponents={["date"]}
+                  onDateChange={(date) => setEndDate(dateKey(date))}
+                >
+                  <Text>结束日期</Text>
+                </DatePicker>
+              ) : null}
+            </FieldGroup.Section>
+            <FieldGroup.Section title="状态">
+              <Switch
+                label="启用该配置"
+                value={enabled}
+                onValueChange={setEnabled}
+              />
+            </FieldGroup.Section>
+            {error ? (
+              <FieldGroup.Section>
+                <Text
+                  style={{ paddingHorizontal: 16 }}
+                  textStyle={{ color: "#ff3b30" }}
+                >
+                  {error}
+                </Text>
+              </FieldGroup.Section>
+            ) : null}
+            <FieldGroup.Section
+              modifiers={[
+                listRowInsets({ leading: 0, trailing: 0, top: 0, bottom: 0 }),
+              ]}
+            >
+              <Button
+                label="保存"
+                onPress={() => {
+                  save();
+                }}
+                modifiers={[
+                  buttonStyle("glassProminent"),
+                  controlSize("large"),
+                ]}
+              >
+                <Row modifiers={[frame({ maxWidth: Infinity })]}>
+                  <Spacer />
+                  <Text>保存</Text>
+                  <Spacer />
+                </Row>
+              </Button>
+            </FieldGroup.Section>
+            {isEditing ? (
+              <FieldGroup.Section
+                modifiers={[
+                  listRowInsets({ leading: 0, trailing: 0, top: 0, bottom: 0 }),
+                ]}
+              >
+                <Button
+                  label={confirmDelete ? "再次点击确认删除" : "删除该配置"}
+                  onPress={() => {
+                    remove();
+                  }}
+                  modifiers={[
+                    buttonStyle("borderedProminent"),
+                    controlSize("large"),
+                  ]}
+                />
+              </FieldGroup.Section>
+            ) : null}
+          </FieldGroup>
+        </Column>
+      </Host>
+    </>
+  );
+}
+
+function dateFromKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}

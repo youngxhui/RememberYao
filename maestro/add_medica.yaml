@@ -1,0 +1,9 @@
+appId: com.youngxhui.RememberYao
+---
+- launchApp
+- timeout: 1000
+
+- tapOn:
+    id: medica-tab
+- assertVisible:
+    id: medica-tab

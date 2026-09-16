@@ -13,12 +13,12 @@ export default function AppTabs() {
       tintColor={colors.primary}
       indicatorColor={colors.primarySoft}
     >
-      <NativeTabs.Trigger name="(tabs)/home">
+      <NativeTabs.Trigger name="(tabs)/home" testID="home-tab">
         <NativeTabs.Trigger.Label>今日</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="calendar" md="today" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(tabs)/medica">
+      <NativeTabs.Trigger name="(tabs)/medica" testID="medica-tab">
         <NativeTabs.Trigger.Label>药箱</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: "pills", selected: "pills.fill" }}
@@ -26,7 +26,15 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(tabs)/developer">
+      <NativeTabs.Trigger name="(tabs)/persons" testID="persons-tab">
+        <NativeTabs.Trigger.Label>用药人</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "person.2", selected: "person.2.fill" }}
+          md="group"
+        />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="(tabs)/developer" testID="developer-tab">
         <NativeTabs.Trigger.Label>开发者</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: "pills", selected: "pills.fill" }}
