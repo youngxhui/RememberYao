@@ -14,23 +14,49 @@
       --muted: #64748b;
       --border: #e2e8e5;
       --accent: #0d9488;
+      --accent-strong: #0f766e;
       --accent-soft: color-mix(in oklab, var(--accent) 14%, transparent);
       --fg-soft: color-mix(in oklab, var(--fg) 6%, transparent);
       --success: #10b981;
-      --warn: #f59e0b;
-      --danger: #ef4444;
       --success-strong: #047857;
+      --warn: #f59e0b;
       --warn-strong: #b45309;
+      --danger: #ef4444;
+      --danger-strong: #dc2626;
+
       --font-display: Inter, system-ui, sans-serif;
       --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
       --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
-      --fs-h1: 28px;
+
+      --fs-h1: 32px;
       --fs-h2: 22px;
       --fs-h3: 17px;
       --fs-body: 17px;
       --fs-meta: 13px;
+
       --radius-card: 18px;
       --radius-pill: 999px;
+
+      /* ── Mini Archive 收藏夹（主题青绿 + 米白纸说明书） ── */
+      --archive-cover-top: #4cc9b9;
+      --archive-cover-bottom: #0d9488;
+      --archive-tab: #2bb0a2;
+      --archive-back: #0f766e;
+      --archive-ink: #06302b;
+      --archive-ink-muted: #3f7d74;
+      --archive-line: rgba(6, 48, 43, 0.16);
+      --archive-paper-top: #f7e7bd;
+      --archive-paper-bottom: #efd9a4;
+      --archive-shadow: rgba(13, 148, 136, 0.3);
+      --archive-shadow-strong: rgba(13, 148, 136, 0.42);
+      /* 邮票是“实物”：米白纸 + 深色印刷，不随主题变 */
+      --archive-stamp-bg: #fffdf4;
+      --archive-stamp-ink: #4a3417;
+      --archive-stamp-muted: #8a7440;
+      --archive-stamp-edge: rgba(74, 52, 23, 0.32);
+      --archive-art-top: #17b8a6;
+      --archive-art-bottom: #0c7d70;
+      --archive-denom: #e2642a;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
@@ -40,7 +66,7 @@
       color: var(--fg);
       font-family: var(--font-body);
       font-size: var(--fs-body);
-      line-height: 1.5;
+      line-height: 1.4;
       -webkit-font-smoothing: antialiased;
       display: grid;
       place-items: center;
@@ -68,8 +94,7 @@
       height: 844px;
       border-radius: 56px;
       padding: 12px;
-      background:
-        linear-gradient(160deg, #2a2a2c 0%, #1a1a1c 50%, #0e0e10 100%);
+      background: linear-gradient(160deg, #2a2a2c 0%, #1a1a1c 50%, #0e0e10 100%);
       box-shadow:
         0 0 0 1px rgba(255,255,255,0.04) inset,
         0 0 0 2px #000 inset,
@@ -163,375 +188,818 @@
     }
 
     .pad     { padding-inline: 20px; }
-    .stack   { display: flex; flex-direction: column; gap: 10px; }
-    .row     { display: flex; align-items: center; gap: 12px; }
+    .stack   { display: flex; flex-direction: column; gap: 12px; }
     .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .grid-2  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .grid-3  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
-    .header {
-      padding: 8px 20px 12px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    /* ========== 头部 ========== */
+    .hero-header {
+      padding: 8px 20px 18px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
     }
-    .header h1 {
+    .hero-title {
       font-family: var(--font-display);
       font-size: var(--fs-h1);
-      letter-spacing: -0.02em;
-      line-height: 1.1;
-      margin: 0;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--fg);
+      line-height: 1;
     }
-    .icon-btn {
+    .hero-subtitle {
+      font-family: var(--font-body);
+      font-size: var(--fs-meta);
+      color: var(--muted);
+      margin-top: 6px;
+      letter-spacing: 0.01em;
+    }
+
+    .header .icon-btn {
       position: relative;
-      width: 36px; height: 36px;
-      padding: 0;
-      border-radius: 999px;
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-pill);
       background: var(--surface);
       border: 1px solid var(--border);
-      display: grid; place-items: center;
+      display: grid;
+      place-items: center;
       color: var(--fg);
       cursor: pointer;
-    }
-    /* 视觉 36px，热区扩到 44px */
-    .icon-btn::after { content: ''; position: absolute; inset: -4px; }
-    .icon-btn i { font-size: 18px; line-height: 1; }
-    .icon-btn:hover { background: var(--fg-soft); border-color: var(--border); }
-    .icon-btn:active { transform: scale(0.96); }
-    .icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
-
-    .greeting {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin: 0 0 4px;
-    }
-
-    .h2  { font-family: var(--font-display); font-size: var(--fs-h2); letter-spacing: -0.015em; line-height: 1.2; margin: 0; }
-    .h3  { font-size: var(--fs-h3); font-weight: 600; line-height: 1.3; margin: 0; }
-    .meta { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--muted); }
-    .num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      padding: 14px 16px;
-    }
-    .card.accent {
-      background: var(--accent);
-      color: #fff;
-      border-color: transparent;
-    }
-    .card.accent .meta { color: rgba(255,255,255,0.72); }
-    .card.flat { background: transparent; border: 0; padding: 10px 0; border-top: 1px solid var(--border); border-radius: 0; }
-    .card.flat:first-child { border-top: 0; padding-top: 0; }
-
-    .avatar {
-      border-radius: 50%;
-      background:
-        linear-gradient(135deg, var(--accent-soft), var(--fg-soft)),
-        var(--surface);
-      border: 1px solid var(--border);
-      display: grid; place-items: center;
-      color: var(--muted);
-      flex-shrink: 0;
-    }
-    .avatar svg {
-      width: 54%; height: 54%;
-      stroke: currentColor; fill: none;
-      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
-      opacity: 0.9;
-    }
-    .badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 4px 10px; border-radius: var(--radius-pill);
-      font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
-      flex-shrink: 0;
-    }
-    .badge.ok   { background: color-mix(in oklab, var(--success) 12%, transparent); color: var(--success-strong); }
-    .badge.warn { background: color-mix(in oklab, var(--warn) 14%, transparent); color: var(--warn-strong); }
-
-    .tabbar {
-      flex: 0 0 auto;
-      display: grid;
-      grid-template-columns: repeat(var(--tabs, 4), 1fr);
-      padding: 8px 8px 0;
-      border-top: 1px solid var(--border);
-      background: color-mix(in oklab, var(--surface) 92%, transparent);
-      backdrop-filter: blur(20px);
-    }
-    .tab {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      padding: 8px 0;
-      color: var(--muted);
-      font-size: 10px;
-      letter-spacing: 0.02em;
+      transition: background 140ms, border-color 140ms, transform 140ms;
       text-decoration: none;
     }
-    .tab.active { color: var(--accent); }
-    .tab i { font-size: 22px; line-height: 1; }
-    .tab.active i { font-weight: 400; }
-    .tab.active svg { stroke-width: 2; }
+    .header .icon-btn::after { content: ''; position: absolute; inset: -6px; }
+    .header .icon-btn:hover { background: var(--fg-soft); border-color: var(--fg-2); }
+    .header .icon-btn:active { transform: scale(0.96); }
+    .header .icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+    .header .icon-btn i { font-size: 22px; line-height: 1; }
 
-    .btn-primary {
-      display: flex; align-items: center; justify-content: center;
-      width: 100%;
-      min-height: 48px;
-      padding: 14px 20px;
-      background: var(--accent);
-      color: #fff;
-      border: 0;
-      border-radius: 14px;
-      font: inherit;
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: -0.005em;
+    /* ========== Mini Archive：水平列表（文件夹 + 药物说明书） ========== */
+    /* 闭合=居中文件夹；点按→右滑进入列表，文件夹退到最左只露一角；
+       在说明书1 继续右滑→说明书收回文件夹（合上） */
+    .archive {
+      /* 卡片几何：小说明书的飞行位移按节距 × 索引计算，与布局同源 */
+      --card-w: 230px;
+      --card-gap: 16px;
+      --pitch: calc(var(--card-w) + var(--card-gap));
+      padding: 10px 0 4px;
+    }
+    .archive-scroll {
+      display: flex;
+      align-items: center;
+      gap: var(--card-gap);
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x proximity;
+      padding: 30px calc((100% - var(--card-w)) / 2) 34px;
+      scrollbar-width: none;
+    }
+    .archive-scroll::-webkit-scrollbar { display: none; }
+    .archive-card {
+      position: relative;
+      z-index: 2;
+      flex: 0 0 var(--card-w);
+      scroll-snap-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 文件夹（列表第 1 项） */
+    .card-folder {
+      position: relative;
+      width: 210px;
+      height: 300px;
       cursor: pointer;
+      transition: transform 200ms ease;
     }
-    .btn-secondary {
-      display: flex; align-items: center; justify-content: center;
-      width: 100%;
-      min-height: 48px;
-      padding: 14px 20px;
-      background: transparent;
-      color: var(--fg);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      font: inherit;
-      font-size: 15px;
-      font-weight: 500;
+    .card-folder:active { transform: scale(0.97); }
+    .folder-back {
+      position: absolute;
+      inset: 0;
+      border-radius: 26px;
+      background: linear-gradient(160deg, var(--archive-tab), var(--archive-back));
+      box-shadow: 0 16px 30px -16px var(--archive-shadow);
     }
+    .folder-front {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 24px 22px;
+      border-radius: 26px;
+      /* 磨砂半透明封皮：透过它能隐约看到里面的说明书 */
+      background: linear-gradient(
+        160deg,
+        color-mix(in oklab, var(--archive-cover-top) 55%, transparent),
+        color-mix(in oklab, var(--archive-cover-bottom) 62%, transparent)
+      );
+      backdrop-filter: blur(14px) saturate(1.15);
+      -webkit-backdrop-filter: blur(14px) saturate(1.15);
+      box-shadow:
+        0 26px 48px -14px var(--archive-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      z-index: 3;
+      transform-origin: left center;
+      transition: transform 950ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .folder-front::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.22),
+        transparent 46%
+      );
+      border-radius: inherit;
+      pointer-events: none;
+    }
+    .folder-front > * { position: relative; }
 
-    .ph-img {
-      background:
-        linear-gradient(135deg, var(--accent-soft), var(--fg-soft)),
-        var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      aspect-ratio: 4 / 3;
-      display: grid; place-items: center;
-      color: var(--muted);
+    .folder-title {
+      font-family: var(--font-display);
+      font-size: 27px;
+      font-weight: 800;
+      color: var(--archive-ink);
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    .folder-sub {
+      margin-top: 6px;
       font-family: var(--font-mono);
       font-size: 11px;
-      letter-spacing: 0.04em;
+      color: var(--archive-ink-muted);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
     }
-    .ph-img.square { aspect-ratio: 1 / 1; }
-    .ph-img.wide   { aspect-ratio: 16 / 9; }
+    .folder-lines {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .folder-line {
+      height: 3px;
+      border-radius: 2px;
+      background: var(--archive-line);
+    }
+    .folder-line:nth-child(1) { width: 100%; }
+    .folder-line:nth-child(2) { width: 84%; }
+    .folder-line:nth-child(3) { width: 92%; }
 
-    .pill {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 6px 14px;
-      background: var(--accent-soft);
-      color: var(--accent);
-      border-radius: 999px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.02em;
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: background 140ms, border-color 140ms;
-    }
-    .pill.active { background: var(--accent); color: #fff; }
-    .tag {
-      display: inline-flex;
-      padding: 6px 14px;
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      font-size: 12px;
-      cursor: pointer;
+    /* ── 文件夹内的说明书：盒样式与真实说明书完全共用（见下方 .leaflet, .mini-leaf），
+       闭合时整体缩小，打开时放大飞入列表卡位 ── */
+    .folder-stack {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
     }
 
-    .progress { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
-    .progress > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+    /* 闭合：小说明书缩到 64.76%，按索引递增偏移形成“厚沓”层叠；
+       扇形幅度随数量收缩（--step），3 张时与原设计一致，10 张时自动收紧 */
+    .mini-leaf {
+      --step: min(1, 3 / var(--n, 3));
+      transform:
+        translate(
+          calc(-7px + var(--i) * 6px * var(--step)),
+          calc(-6px + var(--i) * 7px * var(--step))
+        )
+        rotate(calc(-4deg + var(--i) * 3.5deg * var(--step)))
+        scale(0.6476);
+    }
 
-    .section-title {
-      margin: 0 0 8px;
+    /* 悬停（未打开）：封皮翘起一点，说明书探出边角 */
+    .archive:not(.is-open) .card-folder:hover .folder-front {
+      transform: perspective(1500px) rotateY(-16deg);
+    }
+    .archive:not(.is-open) .card-folder:hover .mini-leaf {
+      transform:
+        translate(
+          calc(-11px + var(--i) * 10px * var(--step)),
+          calc(-10px + var(--i) * 8px * var(--step))
+        )
+        rotate(calc(-6deg + var(--i) * 5deg * var(--step)))
+        scale(0.72);
+    }
+
+    /* 打开：文件夹整体缓慢左移；封皮绕左侧翻开，内部小说明书依次放大、
+       飞入水平列表对应的卡位，与真正的说明书交叉淡入 */
+    .archive.is-open .folder-front {
+      transform: perspective(1500px) rotateY(-58deg);
+      /* 封皮转开后磨砂不可见，去掉 backdrop-filter 避免每帧重采样产生残影 */
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    /* 打开：第 i 张飞到第 i 个列表卡位；延迟用 min() 封顶，
+       超过 3 张后同时出发，避免总时长无限拉长 */
+    .archive.is-open .mini-leaf {
+      opacity: 0;
+      transition:
+        transform 900ms cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 300ms ease calc(900ms + min(var(--i), 2) * 100ms);
+    }
+    .archive.is-open .mini-leaf {
+      transform: translate(calc(var(--pitch) * (var(--i) + 1)), 0) rotate(0deg) scale(1);
+      transition-delay:
+        calc(120ms + min(var(--i), 2) * 120ms),
+        calc(900ms + min(var(--i), 2) * 100ms);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .folder-front, .mini-leaf { transition-duration: 0.01ms; }
+    }
+
+    /* ── 药物说明书：列表项与文件夹内飞行卡片共用同一套盒样式 ── */
+    .leaflet, .mini-leaf {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      width: 210px;
+      height: 268px;
+      padding: 15px 13px 10px;
+      background: var(--archive-stamp-bg);
+      border-radius: 10px;
+      box-shadow: 0 10px 22px -10px rgba(60, 40, 10, 0.4);
+    }
+    .leaflet {
+      opacity: 0;
+      will-change: opacity;
+      transition: opacity 420ms ease;
+    }
+    /* 飞行卡片：与列表项同尺寸，闭合时整体缩到 64.76%（≈136px 宽），
+       打开时放大到 100% 飞入卡位，落点与列表项像素级一致 */
+    .mini-leaf {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin: -134px 0 0 -105px;
+      will-change: transform, opacity;
+      /* 合上与打开严格对称：同样 900ms 飞行、同样封顶错峰，
+         小说明书依次从卡位飞回文件夹，到位前淡入 */
+      transition:
+        transform 900ms cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 300ms ease;
+      transition-delay:
+        calc(120ms + min(var(--i), 2) * 120ms),
+        calc(120ms + min(var(--i), 2) * 120ms);
+    }
+    .archive.is-open .leaflet {
+      opacity: 1;
+    }
+    /* 淡入延迟对齐小说明书的落位时刻；同样用 min() 封顶在第三张 */
+    .archive.is-open .archive-card .leaflet {
+      transition-delay: calc(750ms + min(var(--i), 2) * 120ms);
+    }
+    /* 顶部一道色条，暗示“折叠的说明书” */
+    .leaflet::before, .mini-leaf::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 13px;
+      right: 13px;
+      height: 3px;
+      border-radius: 0 0 3px 3px;
+      background: var(--archive-art-top);
+      opacity: 0.85;
+    }
+    .leaflet-head {
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--archive-stamp-edge);
+    }
+    .leaflet-name {
+      margin-top: 8px;
       font-family: var(--font-display);
-      font-size: var(--fs-h3);
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--archive-stamp-ink);
+      letter-spacing: -0.01em;
+    }
+    .leaflet-sub {
+      margin-top: 3px;
+      font-family: var(--font-body);
+      font-size: 8px;
+      color: var(--archive-stamp-muted);
+    }
+    .leaflet-body {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      justify-content: space-evenly;
+      padding-top: 9px;
+    }
+    .leaflet-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .leaflet-row .k {
+      flex-shrink: 0;
+      width: 46px;
+      font-family: var(--font-body);
+      font-size: 10px;
       font-weight: 600;
-      letter-spacing: -0.005em;
-      color: var(--fg-2);
+      color: var(--archive-stamp-ink);
+    }
+    .leaflet-row .v {
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--archive-stamp-edge);
+      opacity: 0.55;
     }
 
-    .stat-card {
-      text-align: center;
-    }
-    .stat-card .num {
-      font-size: 22px;
-      letter-spacing: -0.02em;
-      font-weight: 600;
-    }
-    .stat-card .meta {
+    .archive-caption {
       margin-top: 4px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
     }
-  
+
+    /* ========== 底部导航 ========== */
+    .tabbar {
+      flex: 0 0 84px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 10px;
+    }
+    .tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: color 140ms;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font-body);
+    }
+    .tab i { font-size: 24px; line-height: 1; transition: transform 140ms; }
+    .tab:hover { color: var(--fg-2); }
+    .tab:hover i { transform: translateY(-1px); }
+    .tab.active { color: var(--accent-strong); }
+    .tab.active i { transform: translateY(-1px); }
+
+    /* ========== 深色模式 ========== */
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #0a0a0c;
         --surface: #1c1c1e;
         --fg: #f5f5f7;
-        --fg-2: #ebebf0;
+        --fg-2: #d1d1d6;
         --muted: #98989d;
         --border: #2c2c2e;
-        --accent-soft: color-mix(in oklab, var(--accent) 18%, transparent);
-        --fg-soft: color-mix(in oklab, var(--fg) 12%, transparent);
+        --accent-soft: color-mix(in oklab, var(--accent) 22%, transparent);
+        --fg-soft: color-mix(in oklab, #fff 8%, transparent);
+
+        /* Mini Archive 深色青绿变体（邮票纸/印刷色不随主题变） */
+        --archive-cover-top: #14857a;
+        --archive-cover-bottom: #0f766e;
+        --archive-tab: #0e6b62;
+        --archive-back: #0b544e;
+        --archive-ink: #d9f2ee;
+        --archive-ink-muted: #8fc9c0;
+        --archive-line: rgba(217, 242, 238, 0.16);
+        --archive-paper-top: #2b2416;
+        --archive-paper-bottom: #221b10;
+        --archive-shadow: rgba(0, 0, 0, 0.5);
+        --archive-shadow-strong: rgba(0, 0, 0, 0.62);
       }
-      .device { background: linear-gradient(160deg, #1a1a1c 0%, #0e0e10 50%, #050507 100%); }
-      .statusbar { color: var(--fg); }
-      .statusbar svg { fill: var(--fg); }
-      .home-indicator::after { background: var(--fg); opacity: 0.5; }
-      .ph-img { background: linear-gradient(135deg, var(--accent-soft), var(--fg-soft)), var(--surface); }
-      .med-thumb { background: linear-gradient(135deg, var(--accent-soft), var(--fg-soft)), var(--surface); }
     }
+
+    /* ========== 统计区块 ========== */
+    .stats-section {
+      padding: 0 20px;
+      margin-top: 4px;
+    }
+    .stats-title {
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      font-weight: 700;
+      color: var(--fg);
+      margin: 0 0 12px;
+      letter-spacing: -0.005em;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 16px 12px;
+      text-align: center;
+      transition: background 160ms, border-color 160ms;
+    }
+    .stat-card:hover { background: var(--fg-soft); border-color: var(--fg-2); }
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--fg);
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .stat-label {
+      font-family: var(--font-body);
+      font-size: var(--fs-meta);
+      color: var(--muted);
+      margin-top: 6px;
+      font-weight: 500;
+    }
+
+    /* ========== 家庭成员 ========== */
+    .family-section {
+      padding: 0 20px;
+      margin-top: 24px;
+    }
+    .family-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .family-title {
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      font-weight: 700;
+      color: var(--fg);
+      margin: 0;
+      letter-spacing: -0.005em;
+    }
+    .family-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .family-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 14px;
+      transition: background 160ms, border-color 160ms;
+    }
+    .family-card:hover { background: var(--fg-soft); border-color: var(--fg-2); }
+    .family-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .family-avatar i { font-size: 22px; line-height: 1; }
+    .family-info { flex: 1 1 auto; min-width: 0; }
+    .family-name {
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      font-weight: 700;
+      color: var(--fg);
+      margin: 0;
+      letter-spacing: -0.005em;
+    }
+    .family-role {
+      font-size: var(--fs-meta);
+      color: var(--muted);
+      margin: 2px 0 0;
+    }
+    .family-badge {
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .family-badge.ok {
+      background: color-mix(in oklab, var(--success) 12%, var(--surface));
+      color: var(--success-strong);
+    }
+    .family-badge.warn {
+      background: color-mix(in oklab, var(--warn) 12%, var(--surface));
+      color: var(--warn-strong);
+    }
+
+    /* ========== 菜单列表 ========== */
+    .menu-section {
+      padding: 0 20px;
+      margin-top: 24px;
+    }
+    .menu-list {
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+    }
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      color: var(--fg);
+      text-decoration: none;
+      font-size: var(--fs-body);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border);
+      transition: background 140ms;
+    }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-item:hover { background: var(--fg-soft); }
+    .menu-item i { font-size: 22px; line-height: 1; color: var(--muted); flex-shrink: 0; }
+    .menu-item-text { flex: 1 1 auto; }
+    .menu-item-arrow { color: var(--muted); }
+    .menu-item-arrow i { font-size: 18px; line-height: 1; }
+
+    /* ========== 按钮 ========== */
+    .btn-secondary {
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--fg-2);
+      font-family: var(--font-body);
+      font-size: var(--fs-body);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 140ms;
+    }
+    .btn-secondary:hover { background: var(--fg-soft); border-color: var(--fg-2); }
+    .btn-secondary:active { transform: scale(0.98); }
+    .btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
   </style>
 </head>
 <body>
   <div class="stage">
-    <div class="caption"><strong>记得吃药</strong> · 我的</div>
-
-    <div class="device" data-od-id="device">
-      <span class="btn-rail left-1"  aria-hidden></span>
-      <span class="btn-rail left-2"  aria-hidden></span>
-      <span class="btn-rail left-3"  aria-hidden></span>
-      <span class="btn-rail right-1" aria-hidden></span>
-      <span class="island"           aria-hidden></span>
+    <div class="caption"><strong>记得吃药</strong> / 我的</div>
+    <div class="device">
+      <div class="island"></div>
+      <div class="btn-rail left-1"></div>
+      <div class="btn-rail left-2"></div>
+      <div class="btn-rail left-3"></div>
+      <div class="btn-rail right-1"></div>
 
       <div class="screen">
         <div class="statusbar">
-          <span class="num">9:41</span>
+          <span>9:41</span>
           <span class="right">
-            <svg viewBox="0 0 17 11" aria-hidden>
-              <rect x="0"  y="7" width="3" height="4" rx="0.6"/>
-              <rect x="4"  y="5" width="3" height="6" rx="0.6"/>
-              <rect x="8"  y="3" width="3" height="8" rx="0.6"/>
-              <rect x="12" y="0" width="3" height="11" rx="0.6"/>
-            </svg>
-            <svg viewBox="0 0 17 11" aria-hidden>
-              <path d="M8.5 1.5C5.5 1.5 2.7 2.6 0.5 4.6L2 6.1C3.8 4.5 6.1 3.6 8.5 3.6c2.4 0 4.7 0.9 6.5 2.5l1.5-1.5c-2.2-2-5-3.1-8-3.1zM3.5 7.6L5 9.1c1-0.9 2.2-1.4 3.5-1.4 1.3 0 2.5 0.5 3.5 1.4l1.5-1.5c-1.4-1.3-3.1-2-5-2-1.9 0-3.6 0.7-5 2zM6.5 10.6l2 2 2-2c-0.5-0.5-1.2-0.8-2-0.8s-1.5 0.3-2 0.8z"/>
-            </svg>
-            <svg class="battery" viewBox="0 0 25 11" aria-hidden>
-              <rect x="0.5" y="0.5" width="21" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-opacity="0.45"/>
-              <rect x="22" y="3.5" width="1.5" height="4" rx="0.4" fill="currentColor" fill-opacity="0.45"/>
-              <rect x="2" y="2" width="18" height="7" rx="1.4"/>
-            </svg>
+            <svg viewBox="0 0 17 11"><path d="M1 4.5C1 3.67 1.67 3 2.5 3h1C4.33 3 5 3.67 5 4.5v5c0 .83-.67 1.5-1.5 1.5h-1C1.67 11 1 10.33 1 9.5v-5zM6 3h2.5C9.33 3 10 3.67 10 4.5v5c0 .83-.67 1.5-1.5 1.5H6V3zm3 7.5c.83 0 1.5-.67 1.5-1.5v-5c0-.83.67-1.5 1.5-1.5h1.5C14.33 3 15 3.67 15 4.5v5c0 .83-.67 1.5-1.5 1.5H9z"/></svg>
+            <svg class="battery" viewBox="0 0 25 11"><rect x="0.5" y="0.5" width="21" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1"/><rect x="2" y="2" width="17" height="7" rx="1.5" fill="currentColor"/><path d="M22 3v5c0 .83-.67 1.5-1.5 1.5h.67c.83 0 1.5-.67 1.5-1.5V4.5c0-.83-.67-1.5-1.5-1.5H22z"/></svg>
           </span>
         </div>
 
-        <main class="content" data-od-id="content">
-          <div class="header" data-od-id="header">
+        <div class="content">
+          <div class="hero-header">
             <div>
-              <p class="greeting">账户</p>
-              <h1>我的</h1>
+              <h1 class="hero-title">我的</h1>
+              <p class="hero-subtitle">用户档案</p>
             </div>
-            <button class="icon-btn" aria-label="设置" onclick="location.href='settings.html'">
+            <button class="header icon-btn" aria-label="设置" onclick="location.href='settings.html'">
               <i class="hgi-stroke hgi-account-setting-01" aria-hidden="true"></i>
             </button>
           </div>
 
-          <section class="pad" data-od-id="profile" style="margin-bottom: 10px;">
-            <div class="card" style="display: flex; gap: 14px; align-items: center;">
-              <div class="avatar" style="width: 64px; height: 64px;" data-od-id="avatar-self"><i class="hgi-stroke hgi-profile" aria-hidden="true" style="font-size: 32px; line-height: 1;"></i></div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 600; font-size: 18px;">小明</div>
-                <div class="meta" style="margin-top: 4px;">本人 · 主要使用者</div>
-                <div class="row" style="margin-top: 10px; gap: 8px;">
-                  <button class="btn-secondary" style="flex: 1; min-height: 38px; font-size: 13px;" onclick="alert('编辑资料')">编辑资料</button>
+          <!-- Mini Archive：水平列表 = 文件夹 + 药物说明书；点按右滑展开，右滑回文件夹合上 -->
+          <div class="archive" id="archive">
+            <div class="archive-scroll" id="archivePager">
+              <!-- 1：文件夹（打开时退到最左只露一角） -->
+              <div class="archive-card">
+                <div class="card-folder" id="folderCard" role="button" aria-label="我的收藏，点按展开">
+                  <div class="folder-back"></div>
+
+                  <!-- 封皮下的说明书：由脚本按 MEDS 数据生成 -->
+                  <div class="folder-stack" aria-hidden="true"></div>
+
+                  <div class="folder-front">
+                    <div class="folder-title">我的档案</div>
+                    <div class="folder-sub">Mini Archive</div>
+                    <div class="folder-lines">
+                      <div class="folder-line"></div>
+                      <div class="folder-line"></div>
+                      <div class="folder-line"></div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
 
-          <section class="pad" data-od-id="stats" style="margin-bottom: 10px;">
-            <p class="section-title">本周概览</p>
-            <div class="grid-3">
-              <div class="card stat-card"><div class="num">92%</div><div class="meta">服药率</div></div>
-              <div class="card stat-card"><div class="num">18</div><div class="meta">按时</div></div>
-              <div class="card stat-card"><div class="num">1</div><div class="meta">漏服</div></div>
+              <!-- 说明书卡片：由脚本按 MEDS 数据生成，插在文件夹卡片之后 -->
             </div>
-          </section>
+            <div class="archive-caption" id="archiveCaption">点按展开</div>
+          </div>
 
-          <section class="pad" data-od-id="family" style="margin-bottom: 10px;">
-            <div class="row-between" style="margin-bottom: 8px;">
-              <p class="section-title" style="margin: 0;">家庭成员</p>
-              <button class="icon-btn" aria-label="本地添加家庭成员" onclick="alert('本地添加家庭成员')">
-                <i class="hgi-stroke hgi-add-01" aria-hidden="true"></i>
+          <!-- 本周统计 -->
+          <div class="stats-section">
+            <h2 class="stats-title">本周概览</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">92%</div>
+                <div class="stat-label">服药率</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">18</div>
+                <div class="stat-label">按时</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">1</div>
+                <div class="stat-label">漏服</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 家庭成员 -->
+          <div class="family-section">
+            <div class="family-header">
+              <h2 class="family-title">家庭成员</h2>
+              <button class="header icon-btn" aria-label="添加家庭成员" onclick="alert('添加家庭成员')" style="width:36px;height:36px;border-radius:999px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;color:var(--fg);cursor:pointer;transition:background 140ms, border-color 140ms, transform 140ms;">
+                <i class="hgi-stroke hgi-add-01" aria-hidden="true" style="font-size:18px;line-height:1;"></i>
               </button>
             </div>
-            <div class="stack" style="gap: 2px;">
-              <div class="card flat row-between" style="padding: 12px 0;">
-                <div class="row">
-                  <div class="avatar" style="width: 36px; height: 36px;"><i class="hgi-stroke hgi-profile" aria-hidden="true" style="font-size: 18px; line-height: 1;"></i></div>
-                  <div>
-                    <div style="font-weight: 500; font-size: 14px;">我</div>
-                    <div class="meta">主要使用者</div>
-                  </div>
+            <div class="family-list">
+              <div class="family-card">
+                <div class="family-avatar"><i class="hgi-stroke hgi-profile" aria-hidden="true"></i></div>
+                <div class="family-info">
+                  <h3 class="family-name">我</h3>
+                  <p class="family-role">主要使用者</p>
                 </div>
-                <span class="badge ok" style="font-size: 10px;">本人</span>
+                <span class="family-badge ok">本人</span>
               </div>
-              <div class="card flat row-between" style="padding: 12px 0;">
-                <div class="row">
-                  <div class="avatar" style="width: 36px; height: 36px;"><i class="hgi-stroke hgi-profile" aria-hidden="true" style="font-size: 18px; line-height: 1;"></i></div>
-                  <div>
-                    <div style="font-weight: 500; font-size: 14px;">妈妈</div>
-                    <div class="meta">被照护人</div>
-                  </div>
+              <div class="family-card">
+                <div class="family-avatar"><i class="hgi-stroke hgi-profile" aria-hidden="true"></i></div>
+                <div class="family-info">
+                  <h3 class="family-name">妈妈</h3>
+                  <p class="family-role">被照护人</p>
                 </div>
-                <span class="badge warn" style="font-size: 10px;">待关注</span>
+                <span class="family-badge warn">待关注</span>
               </div>
-              <div class="card flat row-between" style="padding: 12px 0;">
-                <div class="row">
-                  <div class="avatar" style="width: 36px; height: 36px;"><i class="hgi-stroke hgi-profile" aria-hidden="true" style="font-size: 18px; line-height: 1;"></i></div>
-                  <div>
-                    <div style="font-weight: 500; font-size: 14px;">爸爸</div>
-                    <div class="meta">被照护人</div>
-                  </div>
+              <div class="family-card">
+                <div class="family-avatar"><i class="hgi-stroke hgi-profile" aria-hidden="true"></i></div>
+                <div class="family-info">
+                  <h3 class="family-name">爸爸</h3>
+                  <p class="family-role">被照护人</p>
                 </div>
-                <span class="badge ok" style="font-size: 10px;">正常</span>
+                <span class="family-badge ok">正常</span>
               </div>
             </div>
-          </section>
+          </div>
 
-          <section class="pad" data-od-id="cta" style="padding-top: 4px; padding-bottom: 16px;">
-            <button class="btn-secondary" style="color: var(--danger); border-color: #fecaca;" onclick="alert('退出登录')">退出登录</button>
-          </section>
-        </main>
+          <!-- 菜单列表 -->
+          <div class="menu-section">
+            <div class="menu-list">
+              <a class="menu-item" href="settings.html">
+                <i class="hgi-stroke hgi-account-setting-01" aria-hidden="true"></i>
+                <span class="menu-item-text">设置</span>
+                <span class="menu-item-arrow"><i class="hgi-stroke hgi-chevron-right" aria-hidden="true"></i></span>
+              </a>
+              <a class="menu-item" href="#">
+                <i class="hgi-stroke hgi-notification-01" aria-hidden="true"></i>
+                <span class="menu-item-text">通知设置</span>
+                <span class="menu-item-arrow"><i class="hgi-stroke hgi-chevron-right" aria-hidden="true"></i></span>
+              </a>
+              <a class="menu-item" href="#">
+                <i class="hgi-stroke hgi-download-01" aria-hidden="true"></i>
+                <span class="menu-item-text">导出报告</span>
+                <span class="menu-item-arrow"><i class="hgi-stroke hgi-chevron-right" aria-hidden="true"></i></span>
+              </a>
+              <a class="menu-item" href="#">
+                <i class="hgi-stroke hgi-shield-check" aria-hidden="true"></i>
+                <span class="menu-item-text">隐私与数据</span>
+                <span class="menu-item-arrow"><i class="hgi-stroke hgi-chevron-right" aria-hidden="true"></i></span>
+              </a>
+            </div>
+          </div>
 
-        <nav class="tabbar" style="--tabs: 4;" data-od-id="tabbar">
-          <a class="tab" href="today.html">
-            <i class="hgi-stroke hgi-home-01" aria-hidden="true"></i>
-            今天
-          </a>
-          <a class="tab" href="medications.html">
-            <i class="hgi-stroke hgi-book-open-01" aria-hidden="true"></i>
-            药品库
-          </a>
-          <a class="tab" href="add-medication.html">
-            <i class="hgi-stroke hgi-add-01" aria-hidden="true"></i>
-            添加
-          </a>
-          <a class="tab active" href="#">
-            <i class="hgi-stroke hgi-profile" aria-hidden="true"></i>
-            我的
-          </a>
+          <!-- 退出按钮 -->
+          <div class="pad" style="padding-top: 4px; padding-bottom: 16px;">
+            <button class="btn-secondary" style="color: var(--danger-strong); border-color: color-mix(in oklab, var(--danger) 25%, var(--border));" onclick="alert('退出登录')">退出登录</button>
+          </div>
+        </div>
+
+        <!-- 底部导航 -->
+        <nav class="tabbar" aria-label="主导航">
+          <a href="today.html" class="tab"><i class="hgi-stroke hgi-home-01" aria-hidden="true"></i>今天</a>
+          <a href="medications.html" class="tab"><i class="hgi-stroke hgi-book-open-01" aria-hidden="true"></i>药品库</a>
+          <button class="tab active" aria-current="page"><i class="hgi-stroke hgi-profile" aria-hidden="true"></i>我的</button>
         </nav>
-
-        <div class="home-indicator" aria-hidden></div>
+        <div class="home-indicator"></div>
       </div>
     </div>
   </div>
 
   <script>
-    document.querySelectorAll('.chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const siblings = chip.parentElement.querySelectorAll('.chip');
-        siblings.forEach(s => s.classList.remove('active'));
-        chip.classList.add('active');
-      });
+    const archive = document.getElementById('archive');
+    const pager = document.getElementById('archivePager');
+    const folder = document.getElementById('folderCard');
+    const folderBack = folder.querySelector('.folder-back');
+    const folderFront = folder.querySelector('.folder-front');
+    const caption = document.getElementById('archiveCaption');
+
+    // 药品数据：增删药品只改这里。文件夹内的小说明书和水平列表的说明书
+    // 都是这份数据的两个投影，由脚本生成，数量不限
+    const MEDS = [
+      { name: '阿托伐他汀钙片', note: '注意事项' },
+      { name: '盐酸二甲双胍片', note: '禁忌' },
+      { name: '阿司匹林肠溶片', note: '不良反应' },
+      { name: '苯磺酸氨氯地平片', note: '药物相互作用' },
+      { name: '硝苯地平缓释片', note: '注意事项' },
+      { name: '奥美拉唑肠溶胶囊', note: '禁忌' },
+      { name: '阿卡波糖片', note: '不良反应' },
+      { name: '瑞舒伐他汀钙片', note: '药物相互作用' },
+      { name: '氯沙坦钾片', note: '老年用药' },
+      { name: '格列美脲片', note: '儿童用药' },
+    ];
+    const COMMON_ROWS = ['成份', '适应症', '规格', '用法用量'];
+
+    function leafletHTML(med) {
+      const rows = [...COMMON_ROWS, med.note]
+        .map((k) => `<div class="leaflet-row"><span class="k">${k}</span><span class="v"></span></div>`)
+        .join('');
+      return (
+        '<div class="leaflet-head">' +
+        `<div class="leaflet-name">${med.name}</div>` +
+        '<div class="leaflet-sub">请仔细阅读并按说明使用</div>' +
+        '</div>' +
+        `<div class="leaflet-body">${rows}</div>`
+      );
+    }
+
+    // 封皮下的小说明书：--i 驱动堆叠偏移、飞行位移和延迟；
+    // --n 让堆叠扇形随数量自适应收缩（3 张时保持原样，10 张时收紧）
+    const stack = folder.querySelector('.folder-stack');
+    stack.style.setProperty('--n', String(MEDS.length));
+    stack.innerHTML = MEDS.map(
+      (med, i) => `<div class="mini-leaf" style="--i:${i}">${leafletHTML(med)}</div>`
+    ).join('');
+
+    // 水平列表的说明书卡片：插在文件夹卡片之后，--i 驱动淡入延迟
+    pager.insertAdjacentHTML(
+      'beforeend',
+      MEDS.map(
+        (med, i) =>
+          `<div class="archive-card" style="--i:${i}"><div class="leaflet">${leafletHTML(med)}</div></div>`
+      ).join('')
+    );
+
+    const cards = Array.from(pager.querySelectorAll('.archive-card'));
+
+    // 让某张卡居中到视口
+    function centerOf(card) {
+      const c = pager.getBoundingClientRect();
+      const r = card.getBoundingClientRect();
+      return pager.scrollLeft + (r.left + r.width / 2) - (c.left + c.width / 2);
+    }
+
+    // 与手动左滑完全一致：只发起浏览器原生平滑滚动，不自造缓动。
+    // 开合状态、封皮/卡片动画统一由 sync() 按滚动进度驱动，
+    // 点按和滑动因此走同一条链路、观感一致
+    function animateScrollTo(target) {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      pager.scrollTo({ left: target, behavior: reduce ? 'auto' : 'smooth' });
+    }
+
+    // 点按文件夹：闭合→平滑滚到说明书1（展开）；已展开→平滑滚回文件夹（合上）
+    folder.addEventListener('click', () => {
+      if (!cards[1]) return;
+      const open = archive.classList.contains('is-open');
+      animateScrollTo(open ? 0 : centerOf(cards[1]));
     });
+
+    // 依据滚动进度同步：开合状态、提示文案、封皮“退到一边”的变暗
+    //（只淡化封皮和底板，不影响正在放大飞入列表的小说明书）
+    function sync() {
+      const open = pager.scrollLeft > 40;
+      archive.classList.toggle('is-open', open);
+      if (caption) caption.textContent = open ? '右滑回到文件夹合上' : '点按展开';
+      const p = Math.min(1, Math.max(0, pager.scrollLeft / 260));
+      const dim = String(1 - 0.35 * p);
+      folderBack.style.opacity = p <= 0.001 ? '' : dim;
+      folderFront.style.opacity = p <= 0.001 ? '' : dim;
+    }
+
+    pager.addEventListener('scroll', () => window.requestAnimationFrame(sync));
+    sync();
   </script>
 </body>
 </html>

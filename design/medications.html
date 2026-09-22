@@ -23,14 +23,17 @@
       --warn-strong: #b45309;
       --danger: #ef4444;
       --danger-strong: #dc2626;
+
       --font-display: Inter, system-ui, sans-serif;
       --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
       --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
-      --fs-h1: 28px;
+
+      --fs-h1: 32px;
       --fs-h2: 22px;
       --fs-h3: 17px;
       --fs-body: 17px;
       --fs-meta: 13px;
+
       --radius-card: 18px;
       --radius-pill: 999px;
     }
@@ -70,8 +73,7 @@
       height: 844px;
       border-radius: 56px;
       padding: 12px;
-      background:
-        linear-gradient(160deg, #2a2a2c 0%, #1a1a1c 50%, #0e0e10 100%);
+      background: linear-gradient(160deg, #2a2a2c 0%, #1a1a1c 50%, #0e0e10 100%);
       box-shadow:
         0 0 0 1px rgba(255,255,255,0.04) inset,
         0 0 0 2px #000 inset,
@@ -165,471 +167,436 @@
     }
 
     .pad     { padding-inline: 20px; }
-    .stack   { display: flex; flex-direction: column; gap: 10px; }
-    .row     { display: flex; align-items: center; gap: 12px; }
+    .stack   { display: flex; flex-direction: column; gap: 12px; }
     .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .grid-2  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .grid-3  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
-    .header {
-      padding: 8px 20px 12px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    /* ========== 头部：巨型标题 + 计数徽章 ========== */
+    .hero-header {
+      padding: 8px 20px 18px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
     }
-    .header h1 {
+    .hero-title {
       font-family: var(--font-display);
       font-size: var(--fs-h1);
-      letter-spacing: -0.02em;
-      line-height: 1.1;
-      margin: 0;
-    }
-    .header .icon-btn {
-      position: relative;
-      width: 36px; height: 36px;
-      border-radius: 999px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      display: grid; place-items: center;
+      font-weight: 800;
+      letter-spacing: -0.03em;
       color: var(--fg);
-      cursor: pointer;
-      transition: background 140ms, border-color 140ms, transform 140ms;
+      line-height: 1;
     }
-    .header .icon-btn::after { content: ''; position: absolute; inset: -6px; }
-    .header .icon-btn:hover { background: var(--fg-soft); border-color: var(--border); }
-    .header .icon-btn:active { transform: scale(0.96); }
-    .header .icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
-    .header .icon-btn i { font-size: 18px; line-height: 1; }
-    .icon-btn i { display: block; }
-
-    .greeting {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+    .hero-subtitle {
+      font-family: var(--font-body);
+      font-size: var(--fs-meta);
       color: var(--muted);
-      margin: 0 0 4px;
-    }
-
-    .h2  { font-family: var(--font-display); font-size: var(--fs-h2); letter-spacing: -0.015em; line-height: 1.2; margin: 0; }
-    .h3  { font-size: var(--fs-h3); font-weight: 600; line-height: 1.3; margin: 0; }
-    .meta { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--muted); }
-    .num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      padding: 14px 16px;
-    }
-    .card.accent {
-      background: var(--accent-strong);
-      color: #fff;
-      border-color: transparent;
-    }
-    .card.accent .meta { color: rgba(255,255,255,0.72); }
-    .card.flat { background: transparent; border: 0; padding: 10px 0; border-top: 1px solid var(--border); border-radius: 0; }
-    .card.flat:first-child { border-top: 0; padding-top: 0; }
-
-    .list-row {
-      display: grid;
-      grid-template-columns: 40px 1fr auto;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 0;
-      border-top: 1px solid var(--border);
-    }
-    .list-row:first-child { border-top: 0; }
-    .list-row .body .title { font-size: 17px; font-weight: 500; line-height: 1.25; }
-    .list-row .body .sub   { color: var(--muted); font-size: 14px; line-height: 1.3; margin-top: 2px; }
-
-    .tabbar {
-      flex: 0 0 auto;
-      display: grid;
-      grid-template-columns: repeat(var(--tabs, 4), 1fr);
-      padding: 8px 8px 0;
-      border-top: 1px solid var(--border);
-      background: color-mix(in oklab, var(--surface) 92%, transparent);
-      backdrop-filter: blur(20px);
-    }
-    .tab {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      padding: 8px 0;
-      color: var(--muted);
-      font-size: 10px;
-      letter-spacing: 0.02em;
-      text-decoration: none;
-    }
-    .tab.active { color: var(--accent); }
-    .tab i { font-size: 22px; line-height: 1; }
-    .tab.active i { font-weight: 400; }
-
-    .btn-primary {
-      display: flex; align-items: center; justify-content: center;
-      width: 100%;
-      min-height: 48px;
-      padding: 14px 20px;
-      background: var(--accent-strong);
-      color: #fff;
-      border: 0;
-      border-radius: 18px;
-      font: inherit;
-      font-size: 17px;
-      font-weight: 600;
-      letter-spacing: -0.005em;
-      cursor: pointer;
-      transition: transform 140ms, background 140ms;
-    }
-    .btn-primary:hover { background: color-mix(in oklab, var(--accent-strong), black 6%); }
-    .btn-primary:active { transform: scale(0.98); }
-    .btn-secondary {
-      display: flex; align-items: center; justify-content: center;
-      width: 100%;
-      min-height: 48px;
-      padding: 14px 20px;
-      background: transparent;
-      color: var(--fg);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      font: inherit;
-      font-size: 17px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 140ms, border-color 140ms, transform 140ms;
-    }
-    .btn-secondary:hover { background: var(--fg-soft); border-color: var(--border); }
-    .btn-secondary:active { transform: scale(0.98); }
-
-    .ph-img {
-      background:
-        linear-gradient(135deg, var(--accent-soft), var(--fg-soft)),
-        var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      aspect-ratio: 4 / 3;
-      display: grid; place-items: center;
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 0.04em;
-    }
-    .ph-img.square { aspect-ratio: 1 / 1; }
-    .ph-img.wide   { aspect-ratio: 16 / 9; }
-
-    .pill {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 6px 14px;
-      background: var(--accent-soft);
-      color: var(--accent);
-      border-radius: 999px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.02em;
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: background 140ms, border-color 140ms, transform 140ms;
-    }
-    .pill.active { background: var(--accent-strong); color: #fff; }
-    .tag {
-      display: inline-flex;
-      padding: 6px 14px;
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background 140ms, border-color 140ms, color 140ms, transform 140ms;
-    }
-    .tag:hover { color: var(--fg); background: var(--fg-soft); border-color: var(--border); }
-    .tag:active, .pill:active { transform: scale(0.97); }
-
-    .progress { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
-    .progress > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
-
-    .section-title {
-      margin: 0 0 8px;
-      font-family: var(--font-display);
-      font-size: var(--fs-h3);
-      font-weight: 600;
-      letter-spacing: -0.005em;
-      color: var(--fg-2);
-    }
-
-    .divider { height: 1px; background: var(--border); margin: 0 20px; }
-
-    .med-card {
-      display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px;
-      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card);
-      transition: background 160ms, border-color 160ms;
-      cursor: pointer;
-    }
-    .med-card:hover {
-      background: var(--fg-soft);
-      border-color: var(--border);
-    }
-    .med-card:active { background: color-mix(in oklab, var(--fg) 10%, var(--surface)); }
-    .med-thumb {
-      width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
-      background: linear-gradient(135deg, var(--accent-soft), var(--fg-soft)), var(--surface);
-      border: 1px solid var(--border);
-      display: grid; place-items: center; color: var(--muted); font-family: var(--font-mono); font-size: 10px;
-    }
-    .med-title {
-      font-size: 17px;
-      font-weight: 600;
-      line-height: 1.25;
-      color: var(--fg);
-    }
-    .med-meta { color: var(--muted); font-size: 14px; margin-top: 2px; line-height: 1.4; }
-    .med-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
-    .med-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500;
+      margin-top: 6px;
       letter-spacing: 0.01em;
     }
-    .badge.ok { background: rgba(16,185,129,0.12); color: var(--success-strong); }
-    .badge.warn { background: rgba(245,158,11,0.12); color: var(--warn-strong); }
-    .badge.danger { background: rgba(239,68,68,0.12); color: var(--danger-strong); }
-
-    .icon-btn-sm {
-      width: 36px; height: 36px; padding: 0;
-      border-radius: 999px; background: transparent; border: 1px solid transparent;
-      display: grid; place-items: center; color: var(--muted); cursor: pointer;
-      transition: color 140ms, background 140ms, border-color 140ms;
+    .hero-badge {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      background: var(--accent-strong);
+      color: #fff;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 12px color-mix(in oklab, var(--accent) 30%, transparent);
     }
-    .icon-btn-sm:hover { color: var(--fg); background: var(--fg-soft); border-color: var(--border); }
-    .icon-btn-sm:active { transform: scale(0.96); }
-    .icon-btn-sm:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+    .hero-badge i { font-size: 18px; line-height: 1; }
 
-    :focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); border-radius: 4px; }
+    .header .icon-btn {
+      position: relative;
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: grid;
+      place-items: center;
+      color: var(--fg);
+      cursor: pointer;
+      transition: background 140ms, border-color 140ms, transform 140ms;
+      text-decoration: none;
+    }
+    .header .icon-btn::after { content: ''; position: absolute; inset: -6px; }
+    .header .icon-btn:hover { background: var(--fg-soft); border-color: var(--fg-2); }
+    .header .icon-btn:active { transform: scale(0.96); }
+    .header .icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+    .header .icon-btn i { font-size: 22px; line-height: 1; }
 
+    /* ========== 搜索栏 ========== */
+    .search-bar {
+      margin: 0 20px 16px;
+      position: relative;
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 14px 14px 14px 44px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-pill);
+      font-family: var(--font-body);
+      font-size: var(--fs-body);
+      color: var(--fg);
+      outline: none;
+      transition: border-color 140ms, box-shadow 140ms;
+    }
+    .search-bar input::placeholder { color: var(--muted); }
+    .search-bar input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .search-bar .search-ico {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    /* ========== 分类标签 ========== */
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 0 20px 16px;
+      scrollbar-width: none;
+    }
+    .chip-row::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0;
+      padding: 8px 18px;
+      border-radius: var(--radius-pill);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 140ms;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+    }
+    .chip:hover { border-color: var(--fg-2); color: var(--fg-2); }
+    .chip.active {
+      background: var(--fg);
+      color: var(--surface);
+      border-color: var(--fg);
+    }
+
+    /* ========== 药品卡片：左边框色码 ========== */
+    .med-list { display: flex; flex-direction: column; gap: 12px; padding: 0 20px; }
+
+    .med-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 6px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      cursor: pointer;
+      transition: background 160ms, border-color 160ms, border-left-color 160ms;
+    }
+    .med-card:hover { background: var(--fg-soft); border-color: var(--fg-2); }
+    .med-card[data-stock="ok"]      { border-left-color: var(--success-strong); }
+    .med-card[data-stock="low"]     { border-left-color: var(--warn-strong); }
+    .med-card[data-stock="critical"] { border-left-color: var(--danger-strong); }
+
+    .med-thumb {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .med-thumb i { font-size: 24px; line-height: 1; }
+
+    .med-info { flex: 1; min-width: 0; }
+    .med-name {
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      font-weight: 700;
+      color: var(--fg);
+      letter-spacing: -0.005em;
+      margin: 0 0 3px;
+    }
+    .med-meta {
+      font-size: var(--fs-meta);
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .med-meta .dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--muted);
+      opacity: 0.5;
+    }
+
+    .stock-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .stock-pill i { font-size: 13px; line-height: 1; }
+    .stock-pill.ok      { background: color-mix(in oklab, var(--success) 12%, transparent); color: var(--success-strong); }
+    .stock-pill.low     { background: color-mix(in oklab, var(--warn) 12%, transparent); color: var(--warn-strong); }
+    .stock-pill.critical { background: color-mix(in oklab, var(--danger) 12%, transparent); color: var(--danger-strong); }
+
+    .med-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .med-actions button {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-pill);
+      background: var(--fg-soft);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: all 140ms;
+    }
+    .med-actions button:hover { background: var(--border); color: var(--fg); }
+    .med-actions button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+    .med-actions button i { font-size: 16px; line-height: 1; }
+
+    /* ========== 底部导航 ========== */
+    .tabbar {
+      flex: 0 0 84px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding-top: 10px;
+    }
+    .tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: color 140ms;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font-body);
+    }
+    .tab i { font-size: 24px; line-height: 1; transition: transform 140ms; }
+    .tab:hover { color: var(--fg-2); }
+    .tab:hover i { transform: translateY(-1px); }
+    .tab.active { color: var(--accent-strong); }
+    .tab.active i { transform: translateY(-1px); }
+
+    /* ========== 空态 ========== */
     .empty-state {
-      text-align: center; padding: 28px 20px; color: var(--muted);
+      text-align: center;
+      padding: 60px 40px;
+      color: var(--muted);
     }
-    .empty-state .empty-title { font-weight: 600; color: var(--fg); margin-top: 10px; }
-    .empty-state .empty-desc { font-size: 13px; margin-top: 6px; line-height: 1.5; }
-    .empty-state .empty-cta { margin-top: 14px; }
+    .empty-state i {
+      font-size: 56px;
+      line-height: 1;
+      margin-bottom: 16px;
+      opacity: 0.4;
+    }
+    .empty-state h3 {
+      font-family: var(--font-display);
+      font-size: var(--fs-h3);
+      font-weight: 700;
+      color: var(--fg-2);
+      margin: 0 0 8px;
+    }
+    .empty-state p {
+      font-size: var(--fs-meta);
+      margin: 0;
+    }
 
-    @media (prefers-reduced-motion: reduce) {
-      .med-card, .icon-btn, .icon-btn-sm, .header .icon-btn { transition: none; }
-      .med-card:hover { transform: none; }
-    }
-  
+    /* ========== 深色模式 ========== */
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #0a0a0c;
         --surface: #1c1c1e;
         --fg: #f5f5f7;
-        --fg-2: #ebebf0;
+        --fg-2: #d1d1d6;
         --muted: #98989d;
         --border: #2c2c2e;
-        --accent-soft: color-mix(in oklab, var(--accent) 18%, transparent);
-        --fg-soft: color-mix(in oklab, var(--fg) 12%, transparent);
+        --accent-soft: color-mix(in oklab, var(--accent) 22%, transparent);
+        --fg-soft: color-mix(in oklab, #fff 8%, transparent);
       }
-      .device { background: linear-gradient(160deg, #1a1a1c 0%, #0e0e10 50%, #050507 100%); }
-      .statusbar { color: var(--fg); }
-      .statusbar svg { fill: var(--fg); }
-      .home-indicator::after { background: var(--fg); opacity: 0.5; }
-      .ph-img { background: linear-gradient(135deg, var(--accent-soft), var(--fg-soft)), var(--surface); }
-      .med-thumb { background: linear-gradient(135deg, var(--accent-soft), var(--fg-soft)), var(--surface); }
+      .search-bar input { color: var(--fg); }
+      .search-bar input::placeholder { color: var(--muted); }
+      .med-thumb { border-color: var(--border); }
     }
   </style>
 </head>
 <body>
   <div class="stage">
-    <div class="caption"><strong>记得吃药</strong> · 药品库</div>
-
-    <div class="device" data-od-id="device">
-      <span class="btn-rail left-1"  aria-hidden></span>
-      <span class="btn-rail left-2"  aria-hidden></span>
-      <span class="btn-rail left-3"  aria-hidden></span>
-      <span class="btn-rail right-1" aria-hidden></span>
-      <span class="island"           aria-hidden></span>
+    <div class="caption"><strong>记得吃药</strong> / 药品库</div>
+    <div class="device">
+      <div class="island"></div>
+      <div class="btn-rail left-1"></div>
+      <div class="btn-rail left-2"></div>
+      <div class="btn-rail left-3"></div>
+      <div class="btn-rail right-1"></div>
 
       <div class="screen">
         <div class="statusbar">
-          <span class="num">9:41</span>
+          <span>9:41</span>
           <span class="right">
-            <svg viewBox="0 0 17 11" aria-hidden>
-              <rect x="0"  y="7" width="3" height="4" rx="0.6"/>
-              <rect x="4"  y="5" width="3" height="6" rx="0.6"/>
-              <rect x="8"  y="3" width="3" height="8" rx="0.6"/>
-              <rect x="12" y="0" width="3" height="11" rx="0.6"/>
-            </svg>
-            <svg viewBox="0 0 17 11" aria-hidden>
-              <path d="M8.5 1.5C5.5 1.5 2.7 2.6 0.5 4.6L2 6.1C3.8 4.5 6.1 3.6 8.5 3.6c2.4 0 4.7 0.9 6.5 2.5l1.5-1.5c-2.2-2-5-3.1-8-3.1zM3.5 7.6L5 9.1c1-0.9 2.2-1.4 3.5-1.4 1.3 0 2.5 0.5 3.5 1.4l1.5-1.5c-1.4-1.3-3.1-2-5-2-1.9 0-3.6 0.7-5 2zM6.5 10.6l2 2 2-2c-0.5-0.5-1.2-0.8-2-0.8s-1.5 0.3-2 0.8z"/>
-            </svg>
-            <svg class="battery" viewBox="0 0 25 11" aria-hidden>
-              <rect x="0.5" y="0.5" width="21" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-opacity="0.45"/>
-              <rect x="22" y="3.5" width="1.5" height="4" rx="0.4" fill="currentColor" fill-opacity="0.45"/>
-              <rect x="2" y="2" width="18" height="7" rx="1.4"/>
-            </svg>
+            <svg viewBox="0 0 17 11"><path d="M1 4.5C1 3.67 1.67 3 2.5 3h1C4.33 3 5 3.67 5 4.5v5c0 .83-.67 1.5-1.5 1.5h-1C1.67 11 1 10.33 1 9.5v-5zM6 3h2.5C9.33 3 10 3.67 10 4.5v5c0 .83-.67 1.5-1.5 1.5H6V3zm3 7.5c.83 0 1.5-.67 1.5-1.5v-5c0-.83.67-1.5 1.5-1.5h1.5C14.33 3 15 3.67 15 4.5v5c0 .83-.67 1.5-1.5 1.5H9z"/></svg>
+            <svg class="battery" viewBox="0 0 25 11"><rect x="0.5" y="0.5" width="21" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1"/><rect x="2" y="2" width="17" height="7" rx="1.5" fill="currentColor"/><path d="M22 3v5c0 .83-.67 1.5-1.5 1.5h.67c.83 0 1.5-.67 1.5-1.5V4.5c0-.83-.67-1.5-1.5-1.5H22z"/></svg>
           </span>
         </div>
 
-        <main class="content" data-od-id="content">
-          <div class="header" data-od-id="header">
+        <div class="content">
+          <!-- 头部：巨型标题 -->
+          <div class="hero-header">
             <div>
-              <p class="greeting">家庭</p>
-              <h1>药品库</h1>
+              <h1 class="hero-title">药品库</h1>
+              <p class="hero-subtitle">管理所有家庭药品</p>
             </div>
-            <button class="icon-btn" aria-label="搜索" onclick="alert('搜索药品')">
-              <i class="hgi-stroke hgi-search-01" aria-hidden="true"></i>
-            </button>
+            <div class="hero-badge">
+              <i class="hgi-stroke hgi-medicine-01" aria-hidden="true"></i>
+              <span id="med-count">6 种</span>
+            </div>
           </div>
 
-          <section class="pad" data-od-id="family" style="margin-bottom: 10px;">
-            <div class="row" style="overflow-x: auto; padding-bottom: 2px; gap: 8px;">
-              <span class="pill active" onclick="switchMember(this)">全部</span>
-              <span class="tag" onclick="switchMember(this)">我</span>
-              <span class="tag" onclick="switchMember(this)">妈妈</span>
-              <span class="tag" onclick="switchMember(this)">爸爸</span>
-              <span class="tag" onclick="switchMember(this)">老人</span>
-            </div>
-          </section>
+          <!-- 搜索栏 -->
+          <div class="search-bar">
+            <span class="search-ico"><i class="hgi-stroke hgi-search-01" aria-hidden="true"></i></span>
+            <input type="text" placeholder="搜索药品名称..." aria-label="搜索药品" />
+          </div>
 
-          <div class="divider" style="margin-bottom: 10px;"></div>
+          <!-- 分类标签 -->
+          <div class="chip-row">
+            <span class="chip active" data-filter="all">全部</span>
+            <span class="chip" data-filter="chronic">慢性病</span>
+            <span class="chip" data-filter="acute">临时用药</span>
+            <span class="chip" data-filter="supplement">保健品</span>
+            <span class="chip" data-filter="low">库存不足</span>
+          </div>
 
-          <section class="pad" data-od-id="search" style="margin-bottom: 10px;">
-            <div style="position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card);">
-              <i class="hgi-stroke hgi-search-01" aria-hidden="true" style="font-size: 18px; line-height: 1; color: var(--muted); flex-shrink: 0; position: absolute; left: 14px; pointer-events: none;"></i>
-              <input type="text" placeholder="搜索药品名称或用途" style="flex: 1; border: 0; background: transparent; padding: 0; font: inherit; font-size: 14px; color: var(--fg); outline: none; margin-left: 26px;" />
-            </div>
-          </section>
+          <!-- 药品列表 -->
+          <div class="med-list" id="med-list"></div>
+        </div>
 
-          <section class="pad" data-od-id="skeleton" style="margin-bottom: 10px; display: none;">
-            <div class="stack" style="gap: 10px;">
-              <div class="card" style="padding: 14px 16px;">
-                <div style="display: flex; gap: 14px; align-items: flex-start;">
-                  <div style="width: 56px; height: 56px; border-radius: 14px; background: var(--border);"></div>
-                  <div style="flex: 1;">
-                    <div style="height: 14px; width: 60%; background: var(--border); border-radius: 6px; margin-bottom: 8px;"></div>
-                    <div style="height: 12px; width: 80%; background: var(--border); border-radius: 6px;"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="card" style="padding: 14px 16px;">
-                <div style="display: flex; gap: 14px; align-items: flex-start;">
-                  <div style="width: 56px; height: 56px; border-radius: 14px; background: var(--border);"></div>
-                  <div style="flex: 1;">
-                    <div style="height: 14px; width: 50%; background: var(--border); border-radius: 6px; margin-bottom: 8px;"></div>
-                    <div style="height: 12px; width: 70%; background: var(--border); border-radius: 6px;"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section class="pad" data-od-id="list" style="margin-bottom: 10px;">
-            <div class="stack" style="gap: 10px;">
-              <div class="med-card" data-od-id="med-1">
-                <div class="med-thumb">10mg</div>
-                <div style="flex: 1; min-width: 0;">
-                  <div class="med-title">阿托伐他汀</div>
-                  <div class="med-meta">10mg/片 · 每晚 1 片 · 睡前</div>
-                  <div class="med-footer">
-                    <span class="badge danger">剩余 8 天</span>
-                    <button class="icon-btn icon-btn-sm" aria-label="更多" onclick="alert('更多')">
-                      <i class="hgi-stroke hgi-more-horizontal" aria-hidden="true"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="med-card" data-od-id="med-2">
-                <div class="med-thumb">500mg</div>
-                <div style="flex: 1; min-width: 0;">
-                  <div class="med-title">二甲双胍</div>
-                  <div class="med-meta">500mg/片 · 三餐后各 1 片</div>
-                  <div class="med-footer">
-                    <span class="badge ok">剩余 24 天</span>
-                    <button class="icon-btn icon-btn-sm" aria-label="更多" onclick="alert('更多')">
-                      <i class="hgi-stroke hgi-more-horizontal" aria-hidden="true"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="med-card" data-od-id="med-3">
-                <div class="med-thumb">100mg</div>
-                <div style="flex: 1; min-width: 0;">
-                  <div class="med-title">阿司匹林</div>
-                  <div class="med-meta">100mg/片 · 每日 1 片 · 午餐后</div>
-                  <div class="med-footer">
-                    <span class="badge warn">剩余 5 天</span>
-                    <button class="icon-btn icon-btn-sm" aria-label="更多" onclick="alert('更多')">
-                      <i class="hgi-stroke hgi-more-horizontal" aria-hidden="true"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="med-card" data-od-id="med-4">
-                <div class="med-thumb">片剂</div>
-                <div style="flex: 1; min-width: 0;">
-                  <div class="med-title">布洛芬</div>
-                  <div class="med-meta">200mg/片 · 需要时服用 · 每 6 小时最多 1 片</div>
-                  <div class="med-footer">
-                    <span class="badge ok">按需</span>
-                    <button class="icon-btn icon-btn-sm" aria-label="更多" onclick="alert('更多')">
-                      <i class="hgi-stroke hgi-more-horizontal" aria-hidden="true"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section class="pad" data-od-id="cta" style="padding-top: 4px; padding-bottom: 16px;">
-            <button class="btn-primary" onclick="alert('打开添加药品')" style="transition: transform 140ms;">添加药品</button>
-          </section>
-
-          <section class="pad" data-od-id="empty" style="display: none; padding-top: 4px; padding-bottom: 16px;">
-            <div class="card empty-state">
-              <div style="font-size: 32px; font-weight: 600; color: var(--border);">暂无药品</div>
-              <div class="empty-title">还没有添加任何药品</div>
-              <div class="empty-desc">点击上方按钮添加第一种药品，或使用拍照识别快速录入。</div>
-              <div class="empty-cta">
-                <button class="btn-primary" onclick="toggleEmpty()" style="min-height: 44px;">添加第一种药品</button>
-              </div>
-            </div>
-          </section>
-        </main>
-
-        <nav class="tabbar" style="--tabs: 4;" data-od-id="tabbar">
-          <a class="tab" href="today.html">
-            <i class="hgi-stroke hgi-home-01" aria-hidden="true"></i>
-            今天
-          </a>
-          <a class="tab active" href="#">
-            <i class="hgi-stroke hgi-book-open-01" aria-hidden="true"></i>
-            药品库
-          </a>
-          <a class="tab" href="add-medication.html">
-            <i class="hgi-stroke hgi-add-01" aria-hidden="true"></i>
-            添加
-          </a>
-          <a class="tab" href="profile.html">
-            <i class="hgi-stroke hgi-profile" aria-hidden="true"></i>
-            我的
-          </a>
+        <!-- 底部导航 -->
+        <nav class="tabbar" aria-label="主导航">
+          <a href="today.html" class="tab"><i class="hgi-stroke hgi-home-01" aria-hidden="true"></i>今天</a>
+          <button class="tab active" aria-current="page"><i class="hgi-stroke hgi-book-open-01" aria-hidden="true"></i>药品库</button>
+          <a href="profile.html" class="tab"><i class="hgi-stroke hgi-profile" aria-hidden="true"></i>我的</a>
         </nav>
-
-        <div class="home-indicator" aria-hidden></div>
+        <div class="home-indicator"></div>
       </div>
     </div>
   </div>
 
   <script>
-    function switchMember(el) {
-      const siblings = el.parentElement.querySelectorAll('.pill, .tag');
-      siblings.forEach(s => {
-        s.classList.remove('active', 'pill');
-        s.classList.add('tag');
-      });
-      el.classList.remove('tag');
-      el.classList.add('pill', 'active');
+    const MEDS = [
+      { id: 'm1', name: '阿托伐他汀', dose: '20mg/每晚', stock: 8, total: 30, type: 'chronic', category: '慢性病' },
+      { id: 'm2', name: '二甲双胍', dose: '500mg/每日两次', stock: 22, total: 60, type: 'chronic', category: '慢性病' },
+      { id: 'm3', name: '硝苯地平', dose: '10mg/每日一次', stock: 3, total: 30, type: 'chronic', category: '慢性病' },
+      { id: 'm4', name: '布洛芬', dose: '400mg/按需', stock: 12, total: 20, type: 'acute', category: '临时用药' },
+      { id: 'm5', name: '维生素 D', dose: '1000IU/每日', stock: 45, total: 90, type: 'supplement', category: '保健品' },
+      { id: 'm6', name: '阿司匹林', dose: '100mg/每日一次', stock: 5, total: 30, type: 'chronic', category: '慢性病' }
+    ];
+
+    function stockStatus(stock, total) {
+      const ratio = stock / total;
+      if (ratio <= 0.15) return 'critical';
+      if (ratio <= 0.3) return 'low';
+      return 'ok';
     }
+    function stockLabel(status) {
+      return { ok: '库存充足', low: '库存偏低', critical: '即将耗尽' }[status];
+    }
+    function stockIcon(status) {
+      return { ok: 'hgi-checkmark-circle-01', low: 'hgi-alert-01', critical: 'hgi-alert-diamond' }[status];
+    }
+
+    function renderMeds(filter) {
+      const list = document.getElementById('med-list');
+      let items = MEDS;
+      if (filter === 'low') items = items.filter(m => stockStatus(m.stock, m.total) !== 'ok');
+      else if (filter !== 'all') items = items.filter(m => m.type === filter);
+
+      if (items.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <i class="hgi-stroke hgi-bookmark" aria-hidden="true"></i>
+            <h3>暂无药品</h3>
+            <p>该分类下还没有添加药品</p>
+          </div>`;
+        return;
+      }
+
+      list.innerHTML = items.map(m => {
+        const status = stockStatus(m.stock, m.total);
+        const label = stockLabel(status);
+        const icon = stockIcon(status);
+        return `
+          <article class="med-card" data-stock="${status}" data-id="${m.id}">
+            <div class="med-thumb"><i class="hgi-stroke hgi-medicine-01" aria-hidden="true"></i></div>
+            <div class="med-info">
+              <h3 class="med-name">${m.name}</h3>
+              <div class="med-meta">
+                <span>${m.dose}</span>
+                <span class="dot" aria-hidden="true"></span>
+                <span>${m.category}</span>
+              </div>
+            </div>
+            <div class="stock-pill ${status}">
+              <i class="hgi-stroke ${icon}" aria-hidden="true"></i>
+              <span>${m.stock}/${m.total} · ${label}</span>
+            </div>
+            <div class="med-actions">
+              <button aria-label="更多操作" title="更多"><i class="hgi-stroke hgi-more-horizontal" aria-hidden="true"></i></button>
+            </div>
+          </article>`;
+      }).join('');
+    }
+
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        renderMeds(chip.dataset.filter);
+      });
+    });
+
+    renderMeds('all');
   </script>
 </body>
 </html>

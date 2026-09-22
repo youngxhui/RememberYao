@@ -170,40 +170,104 @@
     .stack   { display: flex; flex-direction: column; gap: 10px; }
     .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
+    /* ========== 大胆头部：巨型日期 + 环形进度 ========== */
     .header {
-      padding: 8px 20px 12px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 8px 20px 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
     }
-    .header h1 {
+    .hero-date {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      line-height: 0.9;
+    }
+    .hero-day {
       font-family: var(--font-display);
-      font-size: var(--fs-h1);
-      letter-spacing: -0.02em;
-      line-height: 1.1;
-      margin: 0;
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--fg);
+      line-height: 1;
     }
+    .hero-month {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: -0.01em;
+      padding-bottom: 8px;
+    }
+    .hero-weekday {
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: 0.01em;
+    }
+
+    /* 环形进度 */
+    .progress-ring-wrap {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      flex-shrink: 0;
+    }
+    .progress-ring-wrap svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+    .progress-ring-bg {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 5;
+    }
+    .progress-ring-fill {
+      fill: none;
+      stroke: var(--accent-strong);
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-dasharray: 188.5;
+      stroke-dashoffset: 56;
+      transition: stroke-dashoffset 600ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .progress-ring-text {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-family: var(--font-mono);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--fg);
+      letter-spacing: -0.02em;
+    }
+
+    .greeting { display: none; }
+
     .header .icon-btn {
       position: relative;
-      width: 36px; height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: 999px;
       background: var(--surface);
       border: 1px solid var(--border);
-      display: grid; place-items: center;
+      display: grid;
+      place-items: center;
       color: var(--fg);
       cursor: pointer;
       transition: background 140ms, border-color 140ms, transform 140ms;
+      text-decoration: none;
     }
     .header .icon-btn::after { content: ''; position: absolute; inset: -6px; }
     .header .icon-btn:hover { background: var(--fg-soft); border-color: var(--border); }
     .header .icon-btn:active { transform: scale(0.96); }
     .header .icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
-    .header .icon-btn i { font-size: 18px; line-height: 1; }
-
-    .greeting {
-      font-size: 13px;
-      letter-spacing: 0.01em;
-      color: var(--muted);
-      margin: 0 0 4px;
-    }
+    .header .icon-btn i { font-size: 20px; line-height: 1; }
 
     .meta { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--muted); }
     .num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -732,11 +796,25 @@
         </div>
 
         <main class="content" data-od-id="content">
+          <!-- 大胆头部：巨型日期 + 环形进度 -->
           <div class="header" data-od-id="header">
             <div>
-              <p class="greeting">今天 · 9月21日</p>
-              <h1>记得吃药</h1>
+              <div class="hero-date">
+                <span class="hero-day">21</span>
+                <span class="hero-month">9月</span>
+              </div>
+              <p class="hero-weekday">星期日 · 今天</p>
             </div>
+
+            <!-- 环形进度 70% -->
+            <div class="progress-ring-wrap" aria-label="今日进度 70%">
+              <svg viewBox="0 0 68 68">
+                <circle class="progress-ring-bg" cx="34" cy="34" r="30"/>
+                <circle class="progress-ring-fill" cx="34" cy="34" r="30"/>
+              </svg>
+              <div class="progress-ring-text">70%</div>
+            </div>
+
             <a class="icon-btn" href="add-medication.html" aria-label="添加药品">
               <i class="hgi-stroke hgi-add-01" aria-hidden="true"></i>
             </a>
@@ -849,18 +927,16 @@
 
           <section class="pad sect" data-od-id="inventory">
             <p class="section-title">药品库存</p>
-            <div class="stack" style="gap: 2px;">
-              <div class="card flat">
-                <div class="row-between">
-                  <span class="stock-name">阿托伐他汀 10mg</span>
-                  <span class="stock-left low">剩余 8 天</span>
-                </div>
+            <div class="stack">
+              <div class="stock-row">
+                <span class="stock-name">阿托伐他汀 10mg</span>
+                <div class="stock-bar-track"><div class="stock-bar-fill low" style="width: 35%;"></div></div>
+                <span class="stock-left low">剩余 8 天</span>
               </div>
-              <div class="card flat">
-                <div class="row-between">
-                  <span class="stock-name">二甲双胍 500mg</span>
-                  <span class="stock-left">剩余 24 天</span>
-                </div>
+              <div class="stock-row">
+                <span class="stock-name">二甲双胍 500mg</span>
+                <div class="stock-bar-track"><div class="stock-bar-fill" style="width: 80%;"></div></div>
+                <span class="stock-left">剩余 24 天</span>
               </div>
             </div>
           </section>
@@ -879,7 +955,7 @@
           </section>
         </main>
 
-        <nav class="tabbar" style="--tabs: 4;" data-od-id="tabbar">
+        <nav class="tabbar" style="--tabs: 3;" data-od-id="tabbar">
           <a class="tab active" href="today.html">
             <i class="hgi-stroke hgi-home-01" aria-hidden="true"></i>
             今天
@@ -887,10 +963,6 @@
           <a class="tab" href="medications.html">
             <i class="hgi-stroke hgi-book-open-01" aria-hidden="true"></i>
             药品库
-          </a>
-          <a class="tab" href="add-medication.html">
-            <i class="hgi-stroke hgi-add-01" aria-hidden="true"></i>
-            添加
           </a>
           <a class="tab" href="profile.html">
             <i class="hgi-stroke hgi-profile" aria-hidden="true"></i>
