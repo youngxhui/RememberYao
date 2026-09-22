@@ -10,9 +10,14 @@ import {
   TextInput,
   useNativeState,
 } from "@expo/ui";
-import { buttonStyle, controlSize, frame, listRowInsets } from "@expo/ui/swift-ui/modifiers";
+import {
+  buttonStyle,
+  controlSize,
+  frame,
+  listRowInsets,
+} from "@expo/ui/swift-ui/modifiers";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   MEDICATION_TYPES,
@@ -28,7 +33,7 @@ export default function MedicationFormScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditing = Boolean(id);
-  const { medications } = useAppData();
+  const { medications, loading } = useAppData();
 
   const [loaded, setLoaded] = useState(!isEditing);
   const [type, setType] = useState<MedicationType>("bottle");
@@ -41,8 +46,12 @@ export default function MedicationFormScreen() {
   const remainingQuantity = useNativeState("");
   const notes = useNativeState("");
 
+  // 编辑模式下只填充一次：等数据加载完再填，避免把用户已输入的内容覆盖掉
+  const filledRef = useRef(false);
   useEffect(() => {
     if (!id) return;
+    if (filledRef.current || loading) return;
+    filledRef.current = true;
     const existing = medications.find((m) => m.id === id);
     if (existing) {
       name.value = existing.name;
@@ -54,7 +63,7 @@ export default function MedicationFormScreen() {
     }
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, medications]);
+  }, [id, medications, loading]);
 
   const save = async () => {
     if (!name.value.trim()) {

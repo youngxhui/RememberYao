@@ -1,10 +1,43 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
-import { useColorScheme } from "react-native";
+import { useEffect } from "react";
+import { AppState, useColorScheme } from "react-native";
 
 import AppTabs from "@/components/app-tabs";
+import {
+  addNotificationResponseListener,
+  initNotifications,
+  syncNotificationsWithStore,
+} from "@/lib/notifications";
+import { setPostMutationHook } from "@/lib/store";
 
-export default function TabLayout() {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    let cancelled = false;
+    let responseSub: { remove: () => void } | undefined;
+
+    void (async () => {
+      await initNotifications();
+      if (cancelled) return;
+      // 数据变更后自动重排通知；回前台时兜底同步一次
+      setPostMutationHook(() => void syncNotificationsWithStore());
+      responseSub = addNotificationResponseListener();
+      await syncNotificationsWithStore();
+    })();
+
+    const appStateSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void syncNotificationsWithStore();
+    });
+
+    return () => {
+      cancelled = true;
+      responseSub?.remove();
+      appStateSub.remove();
+      setPostMutationHook(null);
+    };
+  }, []);
+
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <AppTabs />

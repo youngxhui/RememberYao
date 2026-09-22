@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "printWidth": 80,
+  "tabWidth": 2,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "sortPackageJson": false,
+  // oxlint 没有实现 import/order，导入排序交给 oxfmt
+  "sortImports": true,
+  "ignorePatterns": [
+    "dist",
+    ".expo",
+    "node_modules",
+    "ios",
+    "android",
+    "assets",
+    "design",
+    "maestro",
+    ".agents",
+    ".claude",
+    ".od-skills",
+    ".opencode",
+    "bun.lock",
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "expo-env.d.ts",
+    // 中文 Markdown 表格：oxfmt 按 ASCII 单宽补齐列宽，CJK 双宽字符会让对齐错乱
+    "*.md"
+  ]
+}

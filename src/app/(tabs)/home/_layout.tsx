@@ -5,7 +5,7 @@ export default function HomeLayout() {
     <>
       <Stack screenOptions={{ headerShown: true }}>
         <Stack.Screen name="index" />
-        <Stack.Screen name="detail" />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       </Stack>
     </>
   );

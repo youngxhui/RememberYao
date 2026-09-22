@@ -19,8 +19,9 @@ import {
   listRowInsets,
 } from "@expo/ui/swift-ui/modifiers";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { requestNotificationPermission } from "@/lib/notifications";
 import {
   addPlan,
   dateKey,
@@ -34,7 +35,7 @@ import {
   useAppData,
 } from "@/lib/store";
 
-const TIMES_PER_DAY = [1, 2, 3, 4];
+const TIMES_PER_DAY = [1, 2, 3, 4, 5, 6];
 
 export default function PlanFormScreen() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function PlanFormScreen() {
     medicationId?: string;
   }>();
   const isEditing = Boolean(params.id);
-  const { medications, persons, plans } = useAppData();
+  const { medications, persons, plans, loading } = useAppData();
 
   const [loaded, setLoaded] = useState(!isEditing);
   const [medicationId, setMedicationId] = useState(params.medicationId ?? "");
@@ -60,8 +61,12 @@ export default function PlanFormScreen() {
 
   const dose = useNativeState("1");
 
+  // 编辑模式下只填充一次：等数据加载完再填，避免把用户已输入的内容覆盖掉
+  const filledRef = useRef(false);
   useEffect(() => {
     if (!params.id) return;
+    if (filledRef.current || loading) return;
+    filledRef.current = true;
     const existing = plans.find((p) => p.id === params.id);
     if (existing) {
       setMedicationId(existing.medicationId);
@@ -76,7 +81,7 @@ export default function PlanFormScreen() {
     }
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id, plans]);
+  }, [params.id, plans, loading]);
 
   const changeTimesPerDay = (count: number) => {
     setTimesPerDay(count);
@@ -90,7 +95,7 @@ export default function PlanFormScreen() {
 
   const changeTime = (index: number, date: Date) => {
     setTimes((prev) =>
-      prev.map((t, i) => (i === index ? dateToTime(date) : t))
+      prev.map((t, i) => (i === index ? dateToTime(date) : t)),
     );
   };
 
@@ -108,9 +113,21 @@ export default function PlanFormScreen() {
       setError("每次剂量至少为 1");
       return;
     }
+    if (times.length === 0) {
+      setError("请至少设置一个服用时间");
+      return;
+    }
+    if (new Set(times).size !== times.length) {
+      setError("服用时间不能重复");
+      return;
+    }
     if (hasEndDate && endDate < startDate) {
       setError("结束日期不能早于开始日期");
       return;
+    }
+    // 新建配置时申请通知权限，保证到点能收到提醒（被拒绝也不影响保存）
+    if (!params.id) {
+      await requestNotificationPermission();
     }
     const input = {
       medicationId,
@@ -146,7 +163,9 @@ export default function PlanFormScreen() {
   return (
     <>
       <Stack.Screen.BackButton displayMode="minimal" />
-      <Stack.Title large>{isEditing ? "编辑用药配置" : "添加用药配置"}</Stack.Title>
+      <Stack.Title large>
+        {isEditing ? "编辑用药配置" : "添加用药配置"}
+      </Stack.Title>
       <Host seedColor="#40621a" style={{ flex: 1 }}>
         <Column
           modifiers={[frame({ maxHeight: Infinity, maxWidth: Infinity })]}
@@ -182,16 +201,10 @@ export default function PlanFormScreen() {
               />
               <Picker
                 selectedValue={timesPerDay}
-                onValueChange={(value) =>
-                  changeTimesPerDay(Number(value))
-                }
+                onValueChange={(value) => changeTimesPerDay(Number(value))}
               >
                 {TIMES_PER_DAY.map((n) => (
-                  <Picker.Item
-                    key={n}
-                    label={`每日 ${n} 次`}
-                    value={n}
-                  />
+                  <Picker.Item key={n} label={`每日 ${n} 次`} value={n} />
                 ))}
               </Picker>
             </FieldGroup.Section>

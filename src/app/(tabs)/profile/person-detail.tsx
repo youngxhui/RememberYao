@@ -7,11 +7,7 @@ import {
   ScrollView,
   Text,
 } from "@expo/ui";
-import {
-  buttonStyle,
-  controlSize,
-  frame,
-} from "@expo/ui/swift-ui/modifiers";
+import { buttonStyle, controlSize, frame } from "@expo/ui/swift-ui/modifiers";
 import {
   Stack,
   useFocusEffect,
@@ -25,6 +21,7 @@ import { useTheme } from "@/hooks/use-theme";
 import {
   deletePerson,
   medicationUnitLabel,
+  planStatusLabel,
   useAppData,
 } from "@/lib/store";
 
@@ -39,7 +36,7 @@ export default function PersonDetailScreen() {
     useCallback(() => {
       reload();
       setConfirmDeletePerson(false);
-    }, [reload])
+    }, [reload]),
   );
 
   const person = persons.find((p) => p.id === id);
@@ -105,7 +102,7 @@ export default function PersonDetailScreen() {
             <List>
               {personPlans.map((plan) => {
                 const medication = medications.find(
-                  (m) => m.id === plan.medicationId
+                  (m) => m.id === plan.medicationId,
                 );
                 const unit = medication
                   ? medicationUnitLabel(medication.unit)
@@ -115,7 +112,7 @@ export default function PersonDetailScreen() {
                     key={plan.id}
                     onPress={() => {
                       router.push({
-                        pathname: "/(tabs)/persons/plan-form",
+                        pathname: "/(tabs)/profile/plan-form",
                         params: { id: plan.id },
                       });
                     }}
@@ -125,7 +122,7 @@ export default function PersonDetailScreen() {
                       `${plan.startDate} 起${plan.endDate ? ` · 至 ${plan.endDate}` : " · 长期"}`,
                     ].join("\n")}
                   >
-                    {plan.enabled ? "服用中" : "已停用"}
+                    {planStatusLabel(plan)}
                   </ListItem>
                 );
               })}
@@ -137,7 +134,7 @@ export default function PersonDetailScreen() {
               label="添加用药配置"
               onPress={() => {
                 router.push({
-                  pathname: "/(tabs)/persons/plan-form",
+                  pathname: "/(tabs)/profile/plan-form",
                   params: { personId: person.id },
                 });
               }}

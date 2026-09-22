@@ -1,9 +1,15 @@
-import { Host, Text } from "@expo/ui";
+import { Redirect } from "expo-router";
+import { useEffect, useState } from "react";
+
+import { hasSeenOnboarding } from "@/lib/onboarding";
 
 export default function Index() {
-  return (
-    <Host style={{ flex: 1 }}>
-      <Text>Version 1.0.0</Text>
-    </Host>
-  );
+  const [seen, setSeen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void hasSeenOnboarding().then(setSeen);
+  }, []);
+
+  if (seen === null) return null;
+  return <Redirect href={seen ? "/(tabs)/home" : "/(tabs)/home/onboarding"} />;
 }

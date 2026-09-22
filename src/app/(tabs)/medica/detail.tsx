@@ -1,19 +1,17 @@
 import {
   Button,
   Column,
+  FieldGroup,
   Host,
   List,
   ListItem,
-  RNHostView,
   Row,
   ScrollView,
   Text,
+  TextInput,
+  useNativeState,
 } from "@expo/ui";
-import {
-  buttonStyle,
-  controlSize,
-  frame,
-} from "@expo/ui/swift-ui/modifiers";
+import { buttonStyle, controlSize, frame } from "@expo/ui/swift-ui/modifiers";
 import {
   Stack,
   useFocusEffect,
@@ -21,13 +19,16 @@ import {
   useRouter,
 } from "expo-router";
 import { useCallback, useState } from "react";
-import { View as RNView } from "react-native";
 
+import { ProgressBar } from "@/components/progress-bar";
 import { useTheme } from "@/hooks/use-theme";
 import {
   deleteMedication,
   medicationTypeLabel,
   medicationUnitLabel,
+  planStatusLabel,
+  restockMedication,
+  stockSummary,
   useAppData,
 } from "@/lib/store";
 
@@ -37,12 +38,14 @@ export default function MedicationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { medications, persons, plans, reload } = useAppData();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [restockError, setRestockError] = useState(false);
+  const restockAmount = useNativeState("");
 
   useFocusEffect(
     useCallback(() => {
       reload();
       setConfirmDelete(false);
-    }, [reload])
+    }, [reload]),
   );
 
   const medication = medications.find((m) => m.id === id);
@@ -52,10 +55,7 @@ export default function MedicationDetailScreen() {
       <>
         <Stack.Screen.BackButton displayMode="minimal" />
         <Host style={{ flex: 1 }}>
-          <Column
-            alignment="center"
-            style={{ paddingTop: 120 }}
-          >
+          <Column alignment="center" style={{ paddingTop: 120 }}>
             <Text textStyle={{ color: theme.textSecondary }}>
               药品不存在或已删除
             </Text>
@@ -66,13 +66,18 @@ export default function MedicationDetailScreen() {
   }
 
   const unit = medicationUnitLabel(medication.unit);
+  const summary = stockSummary(medication, plans);
   const relatedPlans = plans.filter((p) => p.medicationId === medication.id);
   const percent =
     medication.totalQuantity > 0
       ? medication.remainingQuantity / medication.totalQuantity
       : 0;
   const stockColor =
-    percent <= 0.2 ? theme.danger : percent <= 0.5 ? theme.warning : theme.success;
+    percent <= 0.2
+      ? theme.danger
+      : percent <= 0.5
+        ? theme.warning
+        : theme.success;
 
   const remove = async () => {
     if (!confirmDelete) {
@@ -81,6 +86,18 @@ export default function MedicationDetailScreen() {
     }
     await deleteMedication(medication.id);
     router.back();
+  };
+
+  const restock = async () => {
+    const amount = Number.parseInt(restockAmount.value, 10);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setRestockError(true);
+      return;
+    }
+    await restockMedication(medication.id, amount);
+    restockAmount.value = "";
+    setRestockError(false);
+    await reload();
   };
 
   return (
@@ -117,17 +134,29 @@ export default function MedicationDetailScreen() {
               <Text textStyle={{ fontSize: 32, fontWeight: "700" }}>
                 {String(medication.remainingQuantity)}
               </Text>
-              <Text
-                textStyle={{ fontSize: 16, color: theme.textSecondary }}
-              >
+              <Text textStyle={{ fontSize: 16, color: theme.textSecondary }}>
                 {`/ ${medication.totalQuantity} ${unit}`}
               </Text>
             </Row>
-            <StockBar percent={percent} color={stockColor} track={theme.backgroundSelected} />
-            {medication.notes ? (
+            <ProgressBar
+              percent={percent}
+              color={stockColor}
+              track={theme.backgroundSelected}
+            />
+            {summary.daysLeft !== null ? (
               <Text
-                textStyle={{ fontSize: 14, color: theme.textSecondary }}
+                textStyle={{
+                  fontSize: 13,
+                  color: summary.low ? theme.danger : theme.textSecondary,
+                }}
               >
+                {summary.low
+                  ? `库存不足 · 约还能吃 ${summary.daysLeft} 天`
+                  : `约还能吃 ${summary.daysLeft} 天`}
+              </Text>
+            ) : null}
+            {medication.notes ? (
+              <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
                 {medication.notes}
               </Text>
             ) : null}
@@ -160,7 +189,7 @@ export default function MedicationDetailScreen() {
                     key={plan.id}
                     onPress={() => {
                       router.push({
-                        pathname: "/(tabs)/persons/detail",
+                        pathname: "/(tabs)/profile/person-detail",
                         params: { id: plan.personId },
                       });
                     }}
@@ -169,19 +198,50 @@ export default function MedicationDetailScreen() {
                       `每日 ${plan.times.length} 次 · ${plan.times.join(" / ")}`,
                     ].join("\n")}
                   >
-                    {plan.enabled ? "服用中" : "已停用"}
+                    {planStatusLabel(plan)}
                   </ListItem>
                 );
               })}
             </List>
           )}
 
+          <FieldGroup style={{ paddingTop: 20 }}>
+            <FieldGroup.Section title="更多信息">
+              <ListItem supportingText="拍照识别后自动填写 · 敬请期待">
+                药品说明书
+              </ListItem>
+            </FieldGroup.Section>
+            <FieldGroup.Section title="补货">
+              <TextInput
+                placeholder="补充数量（入库增加的数量）"
+                keyboardType="number-pad"
+                onChangeText={() => setRestockError(false)}
+                value={restockAmount}
+              />
+              {restockError ? (
+                <Text
+                  style={{ paddingHorizontal: 16 }}
+                  textStyle={{ color: "#ff3b30" }}
+                >
+                  请填写有效的补充数量
+                </Text>
+              ) : null}
+              <Button
+                label="补充库存"
+                onPress={() => {
+                  void restock();
+                }}
+                modifiers={[buttonStyle("glass"), controlSize("large")]}
+              />
+            </FieldGroup.Section>
+          </FieldGroup>
+
           <Column spacing={12} style={{ paddingTop: 24 }}>
             <Button
               label="添加用药配置"
               onPress={() => {
                 router.push({
-                  pathname: "/(tabs)/persons/plan-form",
+                  pathname: "/(tabs)/profile/plan-form",
                   params: { medicationId: medication.id },
                 });
               }}
@@ -206,37 +266,5 @@ export default function MedicationDetailScreen() {
         </ScrollView>
       </Host>
     </>
-  );
-}
-
-function StockBar({
-  percent,
-  color,
-  track,
-}: {
-  percent: number;
-  color: string;
-  track: string;
-}) {
-  return (
-    <RNHostView style={{ width: "100%", height: 6 }}>
-      <RNView
-        style={{
-          flex: 1,
-          borderRadius: 3,
-          backgroundColor: track,
-          overflow: "hidden",
-        }}
-      >
-        <RNView
-          style={{
-            width: `${Math.max(0, Math.min(1, percent)) * 100}%`,
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: color,
-          }}
-        />
-      </RNView>
-    </RNHostView>
   );
 }

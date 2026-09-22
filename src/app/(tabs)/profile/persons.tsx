@@ -13,7 +13,6 @@ import { frame } from "@expo/ui/swift-ui/modifiers";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 
-import { Avatar } from "@/components/avatar";
 import { useTheme } from "@/hooks/use-theme";
 import { addPerson, useAppData } from "@/lib/store";
 
@@ -27,7 +26,7 @@ export default function PersonsScreen() {
   useFocusEffect(
     useCallback(() => {
       reload();
-    }, [reload])
+    }, [reload]),
   );
 
   const add = async () => {
@@ -39,7 +38,7 @@ export default function PersonsScreen() {
     name.value = "";
     await reload();
     router.push({
-      pathname: "/(tabs)/persons/detail",
+      pathname: "/(tabs)/profile/person-detail",
       params: { id: person.id },
     });
   };
@@ -49,8 +48,7 @@ export default function PersonsScreen() {
 
   return (
     <>
-
-      <Stack.Title large>用药人</Stack.Title>
+      <Stack.Title large>家庭成员</Stack.Title>
       <Host seedColor="#40621a" style={{ flex: 1 }}>
         <ScrollView
           style={{ padding: 16, paddingBottom: 32 }}
@@ -78,7 +76,7 @@ export default function PersonsScreen() {
               </Text>
             ) : null}
             <Button
-              label="添加用药人"
+              label="添加家庭成员"
               onPress={() => {
                 add();
               }}
@@ -95,7 +93,7 @@ export default function PersonsScreen() {
           {persons.length === 0 ? (
             <Column alignment="center" style={{ paddingTop: 40 }}>
               <Text textStyle={{ color: theme.textSecondary }}>
-                还没有用药人，先在上方添加
+                还没有家庭成员，先在上方添加
               </Text>
             </Column>
           ) : (
@@ -105,7 +103,7 @@ export default function PersonsScreen() {
                   key={person.id}
                   onPress={() => {
                     router.push({
-                      pathname: "/(tabs)/persons/detail",
+                      pathname: "/(tabs)/profile/person-detail",
                       params: { id: person.id },
                     });
                   }}

@@ -1,0 +1,132 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "import",
+    "oxc",
+    "promise",
+    "react",
+    "react-perf",
+    "typescript",
+    "unicorn"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    // React 17+ 自动 JSX runtime，不需要 React 在作用域内。
+    // 注意：react/immutability 故意保持开启 —— 项目启用了 reactCompiler，
+    // useNativeState 必须用 .get()/.set()，直接写 .value 会被 React Compiler 判定为违规。
+    "react/react-in-jsx-scope": "off",
+    // 平台护栏：@expo/ui/swift-ui 是 iOS-only，在 Android 上会抛 "Unable to get view config"。
+    // 详见 docs/conventions/ui-design.md「平台专属组件隔离」。
+    // 现有屏幕普遍直接导入 swift-ui modifiers，先以 warn 提示，迁移完成后升级为 error。
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": ["@expo/ui/swift-ui", "@expo/ui/swift-ui/*"],
+            "message": "@expo/ui/swift-ui 是 iOS-only：请移入 .ios.tsx 或用 process.env.EXPO_OS 守卫；跨平台请改用 @expo/ui 根导入的 universal 组件。"
+          },
+          {
+            "group": ["@expo/ui/jetpack-compose", "@expo/ui/jetpack-compose/*"],
+            "message": "@expo/ui/jetpack-compose 是 Android-only：请移入 .android.tsx 或用 process.env.EXPO_OS 守卫；跨平台请改用 @expo/ui 根导入的 universal 组件。"
+          },
+          {
+            "group": ["@react-navigation/*"],
+            "message": "SDK 56+ 不要直接依赖 @react-navigation/*，请从 expo-router/react-navigation 导入。"
+          }
+        ],
+        "paths": [
+          {
+            "name": "react-native",
+            "importNames": [
+              "Switch",
+              "Picker",
+              "SafeAreaView",
+              "AsyncStorage",
+              "WebView"
+            ],
+            "message": "改用 @expo/ui 的 universal 组件（Switch / Picker / BottomSheet 等）或 react-native-safe-area-context；AsyncStorage 用 @react-native-async-storage/async-storage。"
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      // 平台专属文件允许导入对应平台的 @expo/ui 子包
+      "files": ["*.ios.ts", "*.ios.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@expo/ui/jetpack-compose",
+                  "@expo/ui/jetpack-compose/*"
+                ],
+                "message": ".ios.tsx 中不能导入 @expo/ui/jetpack-compose。"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["*.android.ts", "*.android.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@expo/ui/swift-ui", "@expo/ui/swift-ui/*"],
+                "message": ".android.tsx 中不能导入 @expo/ui/swift-ui。"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // useAppData 的首次载入：reload() 是 async，setState 发生在 await 之后的微任务里，
+      // 不是同步调用，不会级联渲染。react/set-state-in-effect 看不穿 async 边界，属误报；
+      // oxlint 行内禁用对该规则无效，故在此按文件关闭。
+      "files": ["src/lib/store.ts"],
+      "rules": {
+        "react/set-state-in-effect": "off"
+      }
+    },
+    {
+      // useNativeState 返回的是 native -backed 可变对象，写 .value 是它的既定用法
+      // （等价于 ref）。universal 导入下 ObservableState 类型只有 value，没有
+      // .get()/.set()（那套只在 @expo/ui/swift-ui 的类型里），故无法按规则建议改造。
+      "files": [
+        "src/app/(tabs)/profile/persons.tsx",
+        "src/app/(tabs)/profile/plan-form.tsx",
+        "src/app/(tabs)/medica/detail.tsx",
+        "src/app/(tabs)/medica/form.tsx"
+      ],
+      "rules": {
+        "react/immutability": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "dist",
+    ".expo",
+    "ios",
+    "android",
+    "assets",
+    "design",
+    "maestro",
+    ".agents",
+    ".claude",
+    ".od-skills",
+    ".opencode",
+    "expo-env.d.ts"
+  ]
+}

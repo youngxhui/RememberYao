@@ -14,31 +14,34 @@ export default function AppTabs() {
       indicatorColor={colors.primarySoft}
     >
       <NativeTabs.Trigger name="(tabs)/home" testID="home-tab">
-        <NativeTabs.Trigger.Label>今日</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="calendar" md="today" />
+        <NativeTabs.Trigger.Label>首页</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "house", selected: "house.fill" }}
+          md="home"
+        />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="(tabs)/medica" testID="medica-tab">
-        <NativeTabs.Trigger.Label>药箱</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>药品</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           sf={{ default: "pills", selected: "pills.fill" }}
           md="medication"
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(tabs)/persons" testID="persons-tab">
-        <NativeTabs.Trigger.Label>用药人</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="(tabs)/records" testID="records-tab">
+        <NativeTabs.Trigger.Label>记录</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          sf={{ default: "person.2", selected: "person.2.fill" }}
-          md="group"
+          sf={{ default: "list.bullet", selected: "checklist" }}
+          md="list"
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(tabs)/developer" testID="developer-tab">
-        <NativeTabs.Trigger.Label>开发者</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="(tabs)/profile" testID="profile-tab">
+        <NativeTabs.Trigger.Label>我的</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          sf={{ default: "pills", selected: "pills.fill" }}
-          md="medication"
+          sf={{ default: "person", selected: "person.fill" }}
+          md="person"
         />
       </NativeTabs.Trigger>
     </NativeTabs>

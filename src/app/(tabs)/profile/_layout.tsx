@@ -1,10 +1,13 @@
 import { Stack } from "expo-router";
 
-export default function DeveloperLayout() {
+export default function ProfileLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: true }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="persons" />
+        <Stack.Screen name="person-detail" />
+        <Stack.Screen name="plan-form" />
       </Stack>
     </>
   );
