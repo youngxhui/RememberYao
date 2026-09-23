@@ -92,6 +92,14 @@
       }
     },
     {
+      // Gesture.Pan() 是 react-native-gesture-handler 的 builder API，
+      // 不是把组件当函数调用；React Compiler 的 capitalized-calls 看不穿这条链式调用，属误报
+      "files": ["src/components/reminder-card-stack.tsx"],
+      "rules": {
+        "react/capitalized-calls": "off"
+      }
+    },
+    {
       // useAppData 的首次载入：reload() 是 async，setState 发生在 await 之后的微任务里，
       // 不是同步调用，不会级联渲染。react/set-state-in-effect 看不穿 async 边界，属误报；
       // oxlint 行内禁用对该规则无效，故在此按文件关闭。

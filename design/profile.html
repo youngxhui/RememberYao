@@ -304,7 +304,7 @@
       border: 1px solid rgba(255, 255, 255, 0.22);
       z-index: 3;
       transform-origin: left center;
-      transition: transform 950ms cubic-bezier(0.23, 1, 0.32, 1);
+      transition: transform 1250ms cubic-bezier(0.23, 1, 0.32, 1);
     }
     .folder-front::before {
       content: "";
@@ -394,23 +394,33 @@
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
-    /* 打开：第 i 张飞到第 i 个列表卡位；延迟用 min() 封顶，
-       超过 3 张后同时出发，避免总时长无限拉长 */
+    /* 打开：第 i 张飞到第 i 个列表卡位；起飞顺序按堆叠层序反转——
+       最上层（--i 最大）先飞，其下依次跟进，像从沓子上面一张张抽取。
+       双重限速：① 按距离配速，时长 = 1200 + i×140ms，距离越远飞得越久，
+       平均速度一律压在 ≤1000 px/s；② 缓动峰值斜率从 4.35 降到 ~2.5，
+       起步瞬时速度不再爆冲。起飞延迟用 min() 封顶，头 3 张错峰 */
     .archive.is-open .mini-leaf {
       opacity: 0;
       transition:
-        transform 900ms cubic-bezier(0.23, 1, 0.32, 1),
-        opacity 300ms ease calc(900ms + min(var(--i), 2) * 100ms);
+        transform calc(1200ms + var(--i) * 140ms) cubic-bezier(0.3, 0.4, 0.2, 1),
+        opacity 300ms ease
+          calc(1200ms + var(--i) * 140ms + min(var(--n, 3) - 1 - var(--i), 2) * 100ms);
     }
     .archive.is-open .mini-leaf {
       transform: translate(calc(var(--pitch) * (var(--i) + 1)), 0) rotate(0deg) scale(1);
       transition-delay:
-        calc(120ms + min(var(--i), 2) * 120ms),
-        calc(900ms + min(var(--i), 2) * 100ms);
+        calc(120ms + min(var(--n, 3) - 1 - var(--i), 2) * 120ms),
+        calc(1200ms + var(--i) * 140ms + min(var(--n, 3) - 1 - var(--i), 2) * 100ms);
     }
 
+    /* 减弱动态：飞行与延迟一并归零。注意必须写在基础规则之后或抬高特异性，
+       否则会被 .mini-leaf 的 transition 简写覆盖（旧版即因此失效） */
     @media (prefers-reduced-motion: reduce) {
-      .folder-front, .mini-leaf { transition-duration: 0.01ms; }
+      .folder-front, .mini-leaf, .leaflet,
+      .archive.is-open .mini-leaf, .archive.is-open .archive-card .leaflet {
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
+      }
     }
 
     /* ── 药物说明书：列表项与文件夹内飞行卡片共用同一套盒样式 ── */
@@ -438,10 +448,11 @@
       left: 50%;
       margin: -134px 0 0 -105px;
       will-change: transform, opacity;
-      /* 合上与打开严格对称：同样 900ms 飞行、同样封顶错峰，
-         小说明书依次从卡位飞回文件夹，到位前淡入 */
+      /* 合上与打开严格对称：同样的按距离配速（1200 + i×140ms）、
+         同样的温和缓动与封顶错峰，小说明书依次从卡位飞回文件夹，
+         到位前淡入。悬停探出也复用这条过渡，因此起步同样轻快 */
       transition:
-        transform 900ms cubic-bezier(0.23, 1, 0.32, 1),
+        transform calc(1200ms + var(--i) * 140ms) cubic-bezier(0.3, 0.4, 0.2, 1),
         opacity 300ms ease;
       transition-delay:
         calc(120ms + min(var(--i), 2) * 120ms),
@@ -450,9 +461,11 @@
     .archive.is-open .leaflet {
       opacity: 1;
     }
-    /* 淡入延迟对齐小说明书的落位时刻；同样用 min() 封顶在第三张 */
+    /* 淡入起点 = 起飞延迟 + 各自飞行时长 − 270ms（落位前 270ms 开始、
+       420ms 淡入在落位后 150ms 收尾，与小说明书淡出交叉）；
+       顺序同样反转，min() 封顶在倒数第 3 张 */
     .archive.is-open .archive-card .leaflet {
-      transition-delay: calc(750ms + min(var(--i), 2) * 120ms);
+      transition-delay: calc(1050ms + var(--i) * 140ms + min(var(--n, 3) - 1 - var(--i), 2) * 120ms);
     }
     /* 顶部一道色条，暗示“折叠的说明书” */
     .leaflet::before, .mini-leaf::before {
@@ -498,18 +511,36 @@
     }
     .leaflet-row .k {
       flex-shrink: 0;
-      width: 46px;
+      width: 54px;
       font-family: var(--font-body);
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 600;
+      white-space: nowrap;
       color: var(--archive-stamp-ink);
     }
+    /* 真实文本代替占位色条；超长药名条目省略号兜底，不撑破 210px 卡宽 */
     .leaflet-row .v {
       flex: 1;
-      height: 3px;
-      border-radius: 2px;
-      background: var(--archive-stamp-edge);
-      opacity: 0.55;
+      min-width: 0;
+      font-family: var(--font-body);
+      font-size: 8.5px;
+      line-height: 1.3;
+      color: var(--archive-stamp-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .leaflet-foot {
+      margin-top: 6px;
+      font-family: var(--font-mono);
+      font-size: 7px;
+      letter-spacing: 0.02em;
+      color: var(--archive-stamp-muted);
+      opacity: 0.85;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .archive-caption {
@@ -917,38 +948,155 @@
     const caption = document.getElementById('archiveCaption');
 
     // 药品数据：增删药品只改这里。文件夹内的小说明书和水平列表的说明书
-    // 都是这份数据的两个投影，由脚本生成，数量不限
+    // 都是这份数据的两个投影，由脚本生成，数量不限。
+    // rows 为正文条目（前四条通用 + 每药一条特色项），
+    // approval / maker 是真实的药品文号与企业格式，仅编号为设计示例
     const MEDS = [
-      { name: '阿托伐他汀钙片', note: '注意事项' },
-      { name: '盐酸二甲双胍片', note: '禁忌' },
-      { name: '阿司匹林肠溶片', note: '不良反应' },
-      { name: '苯磺酸氨氯地平片', note: '药物相互作用' },
-      { name: '硝苯地平缓释片', note: '注意事项' },
-      { name: '奥美拉唑肠溶胶囊', note: '禁忌' },
-      { name: '阿卡波糖片', note: '不良反应' },
-      { name: '瑞舒伐他汀钙片', note: '药物相互作用' },
-      { name: '氯沙坦钾片', note: '老年用药' },
-      { name: '格列美脲片', note: '儿童用药' },
+      {
+        name: '阿托伐他汀钙片',
+        approval: '国药准字H20051418',
+        maker: '北京嘉林药业',
+        rows: [
+          ['成份', '阿托伐他汀钙'],
+          ['适应症', '高胆固醇血症'],
+          ['规格', '20mg × 7片'],
+          ['用法用量', '每晚1次 20mg'],
+          ['注意事项', '忌与葡萄柚汁同服'],
+        ],
+      },
+      {
+        name: '盐酸二甲双胍片',
+        approval: '国药准字H20023370',
+        maker: '中美上海施贵宝',
+        rows: [
+          ['成份', '盐酸二甲双胍'],
+          ['适应症', '2型糖尿病'],
+          ['规格', '0.5g × 20片'],
+          ['用法用量', '餐中服0.5g 每日2次'],
+          ['禁忌', '严重肾功能不全禁用'],
+        ],
+      },
+      {
+        name: '阿司匹林肠溶片',
+        approval: '国药准字J20130078',
+        maker: '拜耳医药保健',
+        rows: [
+          ['成份', '乙酰水杨酸'],
+          ['适应症', '抑制血小板聚集'],
+          ['规格', '100mg × 30片'],
+          ['用法用量', '每日1次 100mg'],
+          ['不良反应', '胃部不适、出血'],
+        ],
+      },
+      {
+        name: '苯磺酸氨氯地平片',
+        approval: '国药准字H10950224',
+        maker: '辉瑞制药',
+        rows: [
+          ['成份', '苯磺酸氨氯地平'],
+          ['适应症', '高血压、心绞痛'],
+          ['规格', '5mg × 7片'],
+          ['用法用量', '每日1次 5mg'],
+          ['药物相互作用', '慎与CYP3A4抑制剂同用'],
+        ],
+      },
+      {
+        name: '硝苯地平缓释片',
+        approval: '国药准字H10910052',
+        maker: '青岛黄海制药',
+        rows: [
+          ['成份', '硝苯地平'],
+          ['适应症', '高血压、冠心病'],
+          ['规格', '20mg × 20片'],
+          ['用法用量', '整片吞服 每日1次'],
+          ['注意事项', '不可嚼碎或掰开'],
+        ],
+      },
+      {
+        name: '奥美拉唑肠溶胶囊',
+        approval: '国药准字H20056577',
+        maker: '阿斯利康制药',
+        rows: [
+          ['成份', '奥美拉唑'],
+          ['适应症', '胃溃疡、反流性食管炎'],
+          ['规格', '20mg × 14粒'],
+          ['用法用量', '晨起1粒 空腹服'],
+          ['禁忌', '过敏者禁用'],
+        ],
+      },
+      {
+        name: '阿卡波糖片',
+        approval: '国药准字H19990205',
+        maker: '拜耳医药保健',
+        rows: [
+          ['成份', '阿卡波糖'],
+          ['适应症', '餐后血糖升高'],
+          ['规格', '50mg × 30片'],
+          ['用法用量', '与第一口饭同服'],
+          ['不良反应', '腹胀、排气增多'],
+        ],
+      },
+      {
+        name: '瑞舒伐他汀钙片',
+        approval: '国药准字H20080670',
+        maker: '阿斯利康制药',
+        rows: [
+          ['成份', '瑞舒伐他汀钙'],
+          ['适应症', '高脂血症'],
+          ['规格', '10mg × 7片'],
+          ['用法用量', '每日1次 10mg'],
+          ['药物相互作用', '忌与大环内酯类同服'],
+        ],
+      },
+      {
+        name: '氯沙坦钾片',
+        approval: '国药准字H20000371',
+        maker: '杭州默沙东制药',
+        rows: [
+          ['成份', '氯沙坦钾'],
+          ['适应症', '原发性高血压'],
+          ['规格', '50mg × 7片'],
+          ['用法用量', '每日1次 50mg'],
+          ['老年用药', '起始剂量减半'],
+        ],
+      },
+      {
+        name: '格列美脲片',
+        approval: '国药准字H20010552',
+        maker: '江苏万邦生化',
+        rows: [
+          ['成份', '格列美脲'],
+          ['适应症', '2型糖尿病'],
+          ['规格', '2mg × 15片'],
+          ['用法用量', '早餐前服 2mg'],
+          ['儿童用药', '18岁以下不推荐'],
+        ],
+      },
     ];
-    const COMMON_ROWS = ['成份', '适应症', '规格', '用法用量'];
 
     function leafletHTML(med) {
-      const rows = [...COMMON_ROWS, med.note]
-        .map((k) => `<div class="leaflet-row"><span class="k">${k}</span><span class="v"></span></div>`)
+      const rows = med.rows
+        .map(
+          ([k, v]) =>
+            `<div class="leaflet-row"><span class="k">${k}</span><span class="v">${v}</span></div>`
+        )
         .join('');
       return (
         '<div class="leaflet-head">' +
         `<div class="leaflet-name">${med.name}</div>` +
         '<div class="leaflet-sub">请仔细阅读并按说明使用</div>' +
         '</div>' +
-        `<div class="leaflet-body">${rows}</div>`
+        `<div class="leaflet-body">${rows}</div>` +
+        `<div class="leaflet-foot">${med.approval} · ${med.maker}</div>`
       );
     }
 
     // 封皮下的小说明书：--i 驱动堆叠偏移、飞行位移和延迟；
-    // --n 让堆叠扇形随数量自适应收缩（3 张时保持原样，10 张时收紧）
+    // --n 让堆叠扇形随数量自适应收缩（3 张时保持原样，10 张时收紧），
+    // 也用于反转起飞顺序（最上层先飞）。挂在 .archive 上，
+    // 让列表里的 .leaflet 淡入延迟也能取到同一个数量
     const stack = folder.querySelector('.folder-stack');
-    stack.style.setProperty('--n', String(MEDS.length));
+    archive.style.setProperty('--n', String(MEDS.length));
     stack.innerHTML = MEDS.map(
       (med, i) => `<div class="mini-leaf" style="--i:${i}">${leafletHTML(med)}</div>`
     ).join('');

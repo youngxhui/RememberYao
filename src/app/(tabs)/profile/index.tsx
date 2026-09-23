@@ -1,7 +1,22 @@
-import { FieldGroup, Host, ListItem, ScrollView } from "@expo/ui";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { useCallback } from "react";
+import {
+  Pressable,
+  ScrollView as RNScrollView,
+  Text as RNText,
+  useWindowDimensions,
+  View as RNView,
+  View,
+} from "react-native";
 
+import {
+  MiniArchive,
+  archiveEntryFromMedication,
+} from "@/components/mini-archive";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { useAppData } from "@/lib/store";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type SettingRow = {
   label: string;
@@ -17,6 +32,16 @@ type SettingSection = {
 export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { width } = useWindowDimensions();
+  const { medications, loading, reload } = useAppData();
+  // iPhone Duo 内屏宽 669pt，横向是 regular。这种宽度下大标题不会收进导航栏，会跟着滚走。
+  const largeTitle = width < 600;
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   const sections: SettingSection[] = [
     {
@@ -54,29 +79,85 @@ export default function ProfileScreen() {
 
   return (
     <>
-      <Stack.Title large>设置</Stack.Title>
-      <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <ScrollView
-          style={{ padding: 16, paddingBottom: 32 }}
-          showsIndicators={false}
-        >
-          <FieldGroup>
+      <RNScrollView
+        style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+          {!loading ? (
+            <MiniArchive
+              entries={medications.map(archiveEntryFromMedication)}
+              onSelectEntry={(entry) => {
+                router.push({
+                  pathname: "/(tabs)/medica/detail",
+                  params: { id: entry.id },
+                });
+              }}
+            />
+          ) : null}
+          <SafeAreaView edges={["left", "right", "bottom"]}>
+
+          <View style={{ padding: 16 }}>
+
+
             {sections.map((section) => (
-              <FieldGroup.Section key={section.title} title={section.title}>
-                {section.rows.map((row) => (
-                  <ListItem
-                    key={row.label}
-                    onPress={row.onPress}
-                    supportingText={row.hint}
-                  >
-                    {row.label}
-                  </ListItem>
-                ))}
-              </FieldGroup.Section>
+              <RNView key={section.title}>
+                <RNText
+                  style={{
+                    marginBottom: Spacing.two,
+                    paddingLeft: Spacing.two,
+                    borderLeftWidth: 4,
+                    borderLeftColor: theme.primary,
+                    color: theme.text,
+                    fontSize: 17,
+                    fontWeight: "700",
+                  }}
+                >
+                  {section.title}
+                </RNText>
+                <RNView
+                  style={{
+                    backgroundColor: theme.backgroundElement,
+                    borderRadius: 14,
+                    borderCurve: "continuous",
+                    overflow: "hidden",
+                  }}
+                >
+                  {section.rows.map((row, index) => (
+                    <Pressable
+                      key={row.label}
+                      disabled={!row.onPress}
+                      onPress={row.onPress}
+                      style={{
+                        padding: Spacing.three,
+                        borderTopWidth: index === 0 ? 0 : 1,
+                        borderTopColor: theme.background,
+                      }}
+                    >
+                      <RNText style={{ color: theme.text, fontSize: 16 }}>
+                        {row.label}
+                      </RNText>
+                      {row.hint ? (
+                        <RNText
+                          style={{
+                            marginTop: Spacing.half,
+                            color: theme.textSecondary,
+                            fontSize: 13,
+                          }}
+                        >
+                          {row.hint}
+                        </RNText>
+                      ) : null}
+                    </Pressable>
+                  ))}
+                </RNView>
+              </RNView>
             ))}
-          </FieldGroup>
-        </ScrollView>
-      </Host>
+          </View>
+        </SafeAreaView>
+      </RNScrollView>
+      <Stack.Title large={largeTitle}>设置</Stack.Title>
     </>
   );
 }

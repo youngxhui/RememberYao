@@ -1,6 +1,8 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
 import { useEffect } from "react";
 import { AppState, useColorScheme } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import AppTabs from "@/components/app-tabs";
 import {
@@ -39,8 +41,11 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <AppTabs />
-    </ThemeProvider>
+    // GestureHandler 的 Pan 需要根视图承载，缺了手势会静默失效
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+          <AppTabs />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

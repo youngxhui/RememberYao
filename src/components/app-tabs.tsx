@@ -44,6 +44,14 @@ export default function AppTabs() {
           md="person"
         />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="(tabs)/playground" testID="playground-tab">
+        <NativeTabs.Trigger.Label>Playground</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "hammer", selected: "hammer.fill" }}
+          md="construction"
+        />
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

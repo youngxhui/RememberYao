@@ -34,7 +34,7 @@ export function reminderStatusMeta(
   }
 }
 
-function toneColors(
+export function toneColors(
   tone: StatusTone,
   theme: ReturnType<typeof useTheme>,
 ): { color: string; soft: string } {

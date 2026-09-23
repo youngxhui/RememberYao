@@ -23,6 +23,38 @@ export const Colors = {
     warningSoft: "#FDF3E3",
     danger: "#DC2626",
     dangerSoft: "#FDECEC",
+    // Mini Archive 收藏夹：主题青绿封面 + 米白纸说明书
+    archive: {
+      coverTop: "#4CC9B9",
+      coverBottom: "#0D9488",
+      tab: "#2BB0A2",
+      back: "#0F766E",
+      ink: "#06302B",
+      inkMuted: "#3F7D74",
+      line: "rgba(6,48,43,0.16)",
+      shadow: "rgba(13,148,136,0.30)",
+      shadowStrong: "rgba(13,148,136,0.42)",
+      paper: "#FFFDF4",
+      stampInk: "#4A3417",
+      stampMuted: "#8A7440",
+      stampEdge: "rgba(74,52,23,0.32)",
+      stampShadow: "rgba(60,40,10,0.40)",
+      artTop: "#17B8A6",
+    },
+    // 提醒堆叠卡（design/today.html 的 --promo-*）：独立于语义色的展示 token ——
+    // 磨砂卡底 / 墨色 / 副文本 / 玻璃棱线与反色主按钮，暗色模式成组切换
+    promo: {
+      bg: "#F6F3EA",
+      ink: "#14161A",
+      sub: "#8B9096",
+      line: "rgba(20,22,26,0.08)",
+      dot: "#C9CFD4",
+      btnBg: "#14161A",
+      btnFg: "#FFFFFF",
+      edge: "rgba(255,255,255,0.50)",
+      hi: "rgba(255,255,255,0.55)",
+      sheen: "rgba(255,255,255,0.32)",
+    },
   },
   dark: {
     text: "#ffffff",
@@ -39,6 +71,38 @@ export const Colors = {
     warningSoft: "#33260B",
     danger: "#F87171",
     dangerSoft: "#331616",
+    // Mini Archive 收藏夹：主题青绿封面 + 米白纸说明书。
+    // 纸与印刷色是“实物”，不随明暗模式改变；只有封面/墨色/阴影跟随主题
+    archive: {
+      coverTop: "#14857A",
+      coverBottom: "#0F766E",
+      tab: "#0E6B62",
+      back: "#0B544E",
+      ink: "#D9F2EE",
+      inkMuted: "#8FC9C0",
+      line: "rgba(217,242,238,0.16)",
+      shadow: "rgba(0,0,0,0.50)",
+      shadowStrong: "rgba(0,0,0,0.62)",
+      paper: "#FFFDF4",
+      stampInk: "#4A3417",
+      stampMuted: "#8A7440",
+      stampEdge: "rgba(74,52,23,0.32)",
+      stampShadow: "rgba(60,40,10,0.40)",
+      artTop: "#17B8A6",
+    },
+    // 同键异值，取设计稿 dark 覆盖：米白纸底换成墨底，按钮反色
+    promo: {
+      bg: "#1E1E20",
+      ink: "#F5F5F7",
+      sub: "#8E8E93",
+      line: "rgba(255,255,255,0.10)",
+      dot: "#48484A",
+      btnBg: "#F5F5F7",
+      btnFg: "#14161A",
+      edge: "rgba(255,255,255,0.16)",
+      hi: "rgba(255,255,255,0.14)",
+      sheen: "rgba(255,255,255,0.07)",
+    },
   },
 } as const;
 

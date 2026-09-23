@@ -1,0 +1,35 @@
+appId: com.youngxhui.RememberYao
+---
+- launchApp
+# 首次启动可能先过引导页
+- runFlow:
+    when:
+      visible: "用药提醒"
+    commands:
+      - tapOn: "下一步"
+      - tapOn: "开始使用"
+- extendedWaitUntil:
+    visible:
+      id: "playground-tab"
+    timeout: 30000
+# 纯 RN 环境（playground）：MiniArchive 应可交互
+- tapOn:
+    id: "playground-tab"
+- extendedWaitUntil:
+    visible:
+      id: "mini-archive-folder"
+    timeout: 15000
+# 点按文件夹 → 开合由滚动进度驱动，文案应切换为展开提示
+- tapOn:
+    id: "mini-archive-folder"
+- extendedWaitUntil:
+    visible: "右滑回到文件夹合上"
+    timeout: 15000
+- assertVisible:
+    id: "mini-archive-entry"
+# 再点一次 → 收起
+- tapOn:
+    id: "mini-archive-folder"
+- extendedWaitUntil:
+    visible: "点按展开"
+    timeout: 15000

@@ -24,12 +24,24 @@
       --danger: #ef4444;
       --danger-strong: #dc2626;
 
+      /* 推荐卡（还原设计图，独立于语义色的展示用 token） */
+      --promo-bg: #f6f3ea;
+      --promo-ink: #14161a;
+      --promo-sub: #8b9096;
+      --promo-line: rgba(20, 22, 26, 0.08);
+      --promo-dot: #c9cfd4;
+      --promo-accent: #d97757;
+      --promo-btn-bg: #14161a;
+      --promo-btn-fg: #ffffff;
+      /* 磨砂玻璃质感（同 profile 收藏夹封皮）：棱线 / 内高光 / 斜向光泽 */
+      --promo-card-edge: rgba(255, 255, 255, 0.5);
+      --promo-card-hi: rgba(255, 255, 255, 0.55);
+      --promo-card-sheen: rgba(255, 255, 255, 0.32);
+
       --font-display: Inter, system-ui, sans-serif;
       --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
       --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
-      --fs-h1: 28px;
-      --fs-h2: 22px;
       --fs-h3: 17px;
       --fs-body: 17px;
       --fs-meta: 13px;
@@ -168,9 +180,7 @@
 
     .pad     { padding-inline: 20px; }
     .stack   { display: flex; flex-direction: column; gap: 10px; }
-    .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-
-    /* ========== 大胆头部：巨型日期 + 环形进度 ========== */
+    /* ========== 大胆头部：巨型日期 ========== */
     .header {
       padding: 8px 20px 0;
       display: flex;
@@ -208,46 +218,6 @@
       margin-top: 4px;
       letter-spacing: 0.01em;
     }
-
-    /* 环形进度 */
-    .progress-ring-wrap {
-      position: relative;
-      width: 68px;
-      height: 68px;
-      flex-shrink: 0;
-    }
-    .progress-ring-wrap svg {
-      width: 100%;
-      height: 100%;
-      transform: rotate(-90deg);
-    }
-    .progress-ring-bg {
-      fill: none;
-      stroke: var(--border);
-      stroke-width: 5;
-    }
-    .progress-ring-fill {
-      fill: none;
-      stroke: var(--accent-strong);
-      stroke-width: 5;
-      stroke-linecap: round;
-      stroke-dasharray: 188.5;
-      stroke-dashoffset: 56;
-      transition: stroke-dashoffset 600ms cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .progress-ring-text {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      font-family: var(--font-mono);
-      font-size: 17px;
-      font-weight: 700;
-      color: var(--fg);
-      letter-spacing: -0.02em;
-    }
-
-    .greeting { display: none; }
 
     .header .icon-btn {
       position: relative;
@@ -732,6 +702,227 @@
       cursor: pointer;
     }
 
+    /* 提醒卡：堆叠卡片（还原设计图布局）+ 上下滑动切换，内容按核心功能重排 */
+    .promo-stack {
+      position: relative;
+      display: grid;
+      padding-bottom: 30px;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .promo-stack.dragging { cursor: grabbing; }
+
+    .promo-card {
+      grid-area: 1 / 1;
+      position: relative;
+      /* 磨砂封皮：半透明渐变 + 背景模糊，透出身后另外两张卡的层次；
+         染上本卡 accent，三张卡各有主色好区分 */
+      background: linear-gradient(
+        160deg,
+        color-mix(in oklab, var(--promo-accent) 9%, color-mix(in oklab, var(--promo-bg) 76%, transparent)),
+        color-mix(in oklab, var(--promo-accent) 13%, color-mix(in oklab, var(--promo-bg) 64%, transparent))
+      );
+      backdrop-filter: blur(16px) saturate(1.15);
+      -webkit-backdrop-filter: blur(16px) saturate(1.15);
+      border: 1px solid color-mix(in oklab, var(--promo-accent) 32%, var(--promo-card-edge));
+      border-radius: 28px;
+      padding: 20px 26px 18px;
+      box-shadow:
+        0 0 0 1px var(--promo-line),
+        0 2px 6px rgba(20, 22, 26, 0.05),
+        0 18px 34px -18px color-mix(in oklab, var(--promo-accent) 42%, transparent),
+        inset 0 1px 0 var(--promo-card-hi);
+      transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 340ms ease;
+      touch-action: none;
+    }
+    /* 斜向光泽：盖在背景之上、内容之下，同样染上本卡 accent */
+    .promo-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(
+        135deg,
+        color-mix(in oklab, var(--promo-accent) 24%, var(--promo-card-sheen)),
+        transparent 46%
+      );
+      pointer-events: none;
+    }
+    .promo-card > * { position: relative; } /* 内容提到光泽层之上 */
+    .promo-stack.dragging .promo-card { transition: none; }
+    /* 换卡确认（向后沉入）阶段：比弹回更长、更缓的过渡，让"向后"动作可感 */
+    .promo-stack.swapping .promo-card {
+      transition: transform 620ms cubic-bezier(0.65, 0, 0.35, 1);
+    }
+    .promo-card.is-front { transform: none;            z-index: 3; }
+    .promo-card.is-mid   { transform: translateY(16px) scale(0.955); z-index: 2; }
+    .promo-card.is-back  { transform: translateY(32px) scale(0.91);  z-index: 1; }
+    /* 悬浮 / 点按：顶卡浮起；拖动与换卡期间由行内 transform 接管，不会冲突 */
+    .promo-stack:hover .promo-card.is-front,
+    .promo-stack:not(.dragging) .promo-card.is-front:active {
+      transform: translateY(-6px);
+      box-shadow:
+        0 0 0 1px var(--promo-line),
+        0 14px 30px color-mix(in oklab, var(--promo-accent) 36%, transparent),
+        inset 0 1px 0 var(--promo-card-hi);
+      transition:
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 220ms ease;
+    }
+    .promo-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    /* 顶部左：本次提醒时间；顶部右：提醒状态（对应 pending / due 状态机） */
+    .promo-time {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--promo-sub);
+    }
+    .promo-state {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: color-mix(in oklab, var(--promo-ink) 7%, transparent);
+      color: var(--promo-sub);
+    }
+    /* 已过计划时间未处理：与时间线 due 态同色 */
+    .promo-state[data-state="due"] {
+      background: color-mix(in oklab, var(--danger) 12%, transparent);
+      color: var(--danger-strong);
+    }
+    .promo-state[data-state="taken"] {
+      background: color-mix(in oklab, var(--success) 14%, transparent);
+      color: var(--success-strong);
+    }
+
+    .promo-mid {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 22px;
+      margin-bottom: 24px;
+      min-height: 104px; /* 指示器已移出卡片流，用 min-height 保住指示器行高（70+9+9+2×8），避免叠到分隔线 */
+    }
+    .promo-title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+      color: var(--promo-ink);
+    }
+    /* 标题下的剂量行：规格 · 单次剂量 · 服用时机（与时间线 dose-meta 同构） */
+    .promo-dose {
+      margin: 8px 0 0;
+      font-size: 14px;
+      color: var(--promo-sub);
+      line-height: 1.4;
+    }
+    /* 指示器：整叠共用一份，叠在顶卡之上；翻卡时高亮段 morph 滚动到下一段 */
+    .promo-indicator {
+      grid-area: 1 / 1;
+      justify-self: end;
+      align-self: start;
+      margin-right: 27px; /* 对齐卡片内容右缘（边框 1 + padding 26） */
+      z-index: 5;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .promo-indicator .seg {
+      box-sizing: border-box;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      /* 磨砂段：半透明底 + 背景模糊 + 玻璃棱线 + 内高光，与卡片同质感 */
+      background: color-mix(in oklab, var(--promo-dot) 62%, transparent);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--promo-card-edge);
+      box-shadow: inset 0 1px 0 var(--promo-card-hi);
+      transition:
+        height 620ms cubic-bezier(0.65, 0, 0.35, 1),
+        width 620ms cubic-bezier(0.65, 0, 0.35, 1),
+        background-color 300ms linear;
+    }
+    .promo-indicator .seg.on {
+      width: 6px;
+      height: 70px;
+      background: color-mix(in oklab, var(--promo-ink) 82%, transparent);
+    }
+
+    .promo-divider {
+      height: 1px;
+      background: var(--promo-line);
+      margin-bottom: 14px;
+    }
+    .promo-foot {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    /* 底部左：用药人头像（姓名首字，底色取卡的 accent，对应 Person.avatarColor） */
+    .promo-avatar {
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: var(--promo-accent);
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .promo-who { display: flex; flex-direction: column; min-width: 0; }
+    .promo-who-name {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--promo-ink);
+      line-height: 1.2;
+    }
+    .promo-who-sub {
+      display: flex;
+      flex-direction: column;
+      font-size: 13px;
+      color: var(--promo-sub);
+      line-height: 1.35;
+    }
+    /* 底部右：主操作 = 标记已服用（产生服用记录并扣减库存） */
+    .promo-take {
+      margin-left: auto;
+      flex-shrink: 0;
+      min-height: 44px;
+      padding: 0 26px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--promo-btn-bg);
+      color: var(--promo-btn-fg);
+      font: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 100ms, opacity 140ms;
+    }
+    .promo-take:hover { opacity: 0.88; }
+    .promo-take:active { transform: scale(0.97); }
+
     button:focus-visible, a:focus-visible {
       outline: none;
       box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
@@ -739,7 +930,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .tl-time, .tl-card, .tl-check, .tl-badge, .med-actions button, .pill, .tag { transition: none !important; }
+      .tl-time, .tl-card, .tl-check, .tl-badge, .med-actions button, .pill, .tag, .promo-card, .promo-indicator, .promo-indicator .seg { transition: none !important; }
       .tl-gap .tl-node { transition: none !important; }
     }
   
@@ -753,13 +944,21 @@
         --border: #2c2c2e;
         --accent-soft: color-mix(in oklab, var(--accent) 18%, transparent);
         --fg-soft: color-mix(in oklab, var(--fg) 12%, transparent);
+        --promo-bg: #1e1e20;
+        --promo-ink: #f5f5f7;
+        --promo-sub: #8e8e93;
+        --promo-line: rgba(255, 255, 255, 0.1);
+        --promo-dot: #48484a;
+        --promo-btn-bg: #f5f5f7;
+        --promo-btn-fg: #14161a;
+        --promo-card-edge: rgba(255, 255, 255, 0.16);
+        --promo-card-hi: rgba(255, 255, 255, 0.14);
+        --promo-card-sheen: rgba(255, 255, 255, 0.07);
       }
       .device { background: linear-gradient(160deg, #1a1a1c 0%, #0e0e10 50%, #050507 100%); }
       .statusbar { color: var(--fg); }
       .statusbar svg { fill: var(--fg); }
       .home-indicator::after { background: var(--fg); opacity: 0.5; }
-      .ph-img { background: linear-gradient(135deg, var(--accent-soft), var(--fg-soft)), var(--surface); }
-      .med-thumb { background: linear-gradient(135deg, var(--accent-soft), var(--fg-soft)), var(--surface); }
     }
   </style>
 </head>
@@ -796,7 +995,7 @@
         </div>
 
         <main class="content" data-od-id="content">
-          <!-- 大胆头部：巨型日期 + 环形进度 -->
+          <!-- 大胆头部：巨型日期 -->
           <div class="header" data-od-id="header">
             <div>
               <div class="hero-date">
@@ -804,15 +1003,6 @@
                 <span class="hero-month">9月</span>
               </div>
               <p class="hero-weekday">星期日 · 今天</p>
-            </div>
-
-            <!-- 环形进度 70% -->
-            <div class="progress-ring-wrap" aria-label="今日进度 70%">
-              <svg viewBox="0 0 68 68">
-                <circle class="progress-ring-bg" cx="34" cy="34" r="30"/>
-                <circle class="progress-ring-fill" cx="34" cy="34" r="30"/>
-              </svg>
-              <div class="progress-ring-text">70%</div>
             </div>
 
             <a class="icon-btn" href="add-medication.html" aria-label="添加药品">
@@ -953,6 +1143,92 @@
               <a class="alert-btn" href="medications.html">去补充</a>
             </div>
           </section>
+
+          <section class="pad sect" data-od-id="promo">
+            <div class="promo-stack" data-od-id="promo-stack">
+              <!-- 整叠共用一份指示器，叠在顶卡之上；翻卡时高亮段 morph 滚动到下一段 -->
+              <span class="promo-indicator" aria-hidden="true">
+                <span class="seg on"></span>
+                <span class="seg"></span>
+                <span class="seg"></span>
+              </span>
+              <!-- 每张卡 = 一次待处理的用药提醒：时间 / 状态 / 药品+剂量 / 用药人 / 已服用 -->
+              <article class="promo-card is-front" data-od-id="promo-card-1">
+                <div class="promo-top">
+                  <span class="promo-time">18:00</span>
+                  <span class="promo-state" data-state="due">尚未服用</span>
+                </div>
+                <div class="promo-mid">
+                  <div>
+                    <h3 class="promo-title">二甲双胍</h3>
+                    <p class="promo-dose">500mg · 1片 · 晚餐后</p>
+                  </div>
+                </div>
+                <div class="promo-divider" aria-hidden="true"></div>
+                <div class="promo-foot">
+                  <span class="promo-avatar" aria-hidden="true">妈</span>
+                  <span class="promo-who">
+                    <span class="promo-who-name">妈妈</span>
+                    <span class="promo-who-sub">
+                      <span>每日 2 次</span>
+                      <span>剩 24 天</span>
+                    </span>
+                  </span>
+                  <button class="promo-take" type="button">已服用</button>
+                </div>
+              </article>
+
+              <article class="promo-card is-mid" data-od-id="promo-card-2" style="--promo-accent: #10a37f;">
+                <div class="promo-top">
+                  <span class="promo-time">21:00</span>
+                  <span class="promo-state">待服用</span>
+                </div>
+                <div class="promo-mid">
+                  <div>
+                    <h3 class="promo-title">阿托伐他汀</h3>
+                    <p class="promo-dose">10mg · 1片 · 睡前</p>
+                  </div>
+                </div>
+                <div class="promo-divider" aria-hidden="true"></div>
+                <div class="promo-foot">
+                  <span class="promo-avatar" aria-hidden="true">我</span>
+                  <span class="promo-who">
+                    <span class="promo-who-name">我</span>
+                    <span class="promo-who-sub">
+                      <span>长期用药</span>
+                      <span style="color: var(--danger-strong);">剩 8 天</span>
+                    </span>
+                  </span>
+                  <button class="promo-take" type="button">已服用</button>
+                </div>
+              </article>
+
+              <article class="promo-card is-back" data-od-id="promo-card-3" style="--promo-accent: #6366f1;">
+                <div class="promo-top">
+                  <span class="promo-time">明天 08:00</span>
+                  <span class="promo-state">待服用</span>
+                </div>
+                <div class="promo-mid">
+                  <div>
+                    <h3 class="promo-title">阿司匹林</h3>
+                    <p class="promo-dose">100mg · 1片 · 早餐后</p>
+                  </div>
+                </div>
+                <div class="promo-divider" aria-hidden="true"></div>
+                <div class="promo-foot">
+                  <span class="promo-avatar" aria-hidden="true">爸</span>
+                  <span class="promo-who">
+                    <span class="promo-who-name">爸爸</span>
+                    <span class="promo-who-sub">
+                      <span>每日 1 次</span>
+                      <span>长期</span>
+                    </span>
+                  </span>
+                  <button class="promo-take" type="button">已服用</button>
+                </div>
+              </article>
+            </div>
+          </section>
         </main>
 
         <nav class="tabbar" style="--tabs: 3;" data-od-id="tabbar">
@@ -1065,6 +1341,138 @@
       const taken = document.querySelectorAll('.tl-item[data-state="taken"]').length;
       el.textContent = '已完成 ' + taken + '/' + total;
     }
+
+    /* 推荐卡堆叠：上下滑动，顶卡先随手指移动并缩小，过阈值后沉入牌堆后方，露出下一张 */
+    (function () {
+      const stack = document.querySelector('[data-od-id="promo-stack"]');
+      if (!stack) return;
+
+      const THRESHOLD = 90; // 触发换卡的滑动距离（px）
+      const DEAD_ZONE = 6;  // 小于该位移视为点击，不劫持
+      // 三档静止位：与 CSS 的 is-front / is-mid / is-back 保持一致
+      const REST = { frontY: 0, frontS: 1, midY: 16, midS: 0.955, backY: 32, backS: 0.91 };
+
+      let pointerId = null;
+      let startY = 0;
+      let phase = 'idle'; // idle | follow（随手指）| behind（已过阈值、正在向后沉入）
+      let moved = false;
+      let front, mid, back;
+      // 整叠共用的指示器：固定在顶卡 mid 区域原地，翻卡时只做高亮段 morph
+      const ind = stack.querySelector('.promo-indicator');
+      const segs = ind ? Array.from(ind.querySelectorAll('.seg')) : [];
+      let indIdx = 0; // 当前高亮段下标，与 is-front 卡一一对应
+
+      const pick = (cls) => stack.querySelector('.promo-card.' + cls);
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const clamp01 = (v) => Math.max(0, Math.min(1, v));
+      const tf = (y, s) => 'translateY(' + y + 'px) scale(' + s + ')';
+
+      function cacheCards() {
+        front = pick('is-front');
+        mid = pick('is-mid');
+        back = pick('is-back');
+      }
+
+      // 把共享指示器定位到顶卡 mid 区域（固定原地，不随卡片移动）
+      function measureIndicator() {
+        if (!ind) return;
+        const card = pick('is-front');
+        const midEl = card && card.querySelector('.promo-mid');
+        if (!midEl) return;
+        ind.style.marginTop = midEl.offsetTop + 'px';
+      }
+
+      // 高亮段 morph 滚动到下一段：旧条 70→9 缩回、目标条 9→70 长出
+      function rollIndicator() {
+        if (!segs.length) return;
+        segs[indIdx].classList.remove('on');
+        indIdx = (indIdx + 1) % segs.length;
+        segs[indIdx].classList.add('on');
+      }
+
+      // 过阈值：顶卡停止跟随手指，开过渡沉入牌堆后方，其余卡前移补位
+      function enterBehind() {
+        phase = 'behind';
+        stack.classList.remove('dragging'); // 恢复过渡，让"向后"动画生效
+        stack.classList.add('swapping');    // 切到该阶段专用的慢速过渡
+        front.style.transform = tf(REST.backY, REST.backS);
+        front.style.zIndex = '0';
+        mid.style.transform = tf(REST.frontY, REST.frontS);
+        back.style.transform = tf(REST.midY, REST.midS);
+        rollIndicator();                   // 指示器原地不动，仅高亮段与沉底同步滚动
+      }
+
+      function release() {
+        if (pointerId === null) return;
+        pointerId = null;
+        const committed = phase === 'behind';
+        phase = 'idle';
+        stack.classList.remove('dragging');
+        stack.classList.remove('swapping'); // 进行中的过渡按启动时采样，移除类不会打断动画
+
+        if (committed) {
+          // 轮转牌堆：前→后，中→前，后→中
+          front.classList.remove('is-front');
+          front.classList.add('is-back');
+          mid.classList.remove('is-mid');
+          mid.classList.add('is-front');
+          back.classList.remove('is-back');
+          back.classList.add('is-mid');
+        }
+        // 清掉行内样式，交给 class 过渡回静止位（未过阈值时即弹回原位）
+        [front, mid, back].forEach((card) => {
+          card.style.transform = '';
+          card.style.zIndex = '';
+          card.style.willChange = '';
+        });
+      }
+
+      stack.addEventListener('pointerdown', (e) => {
+        if (pointerId !== null || e.button !== 0) return;
+        pointerId = e.pointerId;
+        startY = e.clientY;
+        phase = 'follow';
+        moved = false;
+        cacheCards();
+        stack.setPointerCapture(e.pointerId);
+      });
+
+      stack.addEventListener('pointermove', (e) => {
+        if (e.pointerId !== pointerId || phase !== 'follow') return;
+        const dy = e.clientY - startY;
+        if (Math.abs(dy) <= DEAD_ZONE) return;
+
+        moved = true;
+        if (!stack.classList.contains('dragging')) {
+          stack.classList.add('dragging'); // 跟手阶段关掉过渡
+          [front, mid, back].forEach((card) => { card.style.willChange = 'transform'; });
+        }
+        if (Math.abs(dy) >= THRESHOLD) {
+          enterBehind();
+          return;
+        }
+
+        const p = clamp01(Math.abs(dy) / THRESHOLD);
+        front.style.transform = tf(dy, lerp(REST.frontS, 0.84, p));
+        mid.style.transform = tf(lerp(REST.midY, REST.frontY, p), lerp(REST.midS, REST.frontS, p));
+        back.style.transform = tf(lerp(REST.backY, REST.midY, p), lerp(REST.backS, REST.midS, p));
+      });
+
+      stack.addEventListener('pointerup', release);
+      stack.addEventListener('pointercancel', release);
+
+      // 初次测量 + 布局变化后重测，保证指示器与卡片 mid 区对齐
+      measureIndicator();
+      window.addEventListener('resize', measureIndicator);
+
+      // 拖动过卡片后吞掉随之而来的 click，避免误触 View / 收藏
+      stack.addEventListener('click', (e) => {
+        if (!moved) return;
+        e.stopPropagation();
+        e.preventDefault();
+        moved = false;
+      }, true);
+    })();
   </script>
 </body>
 </html>

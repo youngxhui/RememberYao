@@ -1,8 +1,17 @@
-import { Column, Host, Icon, Row, ScrollView, Spacer, Text } from "@expo/ui";
+import {
+  Column,
+  Host,
+  Icon,
+  RNHostView,
+  Row,
+  ScrollView,
+  Spacer,
+  Text,
+} from "@expo/ui";
 import { frame } from "@expo/ui/swift-ui/modifiers";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Linking } from "react-native";
+import { Button as RNButton, Linking } from "react-native";
 
 import { DoseTimeline } from "@/components/dose-timeline";
 import { ProgressBar } from "@/components/progress-bar";
@@ -31,16 +40,18 @@ export default function TodayScreen() {
   if (checkingOnboarding) return null;
 
   const today = todayKey();
+  // Hermes 不支持 ES2023 的 toSorted()；以下两处上游均为 filter/map 新数组，
+  // 原地 sort 不会改动 store 数据
   const todays = reminders
     .filter((r) => r.date === today)
-    .toSorted((a, b) => a.time.localeCompare(b.time));
+    .sort((a, b) => a.time.localeCompare(b.time));
   const doneCount = todays.filter((r) => r.status === "taken").length;
 
   const lowStock = medications.filter((m) => stockSummary(m, plans).low);
   const stockMeds = medications
     .map((m) => ({ medication: m, summary: stockSummary(m, plans) }))
     .filter((item) => item.summary.daysLeft !== null)
-    .toSorted((a, b) => (a.summary.daysLeft ?? 0) - (b.summary.daysLeft ?? 0))
+    .sort((a, b) => (a.summary.daysLeft ?? 0) - (b.summary.daysLeft ?? 0))
     .slice(0, 3);
 
   return (
@@ -57,141 +68,14 @@ export default function TodayScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <ScrollView
-          style={{ padding: 16, paddingBottom: 32 }}
-          showsIndicators={false}
-        >
-          <Column spacing={16}>
-            <NotificationBanner />
-            {todays.length > 0 ? (
-              <Column
-                spacing={10}
-                style={{
-                  backgroundColor: theme.primarySoft,
-                  borderRadius: 16,
-                  padding: 16,
-                }}
-              >
-                <Row alignment="center">
-                  <Column spacing={2}>
-                    <Text
-                      textStyle={{ fontSize: 13, color: theme.textSecondary }}
-                    >
-                      今日用药
-                    </Text>
-                    <Text textStyle={{ fontSize: 24, fontWeight: "700" }}>
-                      {`${doneCount}/${todays.length}`}
-                    </Text>
-                  </Column>
-                  <Spacer />
-                  <Text textStyle={{ fontSize: 13, color: theme.primary }}>
-                    {formatTodayLabel(today)}
-                  </Text>
-                </Row>
-                <ProgressBar
-                  percent={doneCount / todays.length}
-                  color={theme.primary}
-                  track={theme.backgroundSelected}
-                  height={8}
-                />
-              </Column>
-            ) : null}
-
-            {todays.length === 0 && !loading ? (
-              <Column alignment="center" spacing={8} style={{ paddingTop: 96 }}>
-                <Icon
-                  name="checkmark.circle.fill"
-                  size={40}
-                  color={theme.textSecondary}
-                />
-                <Text textStyle={{ color: theme.textSecondary }}>
-                  今天没有用药提醒
-                </Text>
-              </Column>
-            ) : (
-              <DoseTimeline
-                reminders={todays}
-                medications={medications}
-                persons={persons}
-                interactive
-                onChanged={reload}
-                emptyText="今天没有用药提醒"
-              />
-            )}
-
-            {stockMeds.length > 0 ? (
-              <Column spacing={10}>
-                <Row alignment="center">
-                  <Text
-                    textStyle={{ fontSize: 13, color: theme.textSecondary }}
-                  >
-                    药品库存
-                  </Text>
-                  <Spacer />
-                  <Text
-                    textStyle={{ fontSize: 13, color: theme.primary }}
-                    onPress={() => {
-                      router.push("/(tabs)/medica");
-                    }}
-                  >
-                    查看全部
-                  </Text>
-                </Row>
-                {stockMeds.map(({ medication, summary }) => (
-                  <StockBrief
-                    key={medication.id}
-                    name={medication.name}
-                    daysLeft={summary.daysLeft ?? 0}
-                    low={summary.low}
-                    percent={
-                      medication.totalQuantity > 0
-                        ? medication.remainingQuantity /
-                          medication.totalQuantity
-                        : 0
-                    }
-                    onPress={() => {
-                      router.push({
-                        pathname: "/(tabs)/medica/detail",
-                        params: { id: medication.id },
-                      });
-                    }}
-                  />
-                ))}
-              </Column>
-            ) : null}
-
-            {lowStock.length > 0 ? (
-              <Row
-                spacing={8}
-                alignment="center"
-                style={{
-                  backgroundColor: theme.warningSoft,
-                  borderRadius: 12,
-                  padding: 12,
-                }}
-              >
-                <Icon
-                  name="exclamationmark.triangle.fill"
-                  size={18}
-                  color={theme.warning}
-                />
-                <Column
-                  spacing={2}
-                  modifiers={[frame({ minWidth: 0, maxWidth: Infinity })]}
-                >
-                  <Text textStyle={{ fontSize: 14, fontWeight: "600" }}>
-                    {`${lowStock.length} 种药品库存不足`}
-                  </Text>
-                  <Text
-                    textStyle={{ fontSize: 12, color: theme.textSecondary }}
-                  >
-                    {lowStock.map((m) => m.name).join("、")}
-                  </Text>
-                </Column>
-              </Row>
-            ) : null}
-          </Column>
-        </ScrollView>
+        <RNHostView>
+          <RNButton
+            title="hello world"
+            onPress={() => {
+              console.log("click");
+            }}
+          />
+        </RNHostView>
       </Host>
     </>
   );
