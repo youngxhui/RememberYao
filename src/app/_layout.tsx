@@ -44,7 +44,7 @@ export default function RootLayout() {
     // GestureHandler 的 Pan 需要根视图承载，缺了手势会静默失效
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-          <AppTabs />
+        <AppTabs />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

@@ -116,7 +116,8 @@
         "src/app/(tabs)/profile/persons.tsx",
         "src/app/(tabs)/profile/plan-form.tsx",
         "src/app/(tabs)/medica/detail.tsx",
-        "src/app/(tabs)/medica/form.tsx"
+        "src/app/(tabs)/medica/form.tsx",
+        "src/components/swiftui/mini-archive.ios.tsx"
       ],
       "rules": {
         "react/immutability": "off"

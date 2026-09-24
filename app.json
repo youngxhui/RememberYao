@@ -8,6 +8,7 @@
     "scheme": "rememberyao",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "deploymentTarget": "26.0",
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.youngxhui.RememberYao"
     },

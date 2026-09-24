@@ -11,6 +11,7 @@
 | --- | --- |
 | [docs/conventions/code-style.md](docs/conventions/code-style.md) | oxlint/oxfmt 工具链、TypeScript、命名、导入顺序、库选择偏好、样式写法 |
 | [docs/conventions/ui-design.md](docs/conventions/ui-design.md) | `@expo/ui` 选型、平台专属组件隔离、RNHostView、主题 token、组件契约、native slop |
+| [docs/conventions/expo-ui-layout.md](docs/conventions/expo-ui-layout.md) | `@expo/ui` 与 RN 混用的布局边界、尺寸测量、`matchContents`、折叠/展开适配 |
 | [docs/conventions/routing-structure.md](docs/conventions/routing-structure.md) | `src/app` 规则、`_layout.tsx`、Stack/Link/NativeTabs、目录归属 |
 | [docs/conventions/data-state.md](docs/conventions/data-state.md) | store.ts 单点持久化、纯函数、日期字符串、提醒状态机、通知同步、Maestro |
 

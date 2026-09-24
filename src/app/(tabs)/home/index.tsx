@@ -68,14 +68,7 @@ export default function TodayScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <RNHostView>
-          <RNButton
-            title="hello world"
-            onPress={() => {
-              console.log("click");
-            }}
-          />
-        </RNHostView>
+        <Text>Hello WorldHello WorldHello WorldHello WorldHello World</Text>
       </Host>
     </>
   );

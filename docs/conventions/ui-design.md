@@ -64,7 +64,7 @@ modifier 工厂是纯 JS —— `frame(params)` 只是 `return { $type: "frame",
 
 ## RN 视图进 Expo UI 树
 
-必须在 Expo UI 树里用 RN 视图时，用 `RNHostView` 包裹：
+必须在 Expo UI 树里用 RN 视图时，用 `RNHostView` 包裹；涉及固有尺寸、父容器宽度、折叠/展开或 `matchContents` 时，同时阅读 [`expo-ui-layout.md`](expo-ui-layout.md)。
 
 ```tsx
 import { RNHostView } from "@expo/ui";

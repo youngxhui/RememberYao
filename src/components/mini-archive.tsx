@@ -1,3 +1,4 @@
+import { RNHostView } from "@expo/ui";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useRef, useState, type ComponentProps } from "react";
@@ -20,9 +21,10 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 
-import { Fonts, Spacing } from "@/constants/theme";
+import { Fonts } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import {
   medicationTypeLabel,
@@ -45,7 +47,7 @@ export type ArchiveEntry = {
   footer?: string;
 };
 
-type MiniArchiveProps = {
+export type MiniArchiveProps = {
   entries: ArchiveEntry[];
   /** 封面大标题 */
   title?: string;
@@ -59,6 +61,12 @@ type MiniArchiveProps = {
   emptyHint?: string;
   /** 点按某张说明书 */
   onSelectEntry?: (entry: ArchiveEntry) => void;
+  /** SwiftUI `Host` 的 onLayoutContent 实测内容区宽度，优先级最高。
+   *  RNHostView(matchContents) 下 Yoga 用无约束测量被托管的 RN 子树，
+   *  onLayout 只会把当前宽度回读出来、拿不到父级宽度，所以 SwiftUI 侧
+   *  必须把实测宽度喂下来；窗口宽/安全区变化时 Host 会重新派发，值不会陈旧。
+   *  纯 RN 接入不传，走 onLayout 自测。 */
+  containerWidth?: number;
   /** 布局覆盖，最后合并。取 View 的 style 类型而非 StyleProp<ViewStyle> ——
    * expo 的 react-native-web 声明给 ViewStyle 并集塞进了 "fixed"/"sticky"，
    * 直接用它会被 View 的 style（仅 absolute/relative/static）拒绝 */
@@ -84,15 +92,9 @@ const SCROLL_PAD_TOP = 30;
 const SCROLL_PAD_BOTTOM = 34;
 const SECTION_PAD_TOP = 10;
 const SECTION_PAD_BOTTOM = 4;
-const CAPTION_MARGIN_TOP = 4;
-const CAPTION_LINE = 16;
 const SCROLLER_H = SCROLL_PAD_TOP + FOLDER_H + SCROLL_PAD_BOTTOM;
-const SHELL_H =
-  SECTION_PAD_TOP +
-  SCROLLER_H +
-  CAPTION_MARGIN_TOP +
-  CAPTION_LINE +
-  SECTION_PAD_BOTTOM;
+// RN 版不渲染 caption；只预留实际 section + scroller 的高度。
+const SHELL_H = SECTION_PAD_TOP + SCROLLER_H + SECTION_PAD_BOTTOM;
 
 // 滚过 40px 即判定为展开（与设计稿 sync() 的阈值一致）
 const OPEN_THRESHOLD = 40;
@@ -169,6 +171,7 @@ export function archiveEntryFromMedication(
  */
 export function MiniArchive({
   entries,
+  containerWidth,
   title = "我的档案",
   subtitle = "Mini Archive",
   // closedHint / openHint / emptyHint 暂不生效：caption 提示段已按调试需要移除，
@@ -180,11 +183,56 @@ export function MiniArchive({
   const count = entries.length;
 
   const [open, setOpen] = useState(false);
-  const [hostWidth, setHostWidth] = useState(0);
   const { width: windowWidth } = useWindowDimensions();
-  // 外层 RNView 自适应父容器，用 onLayout 实测宽度；首帧拿不到时退回
-  // 「窗口宽 − 屏幕左右内边距」（两处接入都是 16pt 内边距的滚动容器）
-  const width = hostWidth > 0 ? hostWidth : windowWidth - Spacing.three * 2;
+  const insets = useSafeAreaInsets();
+  // 宽度来源优先级：
+  //   1. containerWidth —— SwiftUI Host onLayoutContent 实测的内容区宽，
+  //      matchContents 下唯一可靠的来源，且窗口/安全区变化时会重新派发；
+  //   2. measured —— 外层 RNView onLayout 实测，纯 RN 接入（有父级约束）有效；
+  //   3. fallbackWidth —— 「窗口宽 − 水平安全区」。
+  // SwiftUI 侧按安全区布局，Host 的内容区比窗口窄 insets.left + insets.right；
+  // RN 侧不减掉同一块，RNHostView 就会宽过 Host，被 hosting controller 居中
+  // 溢出，把同列的 SwiftUI 兄弟节点整体推歪（文本开头被屏幕左缘切掉）。
+  const fallbackWidth = Math.max(0, windowWidth - insets.left - insets.right);
+  // 窗口宽和安全区都会变（折叠屏展开、分屏、旋转），而 matchContents 下
+  // onLayout 只会把当前宽度回读出来，所以实测值必须记下它是在哪套兜底宽度下
+  // 量的：兜底宽度一变，旧实测值作废、重新派生，否则屏幕变了宽度还卡在旧值。
+  const [measured, setMeasured] = useState<{
+    fallback: number;
+    width: number;
+  } | null>(null);
+
+  const handleMeasuredLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const next = Math.round(event.nativeEvent.layout.width);
+      if (next > 0) {
+        setMeasured((prev) =>
+          prev && prev.width === next
+            ? prev
+            : { fallback: fallbackWidth, width: next },
+        );
+      }
+    },
+    [fallbackWidth],
+  );
+
+  const measuredWidth =
+    measured?.fallback === fallbackWidth ? measured.width : 0;
+  const requestedWidth =
+    containerWidth != null && containerWidth > 0
+      ? containerWidth
+      : measuredWidth > 0
+        ? measuredWidth
+        : 0;
+  // 折叠/展开时 Host 的 onLayoutContent 可能比 windowDimensions 晚一帧，
+  // 不能让旧的展开宽度压过当前窗口的可用宽度；取两者较小值，展开时
+  // Host 回调到达后再恢复到真实内容宽度。
+  const width =
+    requestedWidth > 0 && fallbackWidth > 0
+      ? Math.min(requestedWidth, fallbackWidth)
+      : requestedWidth > 0
+        ? requestedWidth
+        : fallbackWidth;
 
   const scrollX = useSharedValue(0);
   const scrollRef = useRef<ScrollViewInstance>(null);
@@ -211,11 +259,6 @@ export function MiniArchive({
     ),
   }));
 
-  const handleLayout = useCallback((event: LayoutChangeEvent) => {
-    const next = Math.round(event.nativeEvent.layout.width);
-    if (next > 0) setHostWidth((prev) => (prev === next ? prev : next));
-  }, []);
-
   // 点按文件夹：闭合→平滑滚到说明书1（展开）；已展开→平滑滚回文件夹（合上）
   const toggleFolder = () => {
     if (count === 0) return;
@@ -226,7 +269,7 @@ export function MiniArchive({
   };
 
   return (
-    <RNView onLayout={handleLayout}>
+    <RNView onLayout={handleMeasuredLayout}>
       <RNView
         style={[
           {
@@ -286,6 +329,21 @@ export function MiniArchive({
         </Animated.ScrollView>
       </RNView>
     </RNView>
+  );
+}
+
+/**
+ * 放进 Expo UI 页面时用这个。
+ * 高度由 MiniArchive 内部 RN View 的固定尺寸提供，RNHostView 通过
+ * matchContents 将 RN 子树的尺寸同步给 SwiftUI / Compose；不要再给
+ * RNHostView 写百分比 style，跨平台适配层对 style 的支持并不一致。
+ * 纯 RN 页面继续直接用 MiniArchive。
+ */
+export function MiniArchiveSwiftUI(props: MiniArchiveProps) {
+  return (
+    <RNHostView matchContents>
+      <MiniArchive {...props} />
+    </RNHostView>
   );
 }
 

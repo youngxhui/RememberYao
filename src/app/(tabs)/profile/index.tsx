@@ -1,22 +1,14 @@
+import { Column, Host, ListItem, Row, ScrollView, Text } from "@expo/ui";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import { useCallback } from "react";
-import {
-  Pressable,
-  ScrollView as RNScrollView,
-  Text as RNText,
-  useWindowDimensions,
-  View as RNView,
-  View,
-} from "react-native";
+import { useCallback, useState } from "react";
+import { type LayoutChangeEvent } from "react-native";
 
 import {
-  MiniArchive,
+  MiniArchiveSwiftUI,
   archiveEntryFromMedication,
 } from "@/components/mini-archive";
-import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useAppData } from "@/lib/store";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 type SettingRow = {
   label: string;
@@ -32,10 +24,33 @@ type SettingSection = {
 export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { width } = useWindowDimensions();
-  const { medications, loading, reload } = useAppData();
-  // iPhone Duo 内屏宽 669pt，横向是 regular。这种宽度下大标题不会收进导航栏，会跟着滚走。
-  const largeTitle = width < 600;
+  const { medications, reload } = useAppData();
+  // Host 的 RN frame 会跟随窗口/折叠状态变化；onLayoutContent 则提供
+  // SwiftUI 内容区的精确宽度。折叠时后者可能晚一帧，先取两者的较小值，
+  // 避免旧的展开宽度把 Column 撑开，再等精确回调到达后恢复。
+  const [hostFrameWidth, setHostFrameWidth] = useState(0);
+  const [hostContentWidth, setHostContentWidth] = useState(0);
+  const handleHostLayout = useCallback((event: LayoutChangeEvent) => {
+    const next = Math.round(event.nativeEvent.layout.width);
+    if (next > 0) {
+      setHostFrameWidth((prev) => (prev === next ? prev : next));
+    }
+  }, []);
+  const handleLayoutContent = useCallback(
+    (event: { nativeEvent: { width: number } }) => {
+      const next = Math.round(event.nativeEvent.width);
+      if (next > 0) {
+        setHostContentWidth((prev) => (prev === next ? prev : next));
+      }
+    },
+    [],
+  );
+  const contentWidth =
+    hostFrameWidth > 0 && hostContentWidth > 0
+      ? Math.min(hostFrameWidth, hostContentWidth)
+      : hostFrameWidth > 0
+        ? hostFrameWidth
+        : hostContentWidth;
 
   useFocusEffect(
     useCallback(() => {
@@ -79,14 +94,20 @@ export default function ProfileScreen() {
 
   return (
     <>
-      <RNScrollView
+      <Stack.Title large>设置</Stack.Title>
+      <Host
+        seedColor={theme.primary}
         style={{ flex: 1 }}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+        onLayout={handleHostLayout}
+        onLayoutContent={handleLayoutContent}
       >
-          {!loading ? (
-            <MiniArchive
+        <ScrollView
+          showsIndicators={false}
+          style={{ paddingTop: 8, paddingBottom: 24 }}
+        >
+          <Column spacing={20}>
+            <MiniArchiveSwiftUI
+              containerWidth={contentWidth > 0 ? contentWidth : undefined}
               entries={medications.map(archiveEntryFromMedication)}
               onSelectEntry={(entry) => {
                 router.push({
@@ -95,69 +116,72 @@ export default function ProfileScreen() {
                 });
               }}
             />
-          ) : null}
-          <SafeAreaView edges={["left", "right", "bottom"]}>
-
-          <View style={{ padding: 16 }}>
-
-
             {sections.map((section) => (
-              <RNView key={section.title}>
-                <RNText
-                  style={{
-                    marginBottom: Spacing.two,
-                    paddingLeft: Spacing.two,
-                    borderLeftWidth: 4,
-                    borderLeftColor: theme.primary,
-                    color: theme.text,
-                    fontSize: 17,
-                    fontWeight: "700",
-                  }}
-                >
-                  {section.title}
-                </RNText>
-                <RNView
-                  style={{
-                    backgroundColor: theme.backgroundElement,
-                    borderRadius: 14,
-                    borderCurve: "continuous",
-                    overflow: "hidden",
-                  }}
-                >
-                  {section.rows.map((row, index) => (
-                    <Pressable
-                      key={row.label}
-                      disabled={!row.onPress}
-                      onPress={row.onPress}
-                      style={{
-                        padding: Spacing.three,
-                        borderTopWidth: index === 0 ? 0 : 1,
-                        borderTopColor: theme.background,
-                      }}
-                    >
-                      <RNText style={{ color: theme.text, fontSize: 16 }}>
-                        {row.label}
-                      </RNText>
-                      {row.hint ? (
-                        <RNText
-                          style={{
-                            marginTop: Spacing.half,
-                            color: theme.textSecondary,
-                            fontSize: 13,
-                          }}
-                        >
-                          {row.hint}
-                        </RNText>
-                      ) : null}
-                    </Pressable>
-                  ))}
-                </RNView>
-              </RNView>
+              <SettingSectionBlock key={section.title} section={section} />
             ))}
-          </View>
-        </SafeAreaView>
-      </RNScrollView>
-      <Stack.Title large={largeTitle}>设置</Stack.Title>
+          </Column>
+        </ScrollView>
+      </Host>
     </>
+  );
+}
+
+/** 设置分组：左侧强调条标题 + 圆角卡片行列表，对齐 design/settings.html */
+function SettingSectionBlock({ section }: { section: SettingSection }) {
+  const theme = useTheme();
+  return (
+    <Column spacing={8} style={{ paddingHorizontal: 16 }}>
+      <Row alignment="center" spacing={8}>
+        {/* SwiftUI 没有左 border，用带 frame 的空 Column 画 4×16 强调条 */}
+        <Column
+          style={{
+            width: 4,
+            height: 16,
+            borderRadius: 2,
+            backgroundColor: theme.primary,
+          }}
+        />
+        <Text
+          textStyle={{ fontSize: 17, fontWeight: "700", color: theme.text }}
+        >
+          {section.title}
+        </Text>
+      </Row>
+      <Column
+        style={{
+          backgroundColor: theme.backgroundElement,
+          borderRadius: 14,
+        }}
+      >
+        {section.rows.map((row, index) => (
+          <Column key={row.label}>
+            {index > 0 ? (
+              <Column
+                style={{ height: 1, backgroundColor: theme.background }}
+              />
+            ) : null}
+            <Column style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+              <SettingListItem row={row} />
+            </Column>
+          </Column>
+        ))}
+      </Column>
+    </Column>
+  );
+}
+
+function SettingListItem({ row }: { row: SettingRow }) {
+  const theme = useTheme();
+  return (
+    <ListItem onPress={row.onPress}>
+      <Text textStyle={{ fontSize: 16, color: theme.text }}>{row.label}</Text>
+      {row.hint ? (
+        <ListItem.Supporting>
+          <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>
+            {row.hint}
+          </Text>
+        </ListItem.Supporting>
+      ) : null}
+    </ListItem>
   );
 }
