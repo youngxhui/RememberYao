@@ -66,7 +66,13 @@ useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
 - 比较时间用 `localeCompare`，不要 `new Date(...).getTime()`。
 - 取"今天"用 `todayKey()`。
-- 排序用 `toSorted()` 而不是 `sort()` —— `sort()` 会原地修改数组，`toSorted()` 返回新数组。oxlint 的 `unicorn/no-array-sort` 规则会提醒（当前 3 处待改）。
+- 排序**不要用 `toSorted()`** —— Hermes 没有 ES2023 的 `toSorted()`，运行时是 `undefined`，一调就 `TypeError` 红屏（`tsc` 不报错，因为 `lib` 是 esnext）。正确写法：先 `filter()` / `map()` 拿到新数组，再原地 `sort()`（不碰 store 数据），并加行内禁用 + 注释：
+  ```ts
+  const day = reminders.filter((r) => r.date === date);
+  // Hermes 没有 ES2023 的 toSorted()；上游是 filter 产物，原地排序不改 store
+  // oxlint-disable-next-line unicorn/no-array-sort
+  day.sort((a, b) => a.time.localeCompare(b.time));
+  ```
 
 ## 提醒状态机
 
@@ -117,20 +123,19 @@ maestro test maestro/add_medica.yaml   # 添加药品
 - 新增可交互的关键控件（按钮、列表项）按需加 `testID`，否则 Maestro 只能靠文案定位，文案一改测试就断。
 - 文件名用下划线分隔（`add_medica.yaml` 是历史遗留，新文件建议改用连字符以保持和 kebab-case 一致 —— 但改名要同步 CI，先问过再动）。
 
-## 当前待修的 lint 问题
+## 当前 lint 状态
 
-`bun run lint` 目前 **0 errors / 12 warnings**，全部是 `no-restricted-imports`（`@expo/ui/swift-ui` 平台导入）。
+`bun run lint` 当前为 **0 errors / 0 warnings**。日期选择直接使用通用 `DateTimePicker`；其余平台 UI 能力由 `src/components/native-layout.{ios,android}.tsx` 隔离，通用路由不再直接导入 SwiftUI / Compose 子包。
 
 已修完的问题（2026-09-22）：
 
 | 规则 | 原位置 | 处理 |
 | --- | --- | --- |
-| `no-unused-vars` | `store.ts` `migrateLegacy` | 死代码，连同 `LegacyMedicine` 类型和 `LEGACY_MEDICINES_KEY` 一起删除 |
-| `no-unused-vars` | `persons.tsx` `Avatar` 导入 | 删导入 |
-| `no-unused-vars` | `home/index.tsx` `StockBrief.onPress` | 真 bug：调用方传了 `router.push` 但组件从未使用。已接到 `Column` 的 `onPress`（universal 组件支持） |
-| `react(set-state-in-effect)` | `store.ts` `useAppData` | 误报：`reload()` 是 async，setState 在 await 之后的微任务里执行，非同步。已在 `.oxlintrc.json` 按文件关闭并注明原因（oxlint 行内禁用对该规则无效） |
-| `react(immutability)` × 3 | `persons.tsx`、`medica/detail.tsx` | 误报：`useNativeState` 写 `.value` 是既定用法，universal 导入下没有 `.get()`/`.set()`。已在 `.oxlintrc.json` 按文件关闭 |
-| `promise(always-return)` × 2 | `notifications.ts`、`use-onboarding-gate.ts` | `.then()` 回调补 `return undefined` |
-| `unicorn(no-array-sort)` × 3 | `home`/`records` | 改 `toSorted()` |
-
-剩余 12 处平台导入警告的处置见 [ui-design.md](./ui-design.md#平台专属组件隔离最重要) —— 涉及架构决策（modifier 两端命名完全不同、`DatePicker`/`TabView` 无 universal 等价物），需先定方案再动。
+| `no-unused-vars` | `store.ts` `migrateLegacy` | 删除确认无用的迁移死代码 |
+| `no-unused-vars` | `persons.tsx` `Avatar` 导入 | 删除无用导入 |
+| `no-unused-vars` | `home/index.tsx` | 将已有进度、通知与库存组件接回页面，而不是删除实现 |
+| `react(set-state-in-effect)` | `store.ts` `useAppData` | 误报，按文件关闭并注明原因 |
+| `react(immutability)` | 使用 universal `useNativeState` 的文件 | 误报，按文件关闭并注明原因 |
+| `promise(always-return)` | `notifications.ts`、`use-onboarding-gate.ts` | 补全回调返回值 |
+| `unicorn(no-array-sort)` | `home` / `records` | 保持原地 `.sort()` + 行内禁用：**Hermes 没有 `toSorted()`**，按规则改过去会 `TypeError` 红屏（用 app 实际链接的 hermes 二进制实测 `typeof Array.prototype.toSorted === "undefined"`），上游是 `filter()` 产物，原地排序不改 store |
+| `no-restricted-imports` | 通用路由 | 日期选择改用通用 `DateTimePicker`；其余平台能力集中到 `src/components/native-layout.{ios,android}.tsx` |

@@ -11,7 +11,6 @@ import {
   TextInput,
   useNativeState,
 } from "@expo/ui";
-import { buttonStyle, controlSize, frame } from "@expo/ui/swift-ui/modifiers";
 import {
   Stack,
   useFocusEffect,
@@ -20,6 +19,7 @@ import {
 } from "expo-router";
 import { useCallback, useState } from "react";
 
+import { nativeButtonModifiers } from "@/components/native-layout";
 import { ProgressBar } from "@/components/progress-bar";
 import { useTheme } from "@/hooks/use-theme";
 import {
@@ -231,7 +231,7 @@ export default function MedicationDetailScreen() {
                 onPress={() => {
                   void restock();
                 }}
-                modifiers={[buttonStyle("glass"), controlSize("large")]}
+                modifiers={nativeButtonModifiers({ style: "glass" })}
               />
             </FieldGroup.Section>
           </FieldGroup>
@@ -245,22 +245,20 @@ export default function MedicationDetailScreen() {
                   params: { medicationId: medication.id },
                 });
               }}
-              modifiers={[
-                buttonStyle("glass"),
-                controlSize("large"),
-                frame({ maxWidth: Infinity }),
-              ]}
+              modifiers={nativeButtonModifiers({
+                style: "glass",
+                fullWidth: true,
+              })}
             />
             <Button
               label={confirmDelete ? "再次点击确认删除" : "删除药品"}
               onPress={() => {
                 remove();
               }}
-              modifiers={[
-                buttonStyle("borderedProminent"),
-                controlSize("large"),
-                frame({ maxWidth: Infinity }),
-              ]}
+              modifiers={nativeButtonModifiers({
+                style: "borderedProminent",
+                fullWidth: true,
+              })}
             />
           </Column>
         </ScrollView>

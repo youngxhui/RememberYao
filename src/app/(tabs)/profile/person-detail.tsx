@@ -7,7 +7,6 @@ import {
   ScrollView,
   Text,
 } from "@expo/ui";
-import { buttonStyle, controlSize, frame } from "@expo/ui/swift-ui/modifiers";
 import {
   Stack,
   useFocusEffect,
@@ -17,6 +16,7 @@ import {
 import { useCallback, useState } from "react";
 
 import { Avatar } from "@/components/avatar";
+import { nativeButtonModifiers } from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
 import {
   deletePerson,
@@ -138,22 +138,20 @@ export default function PersonDetailScreen() {
                   params: { personId: person.id },
                 });
               }}
-              modifiers={[
-                buttonStyle("glass"),
-                controlSize("large"),
-                frame({ maxWidth: Infinity }),
-              ]}
+              modifiers={nativeButtonModifiers({
+                style: "glass",
+                fullWidth: true,
+              })}
             />
             <Button
               label={confirmDeletePerson ? "再次点击确认删除" : "删除用药人"}
               onPress={() => {
                 removePerson();
               }}
-              modifiers={[
-                buttonStyle("borderedProminent"),
-                controlSize("large"),
-                frame({ maxWidth: Infinity }),
-              ]}
+              modifiers={nativeButtonModifiers({
+                style: "borderedProminent",
+                fullWidth: true,
+              })}
             />
           </Column>
         </ScrollView>

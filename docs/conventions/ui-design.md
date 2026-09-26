@@ -35,12 +35,12 @@
 
 | 导入内容 | 在另一端运行会怎样 | 本项目现状 |
 | --- | --- | --- |
-| **原生视图组件**（`DatePicker`、`TabView`、`Switch`…） | 直接抛 `Unable to get view config` **崩溃** | `plan-form.tsx` 的 `DatePicker`、`onboarding.tsx` 的 `TabView` |
-| **modifier 工厂**（`frame`、`buttonStyle`、`controlSize`…） | **不崩**，但被静默忽略 | 10 个文件的 17 处 `frame(...)` |
+| **原生视图组件**（`DatePicker`、`TabView`、`Switch`…） | 直接抛 `Unable to get view config` **崩溃** | 由 `native-layout.ios.tsx` / `native-layout.android.tsx` 分别实现 |
+| **modifier 工厂**（`frame`、`buttonStyle`、`controlSize`…） | **不崩**，但被静默忽略 | 通用路由通过 `native-layout` 适配层生成平台 modifier |
 
 modifier 工厂是纯 JS —— `frame(params)` 只是 `return { $type: "frame", ...params }`（见 `createModifier`），零原生依赖。所以在 Android 上 import 它不会崩，但传给 Compose 的是它不认识的 modifier，**布局会静默失效**（比如 `maxWidth: Infinity` 不再撑满宽度）。这比崩溃更隐蔽，同样必须隔离。
 
-**本项目当前 12 处违规**：10 个文件导入 `@expo/ui/swift-ui/modifiers`，2 个文件导入原生组件。项目目前只构建 iOS（没有 `android/` 目录），所以还没暴露，但这是 Android 化的第一道坎。oxlint 的 `no-restricted-imports` 会给出 warn。
+通用路由中已有 universal / community 组件（如 `DateTimePicker`）的能力直接使用通用组件，不额外包装；只有 `TabView` 与两端 modifier 等尚需平台隔离的能力集中到 `src/components/native-layout.{ios,android}.tsx`。`no-restricted-imports` 已升级为 error，禁止在通用文件里直接导入平台子包。
 
 正确做法：
 

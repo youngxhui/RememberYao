@@ -1,19 +1,9 @@
-import {
-  Column,
-  Host,
-  Icon,
-  RNHostView,
-  Row,
-  ScrollView,
-  Spacer,
-  Text,
-} from "@expo/ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
+import { Column, Host, Icon, Row, Spacer, Text } from "@expo/ui";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Button as RNButton, Linking } from "react-native";
+import { Linking } from "react-native";
 
-import { DoseTimeline } from "@/components/dose-timeline";
+import { nativeLayout } from "@/components/native-layout";
 import { ProgressBar } from "@/components/progress-bar";
 import { useOnboardingGate } from "@/hooks/use-onboarding-gate";
 import { useTheme } from "@/hooks/use-theme";
@@ -40,10 +30,11 @@ export default function TodayScreen() {
   if (checkingOnboarding) return null;
 
   const today = todayKey();
-  // Hermes 不支持 ES2023 的 toSorted()；以下两处上游均为 filter/map 新数组，
-  // 原地 sort 不会改动 store 数据
   const todays = reminders
     .filter((r) => r.date === today)
+    // Hermes 没有 ES2023 的 toSorted()（运行时是 undefined，会红屏）；
+    // 上游是 filter 产物，原地排序不会改动 store 数据
+    // oxlint-disable-next-line unicorn/no-array-sort
     .sort((a, b) => a.time.localeCompare(b.time));
   const doneCount = todays.filter((r) => r.status === "taken").length;
 
@@ -51,6 +42,8 @@ export default function TodayScreen() {
   const stockMeds = medications
     .map((m) => ({ medication: m, summary: stockSummary(m, plans) }))
     .filter((item) => item.summary.daysLeft !== null)
+    // 同上：Hermes 无 toSorted()，上游是 filter 产物，原地排序安全
+    // oxlint-disable-next-line unicorn/no-array-sort
     .sort((a, b) => (a.summary.daysLeft ?? 0) - (b.summary.daysLeft ?? 0))
     .slice(0, 3);
 
@@ -68,7 +61,59 @@ export default function TodayScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <Text>Hello WorldHello WorldHello WorldHello WorldHello World</Text>
+        <Column spacing={16} style={{ padding: 16 }}>
+          <Text textStyle={{ fontSize: 15, color: theme.textSecondary }}>
+            {formatTodayLabel(today)}
+          </Text>
+          {loading ? (
+            <Text textStyle={{ color: theme.textSecondary }}>正在加载…</Text>
+          ) : (
+            <>
+              <Column spacing={8}>
+                <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
+                  {`今日服药 ${doneCount}/${todays.length}`}
+                </Text>
+                <ProgressBar
+                  percent={todays.length > 0 ? doneCount / todays.length : 0}
+                  color={theme.primary}
+                  track={theme.backgroundSelected}
+                />
+              </Column>
+              <NotificationBanner />
+              {lowStock.length > 0 ? (
+                <Column spacing={8}>
+                  <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
+                    库存提醒
+                  </Text>
+                  {stockMeds.map(({ medication, summary }) => (
+                    <StockBrief
+                      key={medication.id}
+                      name={medication.name}
+                      daysLeft={summary.daysLeft ?? 0}
+                      low={summary.low}
+                      percent={
+                        medication.totalQuantity > 0
+                          ? medication.remainingQuantity /
+                            medication.totalQuantity
+                          : 0
+                      }
+                      onPress={() => {
+                        router.push({
+                          pathname: "/(tabs)/medica/detail",
+                          params: { id: medication.id },
+                        });
+                      }}
+                    />
+                  ))}
+                </Column>
+              ) : (
+                <Text textStyle={{ color: theme.textSecondary }}>
+                  暂无低库存药品
+                </Text>
+              )}
+            </>
+          )}
+        </Column>
       </Host>
     </>
   );
@@ -161,7 +206,7 @@ function NotificationBanner() {
       <Icon name="bell.slash.fill" size={18} color={theme.danger} />
       <Column
         spacing={2}
-        modifiers={[frame({ minWidth: 0, maxWidth: Infinity })]}
+        modifiers={[nativeLayout({ unconstrainedWidth: true })]}
       >
         <Text textStyle={{ fontSize: 14, fontWeight: "600" }}>通知未开启</Text>
         <Text textStyle={{ fontSize: 12, color: theme.textSecondary }}>

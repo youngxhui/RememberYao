@@ -61,7 +61,7 @@ maestro test maestro/add_medica.yaml   # 添加药品
 ### UI
 
 1. **优先用 `@expo/ui`**，它渲染的是真原生视图（iOS SwiftUI / Android Jetpack Compose）。不要默认退回 RN 的 `View`/`Text`/`Switch`/`Picker`，不要用 `@gorhom/bottom-sheet` 或 Reanimated 手搓 sheet。
-2. **`@expo/ui/swift-ui` 是 iOS-only，`@expo/ui/jetpack-compose` 是 Android-only**。导入**原生视图组件**（`DatePicker`/`TabView`/`Switch`）到另一端会抛 `Unable to get view config` 崩溃；导入 **modifier 工厂**（`frame`/`buttonStyle`）不崩但会被静默忽略，导致布局失效。平台专属组件必须放进 `.ios.tsx` / `.android.tsx`（放 `src/components/`，**不能放 `app/`**），或用 `process.env.EXPO_OS` 守卫，或改用 universal 组件。**当前有 12 处违规**，改到这些屏幕时顺手修。详见 [ui-design.md](docs/conventions/ui-design.md#平台专属组件隔离最重要)。
+2. **`@expo/ui/swift-ui` 是 iOS-only，`@expo/ui/jetpack-compose` 是 Android-only**。导入**原生视图组件**（`DatePicker`/`TabView`/`Switch`）到另一端会抛 `Unable to get view config` 崩溃；导入 **modifier 工厂**（`frame`/`buttonStyle`）不崩但会被静默忽略，导致布局失效。平台专属组件必须放进 `.ios.tsx` / `.android.tsx`（放 `src/components/`，**不能放 `app/`**），或用 `process.env.EXPO_OS` 守卫。已有 universal / community 组件时直接使用（如 `DateTimePicker`）；确需平台隔离的能力统一从 `@/components/native-layout` 导入，oxlint 会以 error 拦截直接跨平台导入。详见 [ui-design.md](docs/conventions/ui-design.md#平台专属组件隔离最重要)。
 3. **`Host` 永远从 `@expo/ui` 根导入**，不要从平台子包拿。
 4. 必须在 Expo UI 树里用 RN 视图时，用 `RNHostView` 包裹。
 5. **从 `react-native` 导入的 UI 组件一律加 `RN` 前缀**：
@@ -110,7 +110,7 @@ maestro test maestro/add_medica.yaml   # 添加药品
 34. 安全区用 `contentInsetAdjustmentBehavior="automatic"`，不要用 `SafeAreaView`。`ScrollView` 的内边距写 `contentContainerStyle`。
 35. 每个加载数据的屏幕要有 **loading / error / empty / content** 四态，**首屏加载没结束时不显示 empty 态**。
 36. 可滚动表单加 `keyboardShouldPersistTaps="handled"`；表单主操作不能被键盘挡住。
-37. 提交前跑 `bun run check`（typecheck + lint + format:check）。当前 `bun run lint` 为 0 errors / 12 warnings（全是 `@expo/ui/swift-ui` 平台导入，需先定迁移方案），清单见 [data-state.md](docs/conventions/data-state.md#当前待修的-lint-问题)。
+37. 提交前跑 `bun run check`（typecheck + lint + format:check）。当前基线为 0 errors / 0 warnings。
 
 ## 目录结构
 
@@ -141,7 +141,7 @@ ios/                      prebuild 产物；改 app.json 后需重新 prebuild
 ## 待办（改这些区域时留意）
 
 - `records` 页：数据已采集，缺按日期的历史与依从率展示界面。
-- **Android**：所有平台专属 UI 只写了 SwiftUI 分支，`android/` 目录未生成。做 Android 前先消掉那 12 处 `@expo/ui/swift-ui` 违规。
+- **Android**：日期选择已使用通用 `DateTimePicker`，其余通用屏幕的平台能力已隔离到 `src/components/native-layout.{ios,android}.tsx`；`android/` 目录尚未生成，仍需模拟器验证布局与交互。
 - 桌面 Widget：`expo-widgets` 已配置（app.json plugins），尚未实现。
 - 单元测试：`store.ts` 的提醒生成 / 库存扣减是纯函数，适合优先覆盖。
 - lockfile：`pnpm-lock.yaml` / `package-lock.json` 已废弃，确认后可删。

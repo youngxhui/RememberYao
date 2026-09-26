@@ -1,8 +1,8 @@
 import { Column, Host, Icon, Row, ScrollView, Spacer, Text } from "@expo/ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 
+import { nativeLayout } from "@/components/native-layout";
 import { ProgressBar } from "@/components/progress-bar";
 import { useTheme } from "@/hooks/use-theme";
 import {
@@ -170,7 +170,7 @@ function StockCard({
       <Row alignment="center">
         <Column
           spacing={2}
-          modifiers={[frame({ minWidth: 0, maxWidth: Infinity })]}
+          modifiers={[nativeLayout({ unconstrainedWidth: true })]}
         >
           <Text textStyle={{ fontSize: 15, fontWeight: "600" }}>
             {medication.name}

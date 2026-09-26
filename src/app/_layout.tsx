@@ -2,7 +2,6 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
 import { useEffect } from "react";
 import { AppState, useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import AppTabs from "@/components/app-tabs";
 import {

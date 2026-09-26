@@ -1,7 +1,7 @@
 import { Column, Host, Icon, Row, ScrollView, Spacer, Text } from "@expo/ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
 import { Stack, useRouter } from "expo-router";
 
+import { nativeLayout } from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
 
 export default function AddOptionsScreen() {
@@ -94,7 +94,7 @@ function OptionRow({
       </Row>
       <Column
         spacing={2}
-        modifiers={[frame({ minWidth: 0, maxWidth: Infinity })]}
+        modifiers={[nativeLayout({ unconstrainedWidth: true })]}
       >
         <Text textStyle={{ fontSize: 15, fontWeight: "600" }}>{title}</Text>
         <Text textStyle={{ fontSize: 12, color: theme.textSecondary }}>

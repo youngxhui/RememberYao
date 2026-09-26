@@ -1,7 +1,7 @@
 import { Button, Column, Row, Spacer, Text } from "@expo/ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
 
 import { Avatar } from "@/components/avatar";
+import { nativeLayout } from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
 import {
   medicationUnitLabel,
@@ -119,7 +119,7 @@ function DoseRow({
       </Text>
       <Column
         spacing={2}
-        modifiers={[frame({ minWidth: 0, maxWidth: Infinity })]}
+        modifiers={[nativeLayout({ unconstrainedWidth: true })]}
       >
         <Text textStyle={{ fontSize: 15, fontWeight: "600" }}>
           {medication?.name ?? "未知药品"}

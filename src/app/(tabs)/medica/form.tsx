@@ -10,15 +10,14 @@ import {
   TextInput,
   useNativeState,
 } from "@expo/ui";
-import {
-  buttonStyle,
-  controlSize,
-  frame,
-  listRowInsets,
-} from "@expo/ui/swift-ui/modifiers";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  nativeButtonModifiers,
+  nativeFieldModifiers,
+  nativeLayout,
+} from "@/components/native-layout";
 import {
   MEDICATION_TYPES,
   MEDICATION_UNITS,
@@ -104,7 +103,7 @@ export default function MedicationFormScreen() {
       <Stack.Title large>{isEditing ? "编辑药品" : "添加药品"}</Stack.Title>
       <Host seedColor="#40621a" style={{ flex: 1 }}>
         <Column
-          modifiers={[frame({ maxHeight: Infinity, maxWidth: Infinity })]}
+          modifiers={[nativeLayout({ fullWidth: true, fullHeight: true })]}
         >
           <FieldGroup>
             <FieldGroup.Section title="基础信息">
@@ -169,21 +168,18 @@ export default function MedicationFormScreen() {
               />
             </FieldGroup.Section>
             <FieldGroup.Section
-              modifiers={[
-                listRowInsets({ leading: 0, trailing: 0, top: 0, bottom: 0 }),
-              ]}
+              modifiers={nativeFieldModifiers({ flush: true })}
             >
               <Button
                 label="保存"
                 onPress={() => {
                   save();
                 }}
-                modifiers={[
-                  buttonStyle("glassProminent"),
-                  controlSize("large"),
-                ]}
+                modifiers={nativeButtonModifiers({
+                  style: "glassProminent",
+                })}
               >
-                <Row modifiers={[frame({ maxWidth: Infinity })]}>
+                <Row modifiers={[nativeLayout({ fullWidth: true })]}>
                   <Spacer />
                   <Text>保存</Text>
                   <Spacer />

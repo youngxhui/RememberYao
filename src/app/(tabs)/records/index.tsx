@@ -21,8 +21,9 @@ export default function RecordsScreen() {
   const today = todayKey();
   const dayReminders = reminders
     .filter((r) => r.date === date)
-    // Hermes 不支持 ES2023 的 toSorted()，会运行时报错；
-    // filter() 已产出新数组，这里原地 sort 不会改动 store 数据
+    // Hermes 没有 ES2023 的 toSorted()（运行时是 undefined，会红屏）；
+    // 上游是 filter 产物，原地排序不会改动 store 数据
+    // oxlint-disable-next-line unicorn/no-array-sort
     .sort((a, b) => a.time.localeCompare(b.time));
 
   const taken = dayReminders.filter((r) => r.status === "taken").length;

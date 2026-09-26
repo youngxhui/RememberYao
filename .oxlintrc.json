@@ -20,9 +20,8 @@
     "react/react-in-jsx-scope": "off",
     // 平台护栏：@expo/ui/swift-ui 是 iOS-only，在 Android 上会抛 "Unable to get view config"。
     // 详见 docs/conventions/ui-design.md「平台专属组件隔离」。
-    // 现有屏幕普遍直接导入 swift-ui modifiers，先以 warn 提示，迁移完成后升级为 error。
     "no-restricted-imports": [
-      "warn",
+      "error",
       {
         "patterns": [
           {

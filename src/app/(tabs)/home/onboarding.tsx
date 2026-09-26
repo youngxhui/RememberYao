@@ -1,14 +1,12 @@
 import { Button, Column, Host, Icon, Row, Spacer, Text } from "@expo/ui";
-import { TabView } from "@expo/ui/swift-ui";
-import {
-  buttonStyle,
-  controlSize,
-  frame,
-  tabViewStyle,
-} from "@expo/ui/swift-ui/modifiers";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 
+import {
+  NativeOnboardingPager,
+  nativeButtonModifiers,
+  nativeLayout,
+} from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
 import { markOnboardingSeen } from "@/lib/onboarding";
 
@@ -49,7 +47,7 @@ export default function OnboardingScreen() {
 
   return (
     <Host style={{ flex: 1 }}>
-      <Column modifiers={[frame({ maxWidth: Infinity, maxHeight: Infinity })]}>
+      <Column modifiers={[nativeLayout({ fullWidth: true, fullHeight: true })]}>
         <Row style={{ padding: 16 }}>
           <Spacer />
           {!isFirst ? (
@@ -62,20 +60,15 @@ export default function OnboardingScreen() {
           ) : null}
         </Row>
 
-        <TabView
-          selection={page}
-          onSelectionChange={setPage}
-          modifiers={[
-            tabViewStyle({ type: "page" }),
-            frame({ maxWidth: Infinity, maxHeight: Infinity }),
-          ]}
-        >
+        <NativeOnboardingPager selection={page} onSelectionChange={setPage}>
           {PAGES.map((item) => (
-            <TabView.Tab key={item.value} value={item.value}>
+            <NativeOnboardingPager.Tab key={item.value} value={item.value}>
               <Column
                 alignment="center"
                 spacing={20}
-                modifiers={[frame({ maxWidth: Infinity, maxHeight: Infinity })]}
+                modifiers={[
+                  nativeLayout({ fullWidth: true, fullHeight: true }),
+                ]}
               >
                 <Spacer />
                 <Column
@@ -99,19 +92,18 @@ export default function OnboardingScreen() {
                 </Text>
                 <Spacer />
               </Column>
-            </TabView.Tab>
+            </NativeOnboardingPager.Tab>
           ))}
-        </TabView>
+        </NativeOnboardingPager>
 
         <Column style={{ padding: 24 }}>
           <Button
             label={isLast ? "开始使用" : "下一步"}
             onPress={next}
-            modifiers={[
-              buttonStyle("glassProminent"),
-              controlSize("large"),
-              frame({ maxWidth: Infinity }),
-            ]}
+            modifiers={nativeButtonModifiers({
+              style: "glassProminent",
+              fullWidth: true,
+            })}
           />
         </Column>
       </Column>

@@ -11,16 +11,15 @@ import {
   TextInput,
   useNativeState,
 } from "@expo/ui";
-import { DatePicker } from "@expo/ui/swift-ui";
-import {
-  buttonStyle,
-  controlSize,
-  frame,
-  listRowInsets,
-} from "@expo/ui/swift-ui/modifiers";
+import { DateTimePicker } from "@expo/ui/community/datetime-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  nativeButtonModifiers,
+  nativeFieldModifiers,
+  nativeLayout,
+} from "@/components/native-layout";
 import { requestNotificationPermission } from "@/lib/notifications";
 import {
   addPlan,
@@ -168,7 +167,7 @@ export default function PlanFormScreen() {
       </Stack.Title>
       <Host seedColor="#40621a" style={{ flex: 1 }}>
         <Column
-          modifiers={[frame({ maxHeight: Infinity, maxWidth: Infinity })]}
+          modifiers={[nativeLayout({ fullWidth: true, fullHeight: true })]}
         >
           <FieldGroup>
             <FieldGroup.Section title="药品与用药人">
@@ -210,37 +209,50 @@ export default function PlanFormScreen() {
             </FieldGroup.Section>
             <FieldGroup.Section title="服用时间">
               {times.map((time, index) => (
-                <DatePicker
-                  key={index}
-                  selection={timeToDate(time)}
-                  displayedComponents={["hourAndMinute"]}
-                  onDateChange={(date) => changeTime(index, date)}
-                >
+                <Row key={index} alignment="center">
                   <Text>{`第 ${index + 1} 次`}</Text>
-                </DatePicker>
+                  <Spacer flexible />
+                  <DateTimePicker
+                    value={timeToDate(time)}
+                    mode="time"
+                    display="compact"
+                    is24Hour
+                    testID={`dose-time-${index}`}
+                    onValueChange={(_, date) => changeTime(index, date)}
+                  />
+                </Row>
               ))}
             </FieldGroup.Section>
             <FieldGroup.Section title="起止日期">
-              <DatePicker
-                selection={dateFromKey(startDate)}
-                displayedComponents={["date"]}
-                onDateChange={(date) => setStartDate(dateKey(date))}
-              >
+              <Row alignment="center">
                 <Text>开始日期</Text>
-              </DatePicker>
+                <Spacer flexible />
+                <DateTimePicker
+                  value={dateFromKey(startDate)}
+                  mode="date"
+                  display="compact"
+                  testID="start-date"
+                  onValueChange={(_, date) => setStartDate(dateKey(date))}
+                />
+              </Row>
               <Switch
                 label="设置结束日期"
                 value={hasEndDate}
                 onValueChange={setHasEndDate}
               />
               {hasEndDate ? (
-                <DatePicker
-                  selection={dateFromKey(endDate)}
-                  displayedComponents={["date"]}
-                  onDateChange={(date) => setEndDate(dateKey(date))}
-                >
+                <Row alignment="center">
                   <Text>结束日期</Text>
-                </DatePicker>
+                  <Spacer flexible />
+                  <DateTimePicker
+                    value={dateFromKey(endDate)}
+                    mode="date"
+                    display="compact"
+                    minimumDate={dateFromKey(startDate)}
+                    testID="end-date"
+                    onValueChange={(_, date) => setEndDate(dateKey(date))}
+                  />
+                </Row>
               ) : null}
             </FieldGroup.Section>
             <FieldGroup.Section title="状态">
@@ -261,21 +273,16 @@ export default function PlanFormScreen() {
               </FieldGroup.Section>
             ) : null}
             <FieldGroup.Section
-              modifiers={[
-                listRowInsets({ leading: 0, trailing: 0, top: 0, bottom: 0 }),
-              ]}
+              modifiers={nativeFieldModifiers({ flush: true })}
             >
               <Button
                 label="保存"
                 onPress={() => {
                   save();
                 }}
-                modifiers={[
-                  buttonStyle("glassProminent"),
-                  controlSize("large"),
-                ]}
+                modifiers={nativeButtonModifiers({ style: "glassProminent" })}
               >
-                <Row modifiers={[frame({ maxWidth: Infinity })]}>
+                <Row modifiers={[nativeLayout({ fullWidth: true })]}>
                   <Spacer />
                   <Text>保存</Text>
                   <Spacer />
@@ -284,19 +291,16 @@ export default function PlanFormScreen() {
             </FieldGroup.Section>
             {isEditing ? (
               <FieldGroup.Section
-                modifiers={[
-                  listRowInsets({ leading: 0, trailing: 0, top: 0, bottom: 0 }),
-                ]}
+                modifiers={nativeFieldModifiers({ flush: true })}
               >
                 <Button
                   label={confirmDelete ? "再次点击确认删除" : "删除该配置"}
                   onPress={() => {
                     remove();
                   }}
-                  modifiers={[
-                    buttonStyle("borderedProminent"),
-                    controlSize("large"),
-                  ]}
+                  modifiers={nativeButtonModifiers({
+                    style: "borderedProminent",
+                  })}
                 />
               </FieldGroup.Section>
             ) : null}

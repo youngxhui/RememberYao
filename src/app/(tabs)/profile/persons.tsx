@@ -9,10 +9,10 @@ import {
   TextInput,
   useNativeState,
 } from "@expo/ui";
-import { frame } from "@expo/ui/swift-ui/modifiers";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 
+import { nativeLayout } from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
 import { addPerson, useAppData } from "@/lib/store";
 
@@ -80,7 +80,7 @@ export default function PersonsScreen() {
               onPress={() => {
                 add();
               }}
-              modifiers={[frame({ maxWidth: Infinity })]}
+              modifiers={[nativeLayout({ fullWidth: true })]}
             />
           </Column>
 
