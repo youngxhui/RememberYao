@@ -17,6 +17,8 @@ export const medications = sqliteTable("medications", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   type: text("type").notNull(),
+  /** 用途分类：慢性病 / 临时用药 / 保健品。药品库列表按它筛选 */
+  category: text("category").notNull().default("chronic"),
   unit: text("unit").notNull(),
   totalQuantity: integer("total_quantity").notNull(),
   remainingQuantity: integer("remaining_quantity").notNull(),

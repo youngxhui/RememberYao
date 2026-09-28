@@ -2,6 +2,7 @@ import { TabView } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
   controlSize,
+  fixedSize,
   frame,
   listRowInsets,
   tabViewStyle,
@@ -20,7 +21,9 @@ export function nativeLayout({
   fullWidth = false,
   fullHeight = false,
   unconstrainedWidth = false,
+  idealWidth = false,
 }: NativeLayoutOptions) {
+  if (idealWidth) return fixedSize({ horizontal: true });
   return frame({
     minWidth: unconstrainedWidth ? 0 : undefined,
     maxWidth: fullWidth || unconstrainedWidth ? Infinity : undefined,

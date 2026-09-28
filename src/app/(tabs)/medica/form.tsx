@@ -20,13 +20,17 @@ import {
 } from "@/components/native-layout";
 import { useTranslation } from "@/i18n";
 import {
+  DEFAULT_MEDICATION_CATEGORY,
+  MEDICATION_CATEGORIES,
   MEDICATION_TYPES,
   MEDICATION_UNITS,
   addMedication,
+  medicationCategoryLabel,
   medicationTypeLabel,
   medicationUnitLabel,
   updateMedication,
   useAppData,
+  type MedicationCategory,
   type MedicationType,
   type MedicationUnit,
 } from "@/lib/store";
@@ -40,6 +44,9 @@ export default function MedicationFormScreen() {
 
   const [loaded, setLoaded] = useState(!isEditing);
   const [type, setType] = useState<MedicationType>("bottle");
+  const [category, setCategory] = useState<MedicationCategory>(
+    DEFAULT_MEDICATION_CATEGORY,
+  );
   const [unit, setUnit] = useState<MedicationUnit>("tablet");
   const [nameError, setNameError] = useState(false);
   const [quantityError, setQuantityError] = useState(false);
@@ -59,6 +66,7 @@ export default function MedicationFormScreen() {
     if (existing) {
       name.value = existing.name;
       setType(existing.type);
+      setCategory(existing.category);
       setUnit(existing.unit);
       totalQuantity.value = String(existing.totalQuantity);
       remainingQuantity.value = String(existing.remainingQuantity);
@@ -86,6 +94,7 @@ export default function MedicationFormScreen() {
     const input = {
       name: name.value.trim(),
       type,
+      category,
       unit,
       totalQuantity: total,
       remainingQuantity: remaining,
@@ -138,6 +147,21 @@ export default function MedicationFormScreen() {
                     key={tp}
                     label={medicationTypeLabel(tp, t)}
                     value={tp}
+                  />
+                ))}
+              </Picker>
+              <Picker
+                testID="medication-category-picker"
+                selectedValue={category}
+                onValueChange={(value) =>
+                  setCategory(value as MedicationCategory)
+                }
+              >
+                {MEDICATION_CATEGORIES.map((c) => (
+                  <Picker.Item
+                    key={c}
+                    label={medicationCategoryLabel(c, t)}
+                    value={c}
                   />
                 ))}
               </Picker>

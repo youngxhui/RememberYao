@@ -8,6 +8,8 @@ import { getTranslator, type Path, type Translate } from "@/i18n";
 
 /** 药品类型：板装 / 瓶装 / 散装 */
 export type MedicationType = "blister" | "bottle" | "loose";
+/** 药品用途分类：慢性病 / 临时用药 / 保健品（药品库列表按它筛选） */
+export type MedicationCategory = "chronic" | "acute" | "supplement";
 /** 单位：片 / 粒 */
 export type MedicationUnit = "tablet" | "pill";
 
@@ -16,6 +18,8 @@ export type Medication = {
   id: string;
   name: string;
   type: MedicationType;
+  /** 用途分类。与 `type`（包装形式）是两个维度，不要混 */
+  category: MedicationCategory;
   unit: MedicationUnit;
   /** 总数量（入库时的数量） */
   totalQuantity: number;
@@ -173,6 +177,16 @@ export const MEDICATION_TYPES: MedicationType[] = [
   "loose",
 ];
 
+/** 药品用途分类：首项同时是「添加药品」表单与老库迁移的默认值 */
+export const MEDICATION_CATEGORIES: MedicationCategory[] = [
+  "chronic",
+  "acute",
+  "supplement",
+];
+
+/** 分类缺省值：与 `MEDICATION_CATEGORIES` 首项、`medications.category` 的列默认值一致 */
+export const DEFAULT_MEDICATION_CATEGORY: MedicationCategory = "chronic";
+
 export const MEDICATION_UNITS: MedicationUnit[] = ["tablet", "pill"];
 
 export const PERSON_AVATAR_COLORS = [
@@ -205,11 +219,24 @@ const UNIT_LABEL_PATH: Record<MedicationUnit, Path> = {
   pill: "medication.unitPill",
 };
 
+const CATEGORY_LABEL_PATH: Record<MedicationCategory, Path> = {
+  chronic: "medication.categoryChronic",
+  acute: "medication.categoryAcute",
+  supplement: "medication.categorySupplement",
+};
+
 export function medicationTypeLabel(
   type: MedicationType,
   t: Translate,
 ): string {
   return t(TYPE_LABEL_PATH[type]);
+}
+
+export function medicationCategoryLabel(
+  category: MedicationCategory,
+  t: Translate,
+): string {
+  return t(CATEGORY_LABEL_PATH[category]);
 }
 
 export function medicationUnitLabel(
@@ -328,6 +355,10 @@ function fromRows(rows: PersistedData): AppData {
     medications: rows.medications.map((m) => ({
       ...m,
       type: m.type as MedicationType,
+      // 老库补列后不该出现空值，仍按 settings 的做法逐字段兜底而不是整体信任
+      category: MEDICATION_CATEGORIES.includes(m.category as MedicationCategory)
+        ? (m.category as MedicationCategory)
+        : DEFAULT_MEDICATION_CATEGORY,
       unit: m.unit as MedicationUnit,
     })),
     persons: rows.persons,
@@ -586,6 +617,30 @@ export async function syncReminders(): Promise<void> {
 }
 
 // ─── 库存 ─────────────────────────────────────────────────
+
+/**
+ * 库存充裕度：只看「还剩多少」，不看还能吃几天。
+ *
+ * 与 `stockSummary().low` 是两个维度，别混用 —— 后者按当前用药配置估算剩余天数，
+ * 依赖「有人在吃这个药」；药品库里没配任何用药计划的药拿不到它。前者只依赖库存
+ * 自身，列表的色条与状态胶囊、以及「库存不足」筛选都取这里。
+ * 阈值来自 design/medications.html 的 stockStatus()。
+ *
+ * `totalQuantity` 为 0（没记库存）时按 critical 处理：设计稿的 stockStatus()
+ * 在这里是 0/0 → NaN，三个比较全 false，会显示成「库存充足」；把 0 库存
+ * 说成充足比说成缺货更糟。
+ */
+export type StockLevel = "ok" | "low" | "critical";
+
+export function stockLevel(medication: Medication): StockLevel {
+  const ratio =
+    medication.totalQuantity > 0
+      ? medication.remainingQuantity / medication.totalQuantity
+      : 0;
+  if (ratio <= 0.15) return "critical";
+  if (ratio <= 0.3) return "low";
+  return "ok";
+}
 
 /** 按当前生效配置估算某药品的消耗与剩余天数 */
 export function stockSummary(

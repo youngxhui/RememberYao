@@ -34,9 +34,9 @@ appId: com.youngxhui.RememberYao
 
 # ── 首页内容 ─────────────────────────────────────────────
 # 空数据：提醒卡堆叠整块不渲染（没有待办），库存速览显示空态文案
-# （这行出现 = store 已加载完）
+# （这行出现 = store 已加载完；iOS 文本匹配要整串命中，所以用整句）
 - extendedWaitUntil:
-    visible: "还没有在服用的药品"
+    visible: "还没有在服用的药品，去「药品」添加后再设置服用时间"
     timeout: 20000
 # 巨型日期头部的添加药品按钮（首页是 Expo UI 树，testID 照旧）
 - assertVisible:
@@ -55,6 +55,8 @@ appId: com.youngxhui.RememberYao
 
 # ── tab 往返：切走再回来，首页应重新加载且不崩 ────────────
 # 用 repeat 兜住「过引导页后第一次点 tab 会被吞」：点到底直到目标页出现
+# medica 屏断言用筛选 chip 的 testID（medica-filter-all）；clearState 下药箱为空，
+# 再断言空态文案，说明 medica 屏的数据已经加载完
 - repeat:
     times: 3
     commands:
@@ -62,15 +64,20 @@ appId: com.youngxhui.RememberYao
           id: "medica-tab"
       - waitForAnimationToEnd
       - extendedWaitUntil:
-          visible: "全部 0"
+          visible:
+            id: "medica-filter-all"
           timeout: 3000
           optional: true
 - extendedWaitUntil:
-    visible: "全部 0"
+    visible:
+      id: "medica-filter-all"
+    timeout: 20000
+- extendedWaitUntil:
+    visible: "药箱还是空的，点右上角添加药品"
     timeout: 20000
 - tapOn:
     id: "home-tab"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "还没有在服用的药品"
+    visible: "还没有在服用的药品，去「药品」添加后再设置服用时间"
     timeout: 20000

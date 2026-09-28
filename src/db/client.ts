@@ -101,9 +101,18 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `;
 
+/** 补 `medications.category`（用途分类）。
+ *  老记录没有分类信息，只能落到一个默认值上：取枚举首项「慢性病」，
+ *  与设计稿里占比最高的分类一致；用户可以在添加/编辑药品里改。
+ *  SQLite 的 `ADD COLUMN` 不支持 `IF NOT EXISTS`，靠 user_version 保证只跑一次。 */
+const MIGRATION_V3 = `
+ALTER TABLE medications ADD COLUMN category TEXT NOT NULL DEFAULT 'chronic';
+`;
+
 const MIGRATIONS: Record<number, string> = {
   1: MIGRATION_V1,
   2: MIGRATION_V2,
+  3: MIGRATION_V3,
 };
 
 /** 迁移条数：循环边界由它推导，加一条 MIGRATION 就自动多跑一次 */

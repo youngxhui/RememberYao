@@ -14,6 +14,12 @@ export type NativeLayoutOptions = {
   fullWidth?: boolean;
   fullHeight?: boolean;
   unconstrainedWidth?: boolean;
+  /**
+   * 按内容固有宽度排布，且不参与压缩（iOS `fixedSize(horizontal:)`、
+   * Compose `wrapContentWidth`）。给「宽度不能被挤、内容不能折行」的胶囊类控件用：
+   * 不加的话行内文字会先折行或截断，而不是让同行的可压缩列让位。
+   */
+  idealWidth?: boolean;
 };
 
 export type NativeButtonOptions =

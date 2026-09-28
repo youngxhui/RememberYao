@@ -1,12 +1,11 @@
 import {
   Button,
   Column,
-  FieldGroup,
   Host,
-  List,
   ListItem,
   Row,
   ScrollView,
+  Spacer,
   Text,
   TextInput,
   useNativeState,
@@ -17,10 +16,11 @@ import {
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
 import { nativeButtonModifiers } from "@/components/native-layout";
 import { ProgressBar } from "@/components/progress-bar";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import {
@@ -169,12 +169,7 @@ export default function MedicationDetailScreen() {
             ) : null}
           </Column>
 
-          <Text
-            style={{ paddingTop: 20, paddingBottom: 8, paddingLeft: 4 }}
-            textStyle={{ fontSize: 13, color: theme.textSecondary }}
-          >
-            {t("plan.title")}
-          </Text>
+          <SectionTitle>{t("plan.title")}</SectionTitle>
           {relatedPlans.length === 0 ? (
             <Column
               style={{
@@ -188,42 +183,54 @@ export default function MedicationDetailScreen() {
               </Text>
             </Column>
           ) : (
-            <List>
-              {relatedPlans.map((plan) => {
+            // @expo/ui 的 List 在 iOS 上是 SwiftUI List，本身是滚动容器，嵌进外层
+            // ScrollView 会塌（FieldGroup 也是同样的 Form 滚动容器，见下方说明）；
+            // 用药配置行不多，用普通行拼一张分组卡片即可
+            <SectionCard>
+              {relatedPlans.map((plan, index) => {
                 const person = persons.find((p) => p.id === plan.personId);
                 return (
-                  <ListItem
-                    key={plan.id}
-                    testID={`medication-plan-${plan.id}`}
-                    onPress={() => {
-                      router.push({
-                        pathname: "/(tabs)/profile/person-detail",
-                        params: { id: plan.personId },
-                      });
-                    }}
-                    supportingText={[
-                      t("medication.dosePerDose", {
-                        name: person?.name ?? t("common.unknown"),
-                        amount: plan.doseAmount,
-                        unit,
-                      }),
-                      `${t("plan.perDay", { count: plan.times.length })} · ${plan.times.join(" / ")}`,
-                    ].join("\n")}
-                  >
-                    {planStatusLabel(plan, t)}
-                  </ListItem>
+                  <Column key={plan.id}>
+                    {index > 0 ? <HairLine /> : null}
+                    <Column style={{ padding: Spacing.three }}>
+                      <ListItem
+                        testID={`medication-plan-${plan.id}`}
+                        onPress={() => {
+                          router.push({
+                            pathname: "/(tabs)/profile/person-detail",
+                            params: { id: plan.personId },
+                          });
+                        }}
+                        supportingText={[
+                          t("medication.dosePerDose", {
+                            name: person?.name ?? t("common.unknown"),
+                            amount: plan.doseAmount,
+                            unit,
+                          }),
+                          `${t("plan.perDay", { count: plan.times.length })} · ${plan.times.join(" / ")}`,
+                        ].join("\n")}
+                      >
+                        {planStatusLabel(plan, t)}
+                      </ListItem>
+                    </Column>
+                  </Column>
                 );
               })}
-            </List>
+            </SectionCard>
           )}
 
-          <FieldGroup style={{ paddingTop: 20 }}>
-            <FieldGroup.Section title={t("medication.sectionMore")}>
+          <SectionTitle>{t("medication.sectionMore")}</SectionTitle>
+          <SectionCard>
+            <Column style={{ padding: Spacing.three }}>
               <ListItem supportingText={t("medication.leafletHint")}>
                 {t("medication.leaflet")}
               </ListItem>
-            </FieldGroup.Section>
-            <FieldGroup.Section title={t("medication.restock")}>
+            </Column>
+          </SectionCard>
+
+          <SectionTitle>{t("medication.restock")}</SectionTitle>
+          <SectionCard>
+            <Column style={{ padding: Spacing.three }}>
               <TextInput
                 testID="restock-amount-input"
                 placeholder={t("medication.restockPlaceholder")}
@@ -239,16 +246,22 @@ export default function MedicationDetailScreen() {
                   {t("medication.restockInvalid")}
                 </Text>
               ) : null}
+            </Column>
+            <HairLine />
+            <Column style={{ padding: Spacing.three }}>
               <Button
                 testID="restock-submit-button"
                 label={t("medication.restockSubmit")}
                 onPress={() => {
                   void restock();
                 }}
-                modifiers={nativeButtonModifiers({ style: "glass" })}
+                modifiers={nativeButtonModifiers({
+                  style: "glass",
+                  fullWidth: true,
+                })}
               />
-            </FieldGroup.Section>
-          </FieldGroup>
+            </Column>
+          </SectionCard>
 
           <Column spacing={12} style={{ paddingTop: 24 }}>
             <Button
@@ -285,5 +298,48 @@ export default function MedicationDetailScreen() {
         </ScrollView>
       </Host>
     </>
+  );
+}
+
+/** 区块标题：替代 FieldGroup.Section 的 title（详情页不嵌 SwiftUI Form） */
+function SectionTitle({ children }: { children: string }) {
+  const theme = useTheme();
+  return (
+    <Text
+      style={{ paddingTop: 20, paddingBottom: 8, paddingLeft: 4 }}
+      textStyle={{ fontSize: 13, color: theme.textSecondary }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+/**
+ * 分组卡片：替代嵌在 ScrollView 里的 FieldGroup / List —— 两者在 iOS 上分别是
+ * SwiftUI Form / List，本身都是滚动容器，嵌进外层 ScrollView 会塌成零高、
+ * 内容直接消失（真机实测），不能这么用。样式对齐本页已有的卡片（同
+ * backgroundElement + 14 圆角）。
+ */
+function SectionCard({ children }: { children: ReactNode }) {
+  const theme = useTheme();
+  return (
+    <Column
+      style={{
+        backgroundColor: theme.backgroundElement,
+        borderRadius: 14,
+      }}
+    >
+      {children}
+    </Column>
+  );
+}
+
+/** 分组行之间的发丝线 */
+function HairLine() {
+  const theme = useTheme();
+  return (
+    <Row style={{ height: 1, backgroundColor: theme.backgroundSelected }}>
+      <Spacer flexible />
+    </Row>
   );
 }

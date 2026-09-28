@@ -135,11 +135,12 @@ src/
     (tabs)/
       _layout.tsx         AppTabs（NativeTabs），trigger name 用组内相对路由名
       home/               今日：只有路由，实现见 src/screens/home（Expo UI 为主 + 三块 RN island）
-      medica/             药品：列表 / detail / form / add-options
+      medica/             药品：index（只有路由）+ detail / form / add-options
       profile/            我的：index（只有路由）+ persons / person-detail / plan-form / language / settings
       playground/         调试屏：只有 __DEV__ 构建才在 tab 栏里出现
   screens/
     home/                 首页实现：index（Expo UI 为主：大字日期 / 成员筛选 Picker / 通知横幅 / 区块标题）+ stock-panel（库存速览，RN island）
+    medica/               药品库实现：index（Expo UI 为主：副标题 + 数量徽章 / 药品卡）+ filter-row（分类 chip 横滑，RN island）
     profile/              我的实现：index（档案横排 / 本周概览 / 家庭成员 / 菜单）+ settings（设置页）
   db/
     schema.ts             Drizzle 表定义（snake_case 列名、索引）
@@ -167,7 +168,8 @@ ios/                      prebuild 产物；改 app.json 后需重新 prebuild
 ## 待办（改这些区域时留意）
 
 - `records` 页：数据已采集，缺按日期的历史与依从率展示界面。它现在是 `src/app/records.tsx`（tab 组之外），**还没有进「我的」的入口**，要接上得在 `src/screens/profile/index.tsx` 的菜单列表里加一行 push `/records`。
-- **`src/screens/profile/` 还没在模拟器上跑过**：结构、token、i18n 与 `bun run check` 都过了。`index.tsx` 已改成 **Expo UI 为主的整屏**（`Host` + 原生 `ScrollView`，Mini Archive 与头像是 RN island），真机要重点看：Mini Archive 通栏宽度（`containerWidth` 由 `onLayoutContent` 实测喂入，展开/折叠与旋转各走一遍）、三等分统计卡的卡宽、菜单卡的发丝线与徽章胶囊的居中、圆形图标按钮（`Row` + `onPress`）的图标是否真的在圆心；`settings.tsx` 则是自定义 `FieldGroup.SectionHeader`（左侧强调条标题）与 `ListItem` leading 槽里的 `Icon`（`RNHostView matchContents` 托着纯 SwiftUI 子节点）。
+- **`src/screens/medica/`（药品库）已按 design/medications.html 重做并在模拟器上跑通**（`maestro/medica.yaml` 全流程绿）：列表卡片/横滑分类筛选/搜索/详情/删除/空态都验过，`Stack.SearchBar` 在 `NativeTabs` 里的 tab 根屏上确实出了原生搜索框（项目里第一次用）。**真机发现并修了一个布局 bug**：`FieldGroup`（iOS 是 SwiftUI `Form`，本身就是滚动容器）和 `List` 嵌进外层 `ScrollView` 会塌成零高、区块内容直接消失 —— 详情页已改成普通行拼的分组卡片（`SectionCard`/`HairLine`，见 `detail.tsx`），**以后不要再往 `ScrollView` 里嵌 `FieldGroup`/`List`**。仍待看：系统大字号下卡片色条（`SPINE_HEIGHT` 写死）的居中表现、药名过长时 `numberOfLines={1}` 的截断、`MIGRATION_V3` 老库补列默认「慢性病」。
+- **`src/screens/profile/` 还没在模拟器上跑过**：结构、token、i18n 与 `bun run check` 都过了。`index.tsx` 已改成 **Expo UI 为主的整屏**（`Host` + 原生 `ScrollView`，Mini Archive 与头像是 RN island），真机要重点看：Mini Archive 通栏宽度（`containerWidth` 由 `onLayoutContent` 实测喂入，展开/折叠与旋转各走一遍）、三等分统计卡的卡宽、菜单卡的发丝线与徽章胶囊的居中、圆形图标按钮（`Row` + `onPress`）的图标是否真的在圆心；`settings.tsx` 则是自定义 `FieldGroup.SectionHeader`（左侧强调条标题）与 `ListItem` leading 槽里的 `Icon`（`RNHostView matchContents` 托着纯 SwiftUI 子节点）。**`persons.tsx` / `person-detail.tsx` 的 `<List>` 也嵌在 `ScrollView` 里 —— 与药品详情页修掉的 bug 同源（SwiftUI List 是滚动容器，会塌成零高），验证时一并处理（参照 `detail.tsx` 的 `SectionCard` 改法）。**
 - **Android**：日期选择已使用通用 `DateTimePicker`，其余通用屏幕的平台能力已隔离到 `src/components/native-layout.{ios,android}.tsx`；`android/` 目录尚未生成，仍需模拟器验证布局与交互。universal `Icon` 目前只给了 iOS SF Symbol 名，Android 要补 Material 图标（`Icon.select`）；导轨的虚线（`borderStyle: "dashed"`）在 Android 上也要实测。
 - **`src/screens/home/index.tsx` 刚改成 Expo UI 为主的整屏**（`Host` + 原生 `ScrollView`），两块 RN island（提醒卡堆叠 / 库存速览）都靠 `useExpoUiContentWidth` 实测的 `containerWidth` 喂宽度。真机要重点看：牌堆是否满宽（宽度没喂对就直接塌）、`Row alignment="end"` 的巨型日期行是否与设计稿的 baseline 对齐、成员筛选的 `Picker`（`appearance="menu"`）在 iOS 上是否真的出原生菜单、通知横幅的 `Row` 在长文案下会不会挤。
 - **`src/screens/home/dose-rail.tsx`（服药时间线导轨，约 950 行）已从首页摘掉、当前无人引用**，`src/screens/home/index.tsx` 不再导入它。它是纯 RN 树（导轨连接线要 `flex: 1`），里面的 `buildRail` 是纯函数适合单元测试。要恢复时间线就把 `DoseRailExpoUI` 接回首页；确认不要了就连文件带一批 i18n 词条（`home.timeline` / `home.doneCount` / `home.noSchedule*` / `home.gap*` / `home.snooze*` / `home.now` / `home.expand*`）一起删。

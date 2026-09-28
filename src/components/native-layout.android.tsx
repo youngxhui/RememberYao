@@ -2,7 +2,11 @@ import {
   HorizontalPager,
   type HorizontalPagerHandle,
 } from "@expo/ui/jetpack-compose";
-import { fillMaxSize, fillMaxWidth } from "@expo/ui/jetpack-compose/modifiers";
+import {
+  fillMaxSize,
+  fillMaxWidth,
+  wrapContentWidth,
+} from "@expo/ui/jetpack-compose/modifiers";
 import {
   Children,
   isValidElement,
@@ -22,7 +26,12 @@ export function nativeLayout({
   fullWidth = false,
   fullHeight = false,
   unconstrainedWidth = false,
+  idealWidth = false,
 }: NativeLayoutOptions) {
+  // Compose 没有 iOS fixedSize 那样「不参与压缩」的等价物：wrapContentWidth 只让自身
+  // 不撑满，行内剩余空间不够时仍可能被压缩。Android 端要严格不折行，等 Android 实现
+  // 落地后按那边的实际行为再调。
+  if (idealWidth) return wrapContentWidth("end");
   return fullHeight
     ? fillMaxSize()
     : fullWidth || unconstrainedWidth

@@ -1,0 +1,163 @@
+appId: com.youngxhui.RememberYao
+---
+# 药品库（药品 tab）冒烟：引导页 → 首页加药 → 手动表单 → 列表展示与库存胶囊 →
+# 分类筛选/空态/横滑 → 详情 → 删除 → 搜索空态
+#
+# 沿用 dashboard.yaml 的两个踩坑：@expo/ui 的 Text 在 iOS 上不落 testID，只能按
+# 文案断言；切 tab/页面后 waitForAnimationToEnd + extendedWaitUntil 兜住重挂载。
+#
+# 表单里 @expo/ui 的 TextInput 走原生键盘输入，inputText 打 CJK 会因模拟器键盘
+# 布局不可靠，所以药名用 ASCII「Amoxil」；搜索框同样只输 ASCII。
+# 筛选 chip 行 5 个 chip 约 440pt 比内容区宽，末尾 chip（保健品/库存不足）在
+# 屏幕上不可见，先按 chip 行位置横滑一次再点。
+- launchApp:
+    clearState: true
+
+# ── 引导页：第一页无跳过，第二页点「跳过」直达首页 ──
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-next-button"
+    timeout: 30000
+- tapOn:
+    id: "onboarding-next-button"
+- extendedWaitUntil:
+    visible: "跳过"
+    timeout: 10000
+- tapOn: "跳过"
+- extendedWaitUntil:
+    visible:
+      id: "home-tab"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: "还没有在服用的药品，去「药品」添加后再设置服用时间"
+    timeout: 20000
+
+# ── 首页 → 添加方式 → 手动输入 ──
+- tapOn:
+    id: "home-add-medication-button"
+- extendedWaitUntil:
+    visible: "手动输入"
+    timeout: 20000
+- tapOn:
+    id: "add-option-manual"
+
+# ── 表单：Amoxil，总数 30、剩 5（低档，留给「库存不足」筛选）──
+# 表单不是 ScrollView，保存按钮布局在屏幕底部，会被弹出键盘盖住：
+# 每个字段输入后先收起键盘再 tap 下一个字段（键盘弹起时 tap 焦点不动、
+# 值会落进旧字段）。QWERTY 键盘点「Return」收起；总数/剩余是 number pad
+# 没有 Return 键，用 pressKey: enter 收起（实测 hideKeyboard 对 SwiftUI
+# TextField 无效，点静态文本也不收）。
+- extendedWaitUntil:
+    visible:
+      id: "medication-name-input"
+    timeout: 20000
+- inputText: "Amoxil"
+- tapOn: "Return"
+- tapOn:
+    id: "medication-total-input"
+- inputText: "30"
+- pressKey: enter
+- tapOn:
+    id: "medication-remaining-input"
+- inputText: "5"
+- pressKey: enter
+- tapOn:
+    id: "medication-save-button"
+
+# ── 保存后回添加方式页；点导航栏返回按钮落回药品列表 ──
+# 不用边缘滑动 back（实测送键盘后那次会不触发），导航返回按钮稳定
+- extendedWaitUntil:
+    visible: "手动输入"
+    timeout: 20000
+- tapOn: "药品库"
+- extendedWaitUntil:
+    visible: "Amoxil"
+    timeout: 20000
+
+# ── 列表卡片：徽章、库存胶囊、meta 行 ──
+- assertVisible: "1 种"
+- assertVisible: "5/30 · 偏低"
+- assertVisible: "瓶装 · 慢性病"
+
+# ── 分类筛选：慢性病命中；横滑后保健品 → 空态；库存不足命中 ──
+- tapOn:
+    id: "medica-filter-chronic"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Amoxil"
+    timeout: 10000
+- swipe:
+    start: 90%, 35%
+    end: 10%, 35%
+    duration: 400
+- tapOn:
+    id: "medica-filter-supplement"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "该分类下还没有添加药品"
+    timeout: 10000
+- tapOn:
+    id: "medica-filter-low"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Amoxil"
+    timeout: 10000
+# 横滑回左端，切「全部」
+- swipe:
+    start: 10%, 35%
+    end: 90%, 35%
+    duration: 400
+- tapOn:
+    id: "medica-filter-all"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Amoxil"
+    timeout: 10000
+
+# ── 搜索：有药时搜一个不存在的名字 → 无结果空态；清词回列表 ──
+- tapOn: "搜索药品名称"
+- inputText: "Zzzz"
+- extendedWaitUntil:
+    visible: "没有找到相关药品"
+    timeout: 10000
+# 「Clear text」是 UIKit 搜索框的系统清除按钮；清词后列表数据立即回来
+- tapOn: "Clear text"
+- extendedWaitUntil:
+    visible: "Amoxil"
+    timeout: 10000
+
+# ── 卡片 → 详情 ──
+- tapOn: "Amoxil"
+# 详情页顶部是库存概览；补货/更多信息区块之前塌成零高、现在占真高，
+# 下方按钮在首屏外，先滚到补货输入再断言
+- extendedWaitUntil:
+    visible: "/ 30 片"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "restock-amount-input"
+    direction: DOWN
+
+# ── 删除（二次确认）→ 回到列表空态 ──
+# 进详情时滚动到了补货区，删除按钮可能在首屏外，先滚到可见
+- scrollUntilVisible:
+    element:
+      id: "medication-delete-button"
+    direction: DOWN
+- tapOn:
+    id: "medication-delete-button"
+- extendedWaitUntil:
+    visible: "再次点击确认删除"
+    timeout: 10000
+- tapOn:
+    id: "medication-delete-button"
+- extendedWaitUntil:
+    visible: "药箱还是空的，点右上角添加药品"
+    timeout: 20000
+
+# ── 空药箱时再搜索：仍是「药箱还是空的」引导（空箱态优先于无结果态）──
+- tapOn: "搜索药品名称"
+- inputText: "Amoxil"
+- extendedWaitUntil:
+    visible: "药箱还是空的，点右上角添加药品"
+    timeout: 10000

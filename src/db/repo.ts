@@ -80,6 +80,7 @@ export async function replaceAll(data: PersistedData): Promise<void> {
           set: {
             name: sql`excluded.name`,
             type: sql`excluded.type`,
+            category: sql`excluded.category`,
             unit: sql`excluded.unit`,
             totalQuantity: sql`excluded.total_quantity`,
             remainingQuantity: sql`excluded.remaining_quantity`,
