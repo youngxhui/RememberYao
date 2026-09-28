@@ -1,0 +1,138 @@
+appId: com.youngxhui.RememberYao
+---
+# 「我的」冒烟：引导页 → 我的 tab → 添加家庭成员 → 成员列表/详情 → 删除
+#
+# 本次重点是 persons.tsx / person-detail.tsx 的 SectionCard 修复：原来 List
+# （iOS = SwiftUI List，本身是滚动容器）嵌在 ScrollView 里会塌成零高、成员行
+# 整段消失，改成普通行拼卡片后，成员行要真实占高渲染出来。
+#
+# 沿用 medica.yaml 的踩坑写法：切 tab/页面后 waitForAnimationToEnd +
+# extendedWaitUntil 兜住重挂载；@expo/ui 的 Text 不落 testID 只能按文案断言；
+# 成员名用 ASCII（CJK 在模拟器键盘不可靠）；QWERTY 键盘用 Return 收起。
+- launchApp:
+    clearState: true
+
+# ── 引导页（tab 组之外，全屏无 tab 栏）──
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-next-button"
+    timeout: 30000
+- tapOn:
+    id: "onboarding-next-button"
+- extendedWaitUntil:
+    visible: "跳过"
+    timeout: 10000
+- tapOn: "跳过"
+- extendedWaitUntil:
+    visible:
+      id: "home-tab"
+    timeout: 30000
+
+# ── 切到「我的」tab ──
+# 用 repeat 兜住「过引导页后第一次点 tab 会被吞」：点到底直到目标页出现
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: "profile-tab"
+      - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "本周概览"
+          timeout: 3000
+          optional: true
+- extendedWaitUntil:
+    visible: "本周概览"
+    timeout: 20000
+# 首屏（折叠线以上）：档案卡 + 本周概览。家庭成员/菜单在折叠线以下，需先下滑
+- assertVisible: "我的档案，暂无药品"
+- assertVisible: "应服 0 次"
+# 滑动起点放在 x=90%：避开中间的 Mini Archive（RN island 横向分页），直滚外层
+- swipe:
+    start: 90%, 55%
+    end: 90%, 20%
+    duration: 400
+- extendedWaitUntil:
+    visible: "还没有家庭成员，点右上角添加"
+    timeout: 10000
+- assertVisible:
+    id: "profile-add-member-button"
+
+# ── 添加家庭成员 → persons 屏 ──
+- tapOn:
+    id: "profile-add-member-button"
+- extendedWaitUntil:
+    visible:
+      id: "person-name-input"
+    timeout: 20000
+# 先点输入框聚焦再输入（inputText 只往「已聚焦」字段打字，medica 表单同款写法）
+- tapOn:
+    id: "person-name-input"
+- inputText: "Mom"
+- tapOn:
+    id: "person-add-button"
+
+# 保存后自动进成员详情页：名字是标题，空的用药配置区块整块渲染
+- extendedWaitUntil:
+    visible: "还没有用药配置，点击下方按钮添加"
+    timeout: 20000
+- assertVisible:
+    id: "plan-add-button"
+- scrollUntilVisible:
+    element:
+      id: "person-delete-button"
+    direction: DOWN
+
+# ── 返回 persons 列表：成员行（SectionCard 拼的行）必须真实渲染 ──
+- tapOn: "家庭成员"
+- extendedWaitUntil:
+    visible: "Mom"
+    timeout: 20000
+- assertVisible: "0 个配置"
+
+# ── 再点成员行进详情，返回一次：列表重挂载不塌 ──
+- tapOn: "Mom"
+- extendedWaitUntil:
+    visible: "还没有用药配置，点击下方按钮添加"
+    timeout: 20000
+- tapOn: "家庭成员"
+- extendedWaitUntil:
+    visible: "Mom"
+    timeout: 20000
+
+# ── 进详情删除成员（二次确认）→ 回 persons 空态 ──
+- tapOn: "Mom"
+- extendedWaitUntil:
+    visible:
+      id: "person-delete-button"
+    timeout: 20000
+- tapOn:
+    id: "person-delete-button"
+- extendedWaitUntil:
+    visible: "确认删除"
+    timeout: 10000
+- tapOn:
+    id: "person-delete-button"
+- extendedWaitUntil:
+    visible: "还没有家庭成员，先在上方添加"
+    timeout: 20000
+
+# ── 回「我的」根页面：空态回来，页面不崩；再下滑验菜单卡 ──
+- tapOn: "我的"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "profile-add-member-button"
+    timeout: 20000
+- assertVisible: "还没有家庭成员，点右上角添加"
+# 从家庭成员区再往下滚，菜单卡（设置/通知/导出/隐私）在折叠线以下
+- swipe:
+    start: 90%, 70%
+    end: 90%, 35%
+    duration: 400
+- extendedWaitUntil:
+    visible: "设置"
+    timeout: 10000
+- assertVisible: "通知设置"
+- assertVisible: "导出报告"
+- assertVisible: "即将推出"
+- assertVisible: "隐私与数据"

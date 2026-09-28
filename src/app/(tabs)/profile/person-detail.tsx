@@ -1,12 +1,4 @@
-import {
-  Button,
-  Column,
-  Host,
-  List,
-  ListItem,
-  ScrollView,
-  Text,
-} from "@expo/ui";
+import { Button, Column, Host, ListItem, ScrollView, Text } from "@expo/ui";
 import {
   Stack,
   useFocusEffect,
@@ -17,6 +9,8 @@ import { useCallback, useState } from "react";
 
 import { Avatar } from "@/components/avatar";
 import { nativeButtonModifiers } from "@/components/native-layout";
+import { HairLine, SectionCard, SectionTitle } from "@/components/section-card";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import {
@@ -82,12 +76,7 @@ export default function PersonDetailScreen() {
             <Avatar color={person.avatarColor} name={person.name} size={64} />
           </Column>
 
-          <Text
-            style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 4 }}
-            textStyle={{ fontSize: 13, color: theme.textSecondary }}
-          >
-            {t("person.plans")}
-          </Text>
+          <SectionTitle>{t("person.plans")}</SectionTitle>
           {personPlans.length === 0 ? (
             <Column
               style={{
@@ -101,8 +90,10 @@ export default function PersonDetailScreen() {
               </Text>
             </Column>
           ) : (
-            <List>
-              {personPlans.map((plan) => {
+            // @expo/ui 的 List 在 iOS 上是 SwiftUI List，本身是滚动容器，嵌进外层
+            // ScrollView 会塌（与药品详情页同源的 bug），用药配置行不多，用普通行拼卡片
+            <SectionCard>
+              {personPlans.map((plan, index) => {
                 const medication = medications.find(
                   (m) => m.id === plan.medicationId,
                 );
@@ -110,38 +101,43 @@ export default function PersonDetailScreen() {
                   ? medicationUnitLabel(medication.unit, t)
                   : "";
                 return (
-                  <ListItem
-                    key={plan.id}
-                    testID={`plan-item-${plan.id}`}
-                    onPress={() => {
-                      router.push({
-                        pathname: "/(tabs)/profile/plan-form",
-                        params: { id: plan.id },
-                      });
-                    }}
-                    supportingText={[
-                      t("person.summaryLine", {
-                        name: medication?.name ?? t("home.unknownMedication"),
-                        amount: plan.doseAmount,
-                        unit,
-                      }),
-                      t("person.timesLine", {
-                        count: plan.times.length,
-                        times: plan.times.join(" / "),
-                      }),
-                      [
-                        t("person.startFrom", { start: plan.startDate }),
-                        plan.endDate
-                          ? t("person.rangeTo", { end: plan.endDate })
-                          : t("person.rangeOngoing"),
-                      ].join(""),
-                    ].join("\n")}
-                  >
-                    {planStatusLabel(plan, t)}
-                  </ListItem>
+                  <Column key={plan.id}>
+                    {index > 0 ? <HairLine /> : null}
+                    <Column style={{ padding: Spacing.three }}>
+                      <ListItem
+                        testID={`plan-item-${plan.id}`}
+                        onPress={() => {
+                          router.push({
+                            pathname: "/(tabs)/profile/plan-form",
+                            params: { id: plan.id },
+                          });
+                        }}
+                        supportingText={[
+                          t("person.summaryLine", {
+                            name:
+                              medication?.name ?? t("home.unknownMedication"),
+                            amount: plan.doseAmount,
+                            unit,
+                          }),
+                          t("person.timesLine", {
+                            count: plan.times.length,
+                            times: plan.times.join(" / "),
+                          }),
+                          [
+                            t("person.startFrom", { start: plan.startDate }),
+                            plan.endDate
+                              ? t("person.rangeTo", { end: plan.endDate })
+                              : t("person.rangeOngoing"),
+                          ].join(""),
+                        ].join("\n")}
+                      >
+                        {planStatusLabel(plan, t)}
+                      </ListItem>
+                    </Column>
+                  </Column>
                 );
               })}
-            </List>
+            </SectionCard>
           )}
 
           <Column spacing={12} style={{ paddingTop: 24 }}>

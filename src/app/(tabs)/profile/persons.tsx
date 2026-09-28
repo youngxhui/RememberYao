@@ -2,7 +2,6 @@ import {
   Button,
   Column,
   Host,
-  List,
   ListItem,
   ScrollView,
   Text,
@@ -13,6 +12,8 @@ import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 
 import { nativeLayout } from "@/components/native-layout";
+import { HairLine, SectionCard } from "@/components/section-card";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import { addPerson, useAppData } from "@/lib/store";
@@ -101,25 +102,31 @@ export default function PersonsScreen() {
               </Text>
             </Column>
           ) : (
-            <List>
-              {persons.map((person) => (
-                <ListItem
-                  key={person.id}
-                  testID={`person-item-${person.id}`}
-                  onPress={() => {
-                    router.push({
-                      pathname: "/(tabs)/profile/person-detail",
-                      params: { id: person.id },
-                    });
-                  }}
-                  supportingText={t("person.planCount", {
-                    count: planCount(person.id),
-                  })}
-                >
-                  {person.name}
-                </ListItem>
+            // @expo/ui 的 List 在 iOS 上是 SwiftUI List，本身是滚动容器，嵌进外层
+            // ScrollView 会塌（与药品详情页同源的 bug），用药人不多，用普通行拼卡片
+            <SectionCard>
+              {persons.map((person, index) => (
+                <Column key={person.id}>
+                  {index > 0 ? <HairLine /> : null}
+                  <Column style={{ padding: Spacing.three }}>
+                    <ListItem
+                      testID={`person-item-${person.id}`}
+                      onPress={() => {
+                        router.push({
+                          pathname: "/(tabs)/profile/person-detail",
+                          params: { id: person.id },
+                        });
+                      }}
+                      supportingText={t("person.planCount", {
+                        count: planCount(person.id),
+                      })}
+                    >
+                      {person.name}
+                    </ListItem>
+                  </Column>
+                </Column>
               ))}
-            </List>
+            </SectionCard>
           )}
         </ScrollView>
       </Host>

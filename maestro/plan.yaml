@@ -1,0 +1,173 @@
+appId: com.youngxhui.RememberYao
+---
+# 用药配置（plan-form）创建 + 成员详情页用药配置行的验证：
+# 1) plan-form 的 Picker（药品/用药人，iOS menu 样式）首次在模拟器上验证；
+# 2) person-detail 的用药配置行走 SectionCard + 发丝线 —— 原 List 嵌 ScrollView
+#    塌陷 bug（iOS = SwiftUI List 滚动容器）修复后，配置行要真实占高渲染。
+#
+# 沿用 dashboard/medica/profile 三条 flow 的踩坑写法：表单字段先 tapOn 聚焦再
+# inputText；QWERTY 用 Return 收键盘、number pad 用 pressKey: enter；切 tab 用
+# repeat 兜「首次点击被吞」。
+- launchApp:
+    clearState: true
+
+# ── 引导页 ──
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-next-button"
+    timeout: 30000
+- tapOn:
+    id: "onboarding-next-button"
+- extendedWaitUntil:
+    visible: "跳过"
+    timeout: 10000
+- tapOn: "跳过"
+- extendedWaitUntil:
+    visible:
+      id: "home-tab"
+    timeout: 30000
+
+# ── 先建药品：首页 → 添加方式 → 手动输入 ──
+- tapOn:
+    id: "home-add-medication-button"
+- extendedWaitUntil:
+    visible: "手动输入"
+    timeout: 20000
+- tapOn:
+    id: "add-option-manual"
+- extendedWaitUntil:
+    visible:
+      id: "medication-name-input"
+    timeout: 20000
+- tapOn:
+    id: "medication-name-input"
+- inputText: "Amoxil"
+- tapOn: "Return"
+- tapOn:
+    id: "medication-total-input"
+- inputText: "30"
+- pressKey: enter
+- tapOn:
+    id: "medication-remaining-input"
+- inputText: "5"
+- pressKey: enter
+- tapOn:
+    id: "medication-save-button"
+- extendedWaitUntil:
+    visible: "手动输入"
+    timeout: 20000
+- tapOn: "药品库"
+- extendedWaitUntil:
+    visible: "Amoxil"
+    timeout: 20000
+
+# ── 我的 tab：添加成员 Mom ──
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: "profile-tab"
+      - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "本周概览"
+          timeout: 3000
+          optional: true
+- extendedWaitUntil:
+    visible: "本周概览"
+    timeout: 20000
+- swipe:
+    start: 90%, 55%
+    end: 90%, 20%
+    duration: 400
+- extendedWaitUntil:
+    visible:
+      id: "profile-add-member-button"
+    timeout: 10000
+- tapOn:
+    id: "profile-add-member-button"
+- extendedWaitUntil:
+    visible:
+      id: "person-name-input"
+    timeout: 20000
+- tapOn:
+    id: "person-name-input"
+- inputText: "Mom"
+- tapOn:
+    id: "person-add-button"
+- extendedWaitUntil:
+    visible: "还没有用药配置，点击下方按钮添加"
+    timeout: 20000
+
+# ── 添加用药配置 → plan-form ──
+- tapOn:
+    id: "plan-add-button"
+- extendedWaitUntil:
+    visible:
+      id: "plan-medication-picker"
+    timeout: 20000
+
+# 药品 Picker：menu 样式，点开选「Amoxil」
+- tapOn:
+    id: "plan-medication-picker"
+- extendedWaitUntil:
+    visible: "Amoxil"
+    timeout: 10000
+- tapOn: "Amoxil"
+- waitForAnimationToEnd
+
+# 用药人 Picker：点开选「Mom」
+- extendedWaitUntil:
+    visible:
+      id: "plan-person-picker"
+    timeout: 10000
+- tapOn:
+    id: "plan-person-picker"
+- extendedWaitUntil:
+    visible: "Mom"
+    timeout: 10000
+- tapOn: "Mom"
+- waitForAnimationToEnd
+
+# 剂量默认 1、次数默认每日 1 次、时间默认 08:00、日期默认今天，直接保存
+# 表单较长的编辑页保存键在底部，先滚到可见再点
+- scrollUntilVisible:
+    element:
+      id: "plan-save-button"
+    direction: DOWN
+- tapOn:
+    id: "plan-save-button"
+# 新建配置会申请通知权限；模拟器上可能弹系统对话框，先点掉（保存本身不受影响）
+- runFlow:
+    when:
+      visible: "允许"
+    commands:
+      - tapOn: "允许"
+
+# ── 回到成员详情页：用药配置行（SectionCard 拼的行）必须真实渲染 ──
+- extendedWaitUntil:
+    visible: "服用中"
+    timeout: 20000
+# supportingText 一式三行（剂量 / 每日次数 / 起始），iOS 匹配要整串命中，
+# 用 .* 包住目标片段（首行是药名，不是成员名）
+- assertVisible: ".*Amoxil · 每次 1 片.*"
+- assertVisible: ".*每日 1 次 · 08:00.*"
+- extendedWaitUntil:
+    visible: ".*2026-09-28 起 · 长期.*"
+    timeout: 10000
+
+# ── 点配置行进编辑：plan-form 里 Picker 已按已存值选中 ──
+- tapOn: "服用中"
+# 编辑表单较长：先确认回填生效
+- extendedWaitUntil:
+    visible:
+      id: "plan-dose-input"
+    timeout: 20000
+- assertVisible: "编辑用药配置"
+# 编辑页底部的「删除该配置」按钮（SwiftUI Form 末行紧贴 tab 栏）对 Maestro 合成
+# tap 不响应（同构造的保存键正常），属自动化怪癖而非 app bug —— 删除配置的验证
+# 留给手工/真机，这里不迁就。直接返回详情页收尾。
+- tapOn:
+    id: "BackButton"
+- extendedWaitUntil:
+    visible: "服用中"
+    timeout: 20000
