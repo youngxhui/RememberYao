@@ -235,7 +235,9 @@ function MemberFilter({
   if (persons.length <= 1) return null;
 
   return (
-    <Row spacing={Spacing.rowGap}>
+    // 必须显式 center：Row 默认是 start（iOS 映射成 HStack 的 .top），
+    // 18pt 的图标会被顶到原生菜单 Picker（约 34pt 高的胶囊）的上沿而不是圆心。
+    <Row alignment="center" spacing={Spacing.rowGap}>
       <Icon
         name="person.2.fill"
         size={18}
