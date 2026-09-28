@@ -18,6 +18,7 @@ import { useCallback, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { nativeButtonModifiers } from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "@/i18n";
 import {
   deletePerson,
   medicationUnitLabel,
@@ -28,6 +29,7 @@ import {
 export default function PersonDetailScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const t = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { persons, medications, plans, reload } = useAppData();
   const [confirmDeletePerson, setConfirmDeletePerson] = useState(false);
@@ -48,7 +50,7 @@ export default function PersonDetailScreen() {
         <Host style={{ flex: 1 }}>
           <Column alignment="center" style={{ paddingTop: 120 }}>
             <Text textStyle={{ color: theme.textSecondary }}>
-              用药人不存在或已删除
+              {t("person.notFound")}
             </Text>
           </Column>
         </Host>
@@ -84,7 +86,7 @@ export default function PersonDetailScreen() {
             style={{ paddingTop: 8, paddingBottom: 8, paddingLeft: 4 }}
             textStyle={{ fontSize: 13, color: theme.textSecondary }}
           >
-            用药配置
+            {t("person.plans")}
           </Text>
           {personPlans.length === 0 ? (
             <Column
@@ -95,7 +97,7 @@ export default function PersonDetailScreen() {
               }}
             >
               <Text textStyle={{ color: theme.textSecondary }}>
-                还没有用药配置，点击下方按钮添加
+                {t("plan.emptyAddHint")}
               </Text>
             </Column>
           ) : (
@@ -105,11 +107,12 @@ export default function PersonDetailScreen() {
                   (m) => m.id === plan.medicationId,
                 );
                 const unit = medication
-                  ? medicationUnitLabel(medication.unit)
+                  ? medicationUnitLabel(medication.unit, t)
                   : "";
                 return (
                   <ListItem
                     key={plan.id}
+                    testID={`plan-item-${plan.id}`}
                     onPress={() => {
                       router.push({
                         pathname: "/(tabs)/profile/plan-form",
@@ -117,12 +120,24 @@ export default function PersonDetailScreen() {
                       });
                     }}
                     supportingText={[
-                      `${medication?.name ?? "未知药品"} · 每次 ${plan.doseAmount} ${unit}`,
-                      `每日 ${plan.times.length} 次 · ${plan.times.join(" / ")}`,
-                      `${plan.startDate} 起${plan.endDate ? ` · 至 ${plan.endDate}` : " · 长期"}`,
+                      t("person.summaryLine", {
+                        name: medication?.name ?? t("home.unknownMedication"),
+                        amount: plan.doseAmount,
+                        unit,
+                      }),
+                      t("person.timesLine", {
+                        count: plan.times.length,
+                        times: plan.times.join(" / "),
+                      }),
+                      [
+                        t("person.startFrom", { start: plan.startDate }),
+                        plan.endDate
+                          ? t("person.rangeTo", { end: plan.endDate })
+                          : t("person.rangeOngoing"),
+                      ].join(""),
                     ].join("\n")}
                   >
-                    {planStatusLabel(plan)}
+                    {planStatusLabel(plan, t)}
                   </ListItem>
                 );
               })}
@@ -131,7 +146,8 @@ export default function PersonDetailScreen() {
 
           <Column spacing={12} style={{ paddingTop: 24 }}>
             <Button
-              label="添加用药配置"
+              testID="plan-add-button"
+              label={t("plan.formTitle")}
               onPress={() => {
                 router.push({
                   pathname: "/(tabs)/profile/plan-form",
@@ -143,8 +159,14 @@ export default function PersonDetailScreen() {
                 fullWidth: true,
               })}
             />
+            {/* 文案在「删除用药人 / 再次点击确认删除」之间切换，靠 testID 稳定定位 */}
             <Button
-              label={confirmDeletePerson ? "再次点击确认删除" : "删除用药人"}
+              testID="person-delete-button"
+              label={
+                confirmDeletePerson
+                  ? t("common.confirmDelete")
+                  : t("person.deleteButtonAlt")
+              }
               onPress={() => {
                 removePerson();
               }}

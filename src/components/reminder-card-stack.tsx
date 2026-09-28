@@ -1,12 +1,13 @@
+import { RNHostView } from "@expo/ui";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
-  StyleSheet,
   Text as RNText,
-  useWindowDimensions,
   View as RNView,
+  StyleSheet,
+  useWindowDimensions,
   type LayoutChangeEvent,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -24,9 +25,9 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 
 import { reminderStatusMeta, toneColors } from "@/components/dose-timeline";
-import { withAlpha } from "@/components/mini-archive";
-import { Fonts, Spacing } from "@/constants/theme";
+import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "@/i18n";
 import {
   addDays,
   medicationUnitLabel,
@@ -38,9 +39,10 @@ import {
   type Person,
   type Reminder,
 } from "@/lib/store";
+import { withAlpha } from "@/utils/color";
 
 // ── 几何与节奏：与 design/today.html 的「提醒卡」区块同源 ──────────────
-const CARD_RADIUS = 28;
+const CARD_RADIUS = Radius.promo;
 /** 设计稿固定三张堆叠，更多待办交给时间线 */
 const MAX_CARDS = 3;
 /** 触发换卡的滑动距离（px） */
@@ -140,6 +142,11 @@ export type ReminderCardStackProps = {
   plans: MedicationPlan[];
   /** 任意写操作（如标记服用）后的回调，供调用方 reload */
   onChanged?: () => void;
+  /**
+   * 岛内可用宽度（不含屏幕左右边距）。放进 `Host` 时由调用方实测后传入：
+   * 牌堆靠 Reanimated 绝对位移排布，宽度猜错会直接错位。
+   */
+  containerWidth?: number;
 };
 
 /**
@@ -150,9 +157,10 @@ export type ReminderCardStackProps = {
  * - 右侧指示器固定原地不随卡片移动，仅高亮段与沉底同步 morph；
  * - 磨砂卡底 = expo-blur 实时背景模糊 + 半透明主题色叠染，每卡按用药人头像色区分家庭成员。
  *
- * 接入约定：纯 RN 树。放进 @expo/ui 的 Host / SwiftUI ScrollView 时，
- * 外层需用 RNHostView 承载（与 MiniArchive 相同）；手势根视图已在
- * `src/app/_layout.tsx` 用 GestureHandlerRootView 补齐。
+ * 接入约定：纯 RN 树。直接挂在纯 RN 的滚动屏里（当前是 `src/screens/home`）；
+ * 若要塞进 @expo/ui 的 Host / 原生 ScrollView，外层需用 RNHostView 承载
+ * （与 MiniArchive 相同）；手势根视图已在 `src/app/_layout.tsx` 用
+ * GestureHandlerRootView 补齐。
  */
 export function ReminderCardStack({
   reminders,
@@ -160,8 +168,10 @@ export function ReminderCardStack({
   persons,
   plans,
   onChanged,
+  containerWidth,
 }: ReminderCardStackProps) {
   const theme = useTheme();
+  const t = useTranslation();
   const reduced = useReducedMotion();
 
   // order = 视觉顺序（首项为顶卡）。与数据解耦，换卡时手动轮转
@@ -201,9 +211,11 @@ export function ReminderCardStack({
     const next = Math.round(event.nativeEvent.layout.width);
     if (next > 0) setHostWidth((prev) => (prev === next ? prev : next));
   }, []);
-  // 外层 RNView 自适应父容器，用 onLayout 实测宽度；首帧拿不到时退回
-  // 「窗口宽 − 屏幕左右内边距」（同 mini-archive，两处接入都是 16pt 滚动容器）
-  const width = hostWidth > 0 ? hostWidth : windowWidth - Spacing.three * 2;
+  // 放进 Expo UI 树时宽度由宿主实测后传进来（matchContents 下 RN 自测不可信）；
+  // 纯 RN 屏则用 onLayout 实测，首次拿不到时退回「窗口宽 − 屏幕左右内边距」
+  const width =
+    containerWidth ??
+    (hostWidth > 0 ? hostWidth : windowWidth - Spacing.three * 2);
 
   // 指示器纵向位置 = 卡片中段（标题区）顶边。三张卡结构等高，
   // 各卡上报同一值，取最后一次即可
@@ -289,42 +301,48 @@ export function ReminderCardStack({
     const person = persons.find((p) => p.id === reminder.personId);
     const plan = plans.find((p) => p.id === reminder.planId);
     const summary = medication ? stockSummary(medication, plans) : null;
-    const unit = medication ? medicationUnitLabel(medication.unit) : "片";
+    const unit = medication
+      ? medicationUnitLabel(medication.unit, t)
+      : t("medication.unitTablet");
     const notes = medication?.notes.trim() ?? "";
     const daysLeft = summary?.daysLeft ?? null;
 
     let timeLabel = reminder.time;
     if (reminder.date === tomorrow) {
-      timeLabel = `明天 ${reminder.time}`;
+      timeLabel = `${t("records.tomorrow")} ${reminder.time}`;
     } else if (reminder.date !== today) {
       const month = Number(reminder.date.slice(5, 7));
       const day = Number(reminder.date.slice(8, 10));
-      timeLabel = `${month}月${day}日 ${reminder.time}`;
+      timeLabel = t("records.monthDayTime", {
+        month,
+        day,
+        time: reminder.time,
+      });
     }
 
-    let stockLine = "长期";
+    let stockLine = t("plan.endDateUnlimited");
     if (daysLeft !== null) {
-      stockLine = `剩 ${daysLeft} 天`;
+      stockLine = t("records.stockDaysLeft", { days: daysLeft });
     } else if (plan?.endDate) {
       const endMonth = Number(plan.endDate.slice(5, 7));
       const endDay = Number(plan.endDate.slice(8, 10));
-      stockLine = `服至 ${endMonth}月${endDay}日`;
+      stockLine = t("records.untilDate", { month: endMonth, day: endDay });
     }
 
     return {
       reminder,
       timeLabel,
       // 状态与时间线共用 reminderStatusMeta / toneColors，语义一致
-      state: reminderStatusMeta(reminder),
-      title: medication?.name ?? "未知药品",
+      state: reminderStatusMeta(reminder, new Date(), t),
+      title: medication?.name ?? t("home.unknownMedication"),
       // store 没有「规格」字段，剂量行 = 单次剂量 + 备注（设计稿 500mg · 1片 · 晚餐后）
       doseLine: notes
         ? `${reminder.doseAmount}${unit} · ${notes}`
         : `${reminder.doseAmount}${unit}`,
-      personName: person?.name ?? "未指定用药人",
+      personName: person?.name ?? t("home.unknownPerson"),
       // 卡色 = 用药人头像色（设计稿 --promo-accent 的个性化位），按人区分
       accent: person?.avatarColor ?? theme.primary,
-      freqLine: `每日 ${plan?.times.length ?? 1} 次`,
+      freqLine: t("plan.perDay", { count: plan?.times.length ?? 1 }),
       stockLine,
       stockLow: summary?.low ?? false,
     };
@@ -457,6 +475,7 @@ function StackCard({
   onChanged?: () => void;
 }) {
   const theme = useTheme();
+  const t = useTranslation();
   const reduced = useReducedMotion();
   const [pressed, setPressed] = useState(false);
   const { reminder, state, accent } = item;
@@ -533,6 +552,7 @@ function StackCard({
 
   return (
     <Animated.View
+      testID={`stack-card-${reminder.id}`}
       pointerEvents={slot === 0 && !sinking ? "auto" : "none"}
       style={[boxStyle, animatedStyle]}
     >
@@ -747,6 +767,7 @@ function StackCard({
             </RNText>
           </RNView>
           <Pressable
+            testID={`stack-card-take-${reminder.id}`}
             accessibilityRole="button"
             onPress={handleTake}
             onPressIn={() => setPressed(true)}
@@ -773,12 +794,27 @@ function StackCard({
                   color: theme.promo.btnFg,
                 }}
               >
-                {reminder.status === "missed" ? "补服" : "已服用"}
+                {reminder.status === "missed"
+                  ? t("reminder.lateTake")
+                  : t("reminder.taken")}
               </RNText>
             </Animated.View>
           </Pressable>
         </RNView>
       </RNView>
     </Animated.View>
+  );
+}
+
+/**
+ * Expo UI 导入使用
+ * @param param0
+ * @returns
+ */
+export function ReminderCardStackExpoUI(props: ReminderCardStackProps) {
+  return (
+    <RNHostView matchContents>
+      <ReminderCardStack {...props} />
+    </RNHostView>
   );
 }

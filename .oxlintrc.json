@@ -121,6 +121,14 @@
       "rules": {
         "react/immutability": "off"
       }
+    },
+    {
+      // 语言切换后要重注册通知文案：effect 体内经 getTranslator() 间接读
+      // language，lint 看不穿这层间接依赖，误判为多余依赖
+      "files": ["src/app/_layout.tsx"],
+      "rules": {
+        "react/exhaustive-effect-dependencies": "off"
+      }
     }
   ],
   "ignorePatterns": [

@@ -31,6 +31,21 @@
 </RNView>
 ```
 
+**什么时候整屏用纯 RN**（而不是默认 `Host` + 原生 ScrollView）：屏幕的核心视觉依赖 RN
+布局上下文，硬桥接只会更脆。典型信号：
+
+- 需要 `flex` 撑满的装饰（导轨连接线、进度条、分隔线）—— universal `style` 不支持 flex；
+- 整屏是 Reanimated 手势 / `BlurView` / `expo-linear-gradient` 组合（提醒卡堆叠）；
+- 需要横向嵌套滚动、按下反馈、`Pressable` 级别的 testID。
+
+现状：`src/app/(tabs)/playground`（整屏 Reanimated 手势组件）。这类屏幕要在文件头注释
+写清「为什么不是 Host」，避免后来者以为漏改了。图标走 `expo-symbols` 的
+`src/components/symbol-icon.tsx`（Android 需另配 Material 图标）。
+
+> `src/screens/home`（首页）**不是**这一类：它现在是 Expo UI 为主的整屏，
+> 只有三块 island 依赖 RN 布局（见第 10 节）。只有「整屏核心视觉都在 RN 布局
+> 上下文里」时才退回纯 RN 写法。
+
 ### 2.2 Expo UI 页面中嵌入一个 RN island
 
 如果原生页面中有一个必须使用 RN/Reanimated/expo-* 的局部组件，用 `RNHostView` 建立边界：
@@ -112,7 +127,7 @@
 4. 对所有有效宽度取保守的最小值，避免旧的展开宽度在折叠后继续撑开父容器。
 5. 把最终数字宽度显式传给 RN 子树，不要让 RN island 自行猜测父容器宽度。
 
-可以抽成通用 hook：
+可以抽成通用 hook（当前实现在 `src/hooks/use-expo-ui-content-width.ts`，首页与「我的」共用）：
 
 ```tsx
 import { useCallback, useState } from "react";
@@ -257,6 +272,10 @@ type MeasuredWidth = {
 
 ## 10. 当前项目参考实现
 
-- `src/components/mini-archive.tsx`：RN island 的固有尺寸、safe-area fallback、宽度缓存失效和 `matchContents`。
-- `src/app/(tabs)/profile/index.tsx`：`Host.onLayout` 与 `onLayoutContent` 组合测量，并把数字宽度传给 `MiniArchiveSwiftUI`。
-- `src/components/avatar.tsx`、`src/components/progress-bar.tsx`：小型 RN island 的 `RNHostView` 边界示例。
+- `src/app/(tabs)/playground`：整屏纯 RN 的例子（Reanimated 提醒卡堆叠手势、横向 chip 滚动）。
+- `src/screens/home`、`src/screens/profile`：Expo UI 为主的整屏（`Host` + 原生 `ScrollView`）。universal style 没有 flex，通栏行靠 `Spacer flexible` 撑开，宽度取值都是第 4 节的 `useExpoUiContentWidth` hook（`src/hooks/use-expo-ui-content-width.ts`）。
+  - 首页有两块 island，都靠 `containerWidth` 喂实测宽度：`ReminderCardStackExpoUI`（Reanimated 绝对位移）与 `StockPanelExpoUI`（行内药名 `flex: 1`）。屏幕左右边距统一挂在外层 `Column` 的 `paddingHorizontal` 上，两块的 `islandWidth` 就等于同一个值。
+  - 我的页的 island 是 Mini Archive（`MiniArchiveExpoUI`）与成员卡头像（`ListItem` 的 leading 槽自行 `RNHostView` 托管）；三等分统计卡按实测内容宽度算固定卡宽。
+  - `src/components/round-icon-button.tsx`：原生 `Row` + `onPress` 做的圆形图标按钮 —— SwiftUI `Button` 的热区只包住 label，撑大 frame 后热区反而缩回图标。
+- `src/components/mini-archive.tsx`：RN island 的固有尺寸、safe-area fallback、宽度缓存失效和 `matchContents`；`MiniArchiveSwiftUI` 是把它嵌进 `Host` 的写法。
+- `src/components/avatar.tsx`、`src/components/progress-bar.tsx`：小型 RN island 的 `RNHostView` 边界示例（`Avatar` 只在原生树里用，纯 RN 屏用同文件的 `AvatarMark`）。

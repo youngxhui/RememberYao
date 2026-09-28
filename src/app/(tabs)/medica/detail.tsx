@@ -22,6 +22,7 @@ import { useCallback, useState } from "react";
 import { nativeButtonModifiers } from "@/components/native-layout";
 import { ProgressBar } from "@/components/progress-bar";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "@/i18n";
 import {
   deleteMedication,
   medicationTypeLabel,
@@ -34,6 +35,7 @@ import {
 
 export default function MedicationDetailScreen() {
   const router = useRouter();
+  const t = useTranslation();
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { medications, persons, plans, reload } = useAppData();
@@ -57,7 +59,7 @@ export default function MedicationDetailScreen() {
         <Host style={{ flex: 1 }}>
           <Column alignment="center" style={{ paddingTop: 120 }}>
             <Text textStyle={{ color: theme.textSecondary }}>
-              药品不存在或已删除
+              {t("medication.notFound")}
             </Text>
           </Column>
         </Host>
@@ -65,7 +67,7 @@ export default function MedicationDetailScreen() {
     );
   }
 
-  const unit = medicationUnitLabel(medication.unit);
+  const unit = medicationUnitLabel(medication.unit, t);
   const summary = stockSummary(medication, plans);
   const relatedPlans = plans.filter((p) => p.medicationId === medication.id);
   const percent =
@@ -110,7 +112,7 @@ export default function MedicationDetailScreen() {
           }}
         >
           <Stack.Toolbar.Icon sf="square.and.pencil" />
-          <Stack.Toolbar.Label>编辑</Stack.Toolbar.Label>
+          <Stack.Toolbar.Label>{t("common.edit")}</Stack.Toolbar.Label>
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Title large>{medication.name}</Stack.Title>
@@ -128,7 +130,10 @@ export default function MedicationDetailScreen() {
             }}
           >
             <Text textStyle={{ fontSize: 15, color: theme.textSecondary }}>
-              {`${medicationTypeLabel(medication.type)} · 按${unit}计量`}
+              {t("medication.typeAndUnit", {
+                type: medicationTypeLabel(medication.type, t),
+                unit,
+              })}
             </Text>
             <Row alignment="end" spacing={4}>
               <Text textStyle={{ fontSize: 32, fontWeight: "700" }}>
@@ -151,8 +156,10 @@ export default function MedicationDetailScreen() {
                 }}
               >
                 {summary.low
-                  ? `库存不足 · 约还能吃 ${summary.daysLeft} 天`
-                  : `约还能吃 ${summary.daysLeft} 天`}
+                  ? t("medication.daysLeftHintLow", {
+                      days: summary.daysLeft,
+                    })
+                  : t("medication.daysLeftHint", { days: summary.daysLeft })}
               </Text>
             ) : null}
             {medication.notes ? (
@@ -166,7 +173,7 @@ export default function MedicationDetailScreen() {
             style={{ paddingTop: 20, paddingBottom: 8, paddingLeft: 4 }}
             textStyle={{ fontSize: 13, color: theme.textSecondary }}
           >
-            用药配置
+            {t("plan.title")}
           </Text>
           {relatedPlans.length === 0 ? (
             <Column
@@ -177,7 +184,7 @@ export default function MedicationDetailScreen() {
               }}
             >
               <Text textStyle={{ color: theme.textSecondary }}>
-                还没有人服用这款药品
+                {t("medication.noTakers")}
               </Text>
             </Column>
           ) : (
@@ -187,6 +194,7 @@ export default function MedicationDetailScreen() {
                 return (
                   <ListItem
                     key={plan.id}
+                    testID={`medication-plan-${plan.id}`}
                     onPress={() => {
                       router.push({
                         pathname: "/(tabs)/profile/person-detail",
@@ -194,11 +202,15 @@ export default function MedicationDetailScreen() {
                       });
                     }}
                     supportingText={[
-                      `${person?.name ?? "未知"} · 每次 ${plan.doseAmount} ${unit}`,
-                      `每日 ${plan.times.length} 次 · ${plan.times.join(" / ")}`,
+                      t("medication.dosePerDose", {
+                        name: person?.name ?? t("common.unknown"),
+                        amount: plan.doseAmount,
+                        unit,
+                      }),
+                      `${t("plan.perDay", { count: plan.times.length })} · ${plan.times.join(" / ")}`,
                     ].join("\n")}
                   >
-                    {planStatusLabel(plan)}
+                    {planStatusLabel(plan, t)}
                   </ListItem>
                 );
               })}
@@ -206,14 +218,15 @@ export default function MedicationDetailScreen() {
           )}
 
           <FieldGroup style={{ paddingTop: 20 }}>
-            <FieldGroup.Section title="更多信息">
-              <ListItem supportingText="拍照识别后自动填写 · 敬请期待">
-                药品说明书
+            <FieldGroup.Section title={t("medication.sectionMore")}>
+              <ListItem supportingText={t("medication.leafletHint")}>
+                {t("medication.leaflet")}
               </ListItem>
             </FieldGroup.Section>
-            <FieldGroup.Section title="补货">
+            <FieldGroup.Section title={t("medication.restock")}>
               <TextInput
-                placeholder="补充数量（入库增加的数量）"
+                testID="restock-amount-input"
+                placeholder={t("medication.restockPlaceholder")}
                 keyboardType="number-pad"
                 onChangeText={() => setRestockError(false)}
                 value={restockAmount}
@@ -223,11 +236,12 @@ export default function MedicationDetailScreen() {
                   style={{ paddingHorizontal: 16 }}
                   textStyle={{ color: "#ff3b30" }}
                 >
-                  请填写有效的补充数量
+                  {t("medication.restockInvalid")}
                 </Text>
               ) : null}
               <Button
-                label="补充库存"
+                testID="restock-submit-button"
+                label={t("medication.restockSubmit")}
                 onPress={() => {
                   void restock();
                 }}
@@ -238,7 +252,8 @@ export default function MedicationDetailScreen() {
 
           <Column spacing={12} style={{ paddingTop: 24 }}>
             <Button
-              label="添加用药配置"
+              testID="medication-add-plan-button"
+              label={t("plan.formTitle")}
               onPress={() => {
                 router.push({
                   pathname: "/(tabs)/profile/plan-form",
@@ -250,8 +265,14 @@ export default function MedicationDetailScreen() {
                 fullWidth: true,
               })}
             />
+            {/* 文案在「删除药品 / 再次点击确认删除」之间切换，靠 testID 稳定定位 */}
             <Button
-              label={confirmDelete ? "再次点击确认删除" : "删除药品"}
+              testID="medication-delete-button"
+              label={
+                confirmDelete
+                  ? t("medication.deleteConfirmButton")
+                  : t("medication.deleteButton")
+              }
               onPress={() => {
                 remove();
               }}

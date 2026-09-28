@@ -23,21 +23,26 @@ npx expo start
 ```
 src/
   app/
-    _layout.tsx            根布局：NativeTabs 四标签导航 + 通知初始化
+    _layout.tsx            根布局：ThemeProvider + 根 Stack（index / (tabs) / onboarding）+ 通知初始化
     index.tsx              入口：未看过引导页 → 引导页，否则 → 首页
+    onboarding.tsx         首次启动引导页：tab 组之外，全屏无 tab 栏
     (tabs)/
-      home/                首页：今日进度、用药时间线、库存速览；首次启动承载引导页
+      _layout.tsx          tab 组：AppTabs（NativeTabs）
+      home/                首页：只有路由，实现见 screens/home
       medica/              药品：库存列表 / 详情 / 表单 / 添加入口（拍照·手动·扫码）
       records/             记录：按日期查看服药记录与当日服药率
       profile/             我的：设置、家庭成员管理、用药配置
+  screens/
+    home/                  首页实现：巨型日期、成员筛选、导轨时间线、库存速览、提醒卡堆叠
   lib/
     store.ts               数据层：实体、AsyncStorage 持久化、提醒生成与状态机
     notifications.ts       通知层：权限、调度、操作按钮、响应处理
     onboarding.ts          引导页“已看过”标记
   hooks/
     use-onboarding-gate.ts 首次启动引导页门禁
-  components/              通用组件（头像、进度条、服药时间线、Tab 栏等）
-  constants/theme.ts       主题色
+  components/              通用组件（头像、进度条、服药时间线、提醒卡堆叠、Tab 栏等）
+  utils/color.ts           withAlpha：半透明叠色
+  constants/theme.ts       主题色 / 字体 / 间距 / 圆角
 maestro/                   端到端测试
 ```
 
@@ -46,7 +51,7 @@ maestro/                   端到端测试
 - `Medication` 药品：名称、包装类型、单位、总/剩余数量
 - `Person` 用药人
 - `MedicationPlan` 用药配置：药品 × 用药人 × 剂量 × 每日时间 × 起止日期 × 启用开关
-- `Reminder` 提醒：由配置按天生成（提前 7 天），状态 `pending → taken / skipped / missed`
+- `Reminder` 提醒：由配置按天生成（提前 7 天），状态 `pending → taken / skipped / missed`；`snoozedUntil` 记录「稍后提醒」的推迟时刻
 - `MedicationUsage` 服用记录：永久保留（含名称快照），删除药品或用药人不清除历史
 
 ## 提醒生命周期
@@ -60,10 +65,10 @@ maestro/                   端到端测试
 ## 测试
 
 ```bash
-maestro test maestro/mvp_flow.yaml    # 完整主流程
-maestro test maestro/main_layout.yaml # Tab 布局
-maestro test maestro/add_medica.yaml  # 添加药品
+maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 → 空态 → tab 往返
 ```
+
+测试约定见 [docs/conventions/data-state.md](docs/conventions/data-state.md#maestro-测试)。
 
 ## 待办
 

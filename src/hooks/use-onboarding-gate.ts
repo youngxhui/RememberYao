@@ -17,7 +17,7 @@ export function useOnboardingGate(): boolean {
       if (cancelled) return;
       setChecking(false);
       if (!seen) {
-        router.replace("/(tabs)/home/onboarding");
+        router.replace("/onboarding");
       }
       return undefined;
     });

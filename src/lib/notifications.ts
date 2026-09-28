@@ -1,9 +1,14 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
+import { getTranslator } from "@/i18n";
+
 import {
+  dateToTime,
+  inQuietHours,
   loadData,
   medicationUnitLabel,
+  missedStreaks,
   reminderDueDate,
   reminderMissDate,
   skipReminder,
@@ -39,9 +44,19 @@ export async function initNotifications(): Promise<void> {
     }),
   });
 
+  await registerLocalizedNotificationTexts();
+}
+
+/**
+ * 注册带文案的渠道与操作按钮分类。
+ * 单独抽出来是因为语言切换后要重跑一次，否则通知栏仍显示旧语言的按钮。
+ */
+export async function registerLocalizedNotificationTexts(): Promise<void> {
+  const t = getTranslator();
+
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: "用药提醒",
+      name: t("notification.channelName"),
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: BRAND_COLOR,
@@ -52,12 +67,12 @@ export async function initNotifications(): Promise<void> {
   await Notifications.setNotificationCategoryAsync(CATEGORY_ID, [
     {
       identifier: ACTION_TAKEN,
-      buttonTitle: "已服用",
+      buttonTitle: t("notification.actionTaken"),
       options: { opensAppToForeground: true },
     },
     {
       identifier: ACTION_SKIP,
-      buttonTitle: "跳过",
+      buttonTitle: t("notification.actionSkip"),
       options: { opensAppToForeground: true },
     },
   ]);
@@ -80,31 +95,53 @@ export async function requestNotificationPermission(): Promise<boolean> {
 /**
  * 按当前数据重排全部未来的提醒通知：
  * 先取消全部已调度通知，再为每个待服用提醒调度一条。
+ * - 设置里的「通知」总开关关闭时，只清空不调度
  * - 未到点的提醒按计划时间触发
  * - 已到点但仍在宽限期内的提醒，改在宽限期结束时再提醒一次
+ * - 命中「稍后提醒」的推迟时刻时，以推迟时刻为准（不早于原定提醒时间）
+ * - 落在免打扰时段内的提醒仍然调度，但静音（只横幅不响铃）
  */
 export async function rescheduleReminders(data: AppData): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
+  const t = getTranslator();
   const now = Date.now();
   const medications = new Map(data.medications.map((m) => [m.id, m]));
   const persons = new Map(data.persons.map((p) => [p.id, p]));
+  // 总开关关掉就到此为止：清空已排的，未来的也不再排。
+  // 这里必须 return，否则会顺手把静音/免打扰的判断也跳过了
+  if (!data.settings.notificationsEnabled) return;
 
   for (const reminder of data.reminders) {
     if (reminder.status !== "pending") continue;
     const due = reminderDueDate(reminder).getTime();
-    const at = due > now ? due : reminderMissDate(reminder).getTime();
+    const snoozed = reminder.snoozedUntil
+      ? new Date(reminder.snoozedUntil).getTime()
+      : 0;
+    const at = Math.max(
+      due > now ? due : reminderMissDate(reminder).getTime(),
+      snoozed > now ? snoozed : 0,
+    );
     if (at <= now) continue;
     const overdue = due <= now;
     const medication = medications.get(reminder.medicationId);
     const person = persons.get(reminder.personId);
+    // 免打扰只压掉声音，不压掉通知本身 —— 漏服是安全相关的事，
+    // 静默到「用户完全不知道漏了」比吵醒人更糟
+    const silent =
+      !data.settings.soundEnabled ||
+      inQuietHours(data.settings, dateToTime(new Date(at)));
     const content = {
-      title: overdue ? "该吃药了（已超时）" : "该吃药了",
-      body: `${person?.name ?? "家人"} · ${medication?.name ?? "药品"} ${
-        reminder.doseAmount
-      }${medication ? medicationUnitLabel(medication.unit) : ""}`,
+      title: overdue ? t("notification.titleOverdue") : t("notification.title"),
+      body: t("notification.body", {
+        person: person?.name ?? t("notification.defaultPerson"),
+        medication: medication?.name ?? t("notification.defaultMedication"),
+        amount: `${reminder.doseAmount}${
+          medication ? medicationUnitLabel(medication.unit, t) : ""
+        }`,
+      }),
       data: { reminderId: reminder.id },
       color: BRAND_COLOR,
-      sound: true,
+      sound: !silent,
       categoryIdentifier: CATEGORY_ID,
     };
     // Android 优先按精确闹钟调度（到点准时不延迟），不可用时退回普通调度
@@ -134,12 +171,74 @@ export async function rescheduleReminders(data: AppData): Promise<void> {
 
 let syncChain: Promise<void> = Promise.resolve();
 
+/** 上一轮同步时已提醒过的「连续漏服」成员，避免每次重排都重复弹一条 */
+let alertedStreaks = new Set<string>();
+
+/**
+ * 补一条「某人连续漏服」的即时通知。
+ *
+ * 与常规提醒分开：它不挂在某个具体剂量上，而是在重排时发现成员的漏服
+ * 连击达到阈值就立刻发一次。用 `alertedStreaks` 记住已提醒的人，
+ * 只有当连击「重新攒起来」时才会再响，避免每次重排都刷屏。
+ */
+async function notifyMissedStreaks(data: AppData): Promise<void> {
+  const { missedAlertStreak, soundEnabled } = data.settings;
+  const t = getTranslator();
+
+  // 阈值关掉时清空记忆，用户重新打开后不会收到一串补发的提醒
+  if (missedAlertStreak <= 0) {
+    alertedStreaks = new Set();
+    return;
+  }
+  if (!data.settings.notificationsEnabled) return;
+
+  const streaks = missedStreaks(data.reminders, missedAlertStreak);
+  // 本轮不再命中的成员（用户已经处理完了）从记忆里移除，
+  // 这样下次重新攒够会正常再提醒
+  for (const personId of alertedStreaks) {
+    if (!streaks.has(personId)) alertedStreaks.delete(personId);
+  }
+
+  const fresh = [...streaks].filter((id) => !alertedStreaks.has(id));
+  if (fresh.length === 0) return;
+  alertedStreaks = streaks;
+
+  const names = fresh
+    .map((id) => data.persons.find((p) => p.id === id)?.name)
+    .filter((name): name is string => Boolean(name));
+  if (names.length === 0) return;
+
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: `missed-streak-${fresh.join(",")}`,
+      content: {
+        title: t("notification.missedStreakTitle"),
+        body: t("notification.missedStreakBody", {
+          person: names.join("、"),
+          count: missedAlertStreak,
+        }),
+        color: BRAND_COLOR,
+        sound: soundEnabled,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 1,
+        repeats: false,
+        ...(Platform.OS === "android" ? { channelId: CHANNEL_ID } : {}),
+      },
+    });
+  } catch {
+    // 补发失败不影响常规提醒调度
+  }
+}
+
 /** 读取最新数据并重排通知；串行执行，连续变更会合并为几次重排 */
 export function syncNotificationsWithStore(): Promise<void> {
   syncChain = syncChain
     .then(async () => {
       const data = await loadData();
       await rescheduleReminders(data);
+      await notifyMissedStreaks(data);
       return undefined;
     })
     .catch(() => {});

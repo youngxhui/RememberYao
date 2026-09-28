@@ -20,6 +20,7 @@ import {
   nativeFieldModifiers,
   nativeLayout,
 } from "@/components/native-layout";
+import { useTranslation } from "@/i18n";
 import { requestNotificationPermission } from "@/lib/notifications";
 import {
   addPlan,
@@ -43,6 +44,7 @@ export default function PlanFormScreen() {
     personId?: string;
     medicationId?: string;
   }>();
+  const t = useTranslation();
   const isEditing = Boolean(params.id);
   const { medications, persons, plans, loading } = useAppData();
 
@@ -93,35 +95,36 @@ export default function PlanFormScreen() {
   };
 
   const changeTime = (index: number, date: Date) => {
+    // 形参避开 t：外层已有 t()（翻译函数），同名会把两个概念混在一起
     setTimes((prev) =>
-      prev.map((t, i) => (i === index ? dateToTime(date) : t)),
+      prev.map((time, i) => (i === index ? dateToTime(date) : time)),
     );
   };
 
   const save = async () => {
     if (!medicationId) {
-      setError("请选择药品");
+      setError(t("plan.errorMedication"));
       return;
     }
     if (!personId) {
-      setError("请选择用药人");
+      setError(t("plan.errorPerson"));
       return;
     }
     const doseAmount = Number.parseInt(dose.value, 10);
     if (!Number.isFinite(doseAmount) || doseAmount <= 0) {
-      setError("每次剂量至少为 1");
+      setError(t("plan.errorDose"));
       return;
     }
     if (times.length === 0) {
-      setError("请至少设置一个服用时间");
+      setError(t("plan.errorTimes"));
       return;
     }
     if (new Set(times).size !== times.length) {
-      setError("服用时间不能重复");
+      setError(t("plan.errorDuplicateTimes"));
       return;
     }
     if (hasEndDate && endDate < startDate) {
-      setError("结束日期不能早于开始日期");
+      setError(t("plan.errorEndDate"));
       return;
     }
     // 新建配置时申请通知权限，保证到点能收到提醒（被拒绝也不影响保存）
@@ -163,101 +166,113 @@ export default function PlanFormScreen() {
     <>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Title large>
-        {isEditing ? "编辑用药配置" : "添加用药配置"}
+        {isEditing ? t("plan.editTitle") : t("plan.formTitle")}
       </Stack.Title>
       <Host seedColor="#40621a" style={{ flex: 1 }}>
         <Column
           modifiers={[nativeLayout({ fullWidth: true, fullHeight: true })]}
         >
           <FieldGroup>
-            <FieldGroup.Section title="药品与用药人">
+            <FieldGroup.Section title={t("plan.sectionMedicationPerson")}>
               <Picker
+                testID="plan-medication-picker"
                 selectedValue={medicationId}
                 onValueChange={(value) => setMedicationId(value as string)}
               >
-                <Picker.Item label="选择药品" value="" />
+                <Picker.Item label={t("plan.medication")} value="" />
                 {medications.map((m) => (
                   <Picker.Item key={m.id} label={m.name} value={m.id} />
                 ))}
               </Picker>
               <Picker
+                testID="plan-person-picker"
                 selectedValue={personId}
                 onValueChange={(value) => setPersonId(value as string)}
               >
-                <Picker.Item label="选择用药人" value="" />
+                <Picker.Item label={t("plan.person")} value="" />
                 {persons.map((p) => (
                   <Picker.Item key={p.id} label={p.name} value={p.id} />
                 ))}
               </Picker>
             </FieldGroup.Section>
-            <FieldGroup.Section title="剂量">
+            <FieldGroup.Section title={t("plan.sectionDose")}>
               <TextInput
-                placeholder={`每次剂量（${
-                  medication ? medicationUnitLabel(medication.unit) : "片/粒"
-                }）`}
+                testID="plan-dose-input"
+                placeholder={t("plan.dosePlaceholder", {
+                  unit: medication
+                    ? medicationUnitLabel(medication.unit, t)
+                    : t("plan.unitFallback"),
+                })}
                 keyboardType="number-pad"
                 value={dose}
               />
               <Picker
+                testID="plan-times-picker"
                 selectedValue={timesPerDay}
                 onValueChange={(value) => changeTimesPerDay(Number(value))}
               >
                 {TIMES_PER_DAY.map((n) => (
-                  <Picker.Item key={n} label={`每日 ${n} 次`} value={n} />
+                  <Picker.Item
+                    key={n}
+                    label={t("plan.perDay", { count: n })}
+                    value={n}
+                  />
                 ))}
               </Picker>
             </FieldGroup.Section>
-            <FieldGroup.Section title="服用时间">
+            <FieldGroup.Section title={t("plan.sectionTimes")}>
               {times.map((time, index) => (
                 <Row key={index} alignment="center">
-                  <Text>{`第 ${index + 1} 次`}</Text>
+                  <Text>{t("plan.ordinal", { index: index + 1 })}</Text>
                   <Spacer flexible />
                   <DateTimePicker
                     value={timeToDate(time)}
                     mode="time"
                     display="compact"
                     is24Hour
-                    testID={`dose-time-${index}`}
+                    testID={`plan-dose-time-${index}`}
                     onValueChange={(_, date) => changeTime(index, date)}
                   />
                 </Row>
               ))}
             </FieldGroup.Section>
-            <FieldGroup.Section title="起止日期">
+            <FieldGroup.Section title={t("plan.sectionDateRange")}>
               <Row alignment="center">
-                <Text>开始日期</Text>
+                <Text>{t("plan.startDate")}</Text>
                 <Spacer flexible />
                 <DateTimePicker
                   value={dateFromKey(startDate)}
                   mode="date"
                   display="compact"
-                  testID="start-date"
+                  testID="plan-start-date"
                   onValueChange={(_, date) => setStartDate(dateKey(date))}
                 />
               </Row>
               <Switch
-                label="设置结束日期"
+                testID="plan-has-end-date-switch"
+                label={t("plan.hasEndDate")}
                 value={hasEndDate}
                 onValueChange={setHasEndDate}
               />
               {hasEndDate ? (
                 <Row alignment="center">
-                  <Text>结束日期</Text>
+                  <Text>{t("plan.endDate")}</Text>
                   <Spacer flexible />
                   <DateTimePicker
                     value={dateFromKey(endDate)}
                     mode="date"
                     display="compact"
                     minimumDate={dateFromKey(startDate)}
-                    testID="end-date"
+                    testID="plan-end-date"
                     onValueChange={(_, date) => setEndDate(dateKey(date))}
                   />
                 </Row>
               ) : null}
             </FieldGroup.Section>
-            <FieldGroup.Section title="状态">
+            <FieldGroup.Section title={t("plan.sectionStatus")}>
               <Switch
-                label="启用该配置"
+                testID="plan-enabled-switch"
+                label={t("plan.enablePlan")}
                 value={enabled}
                 onValueChange={setEnabled}
               />
@@ -276,7 +291,8 @@ export default function PlanFormScreen() {
               modifiers={nativeFieldModifiers({ flush: true })}
             >
               <Button
-                label="保存"
+                testID="plan-save-button"
+                label={t("common.save")}
                 onPress={() => {
                   save();
                 }}
@@ -284,7 +300,7 @@ export default function PlanFormScreen() {
               >
                 <Row modifiers={[nativeLayout({ fullWidth: true })]}>
                   <Spacer />
-                  <Text>保存</Text>
+                  <Text>{t("common.save")}</Text>
                   <Spacer />
                 </Row>
               </Button>
@@ -293,8 +309,14 @@ export default function PlanFormScreen() {
               <FieldGroup.Section
                 modifiers={nativeFieldModifiers({ flush: true })}
               >
+                {/* 文案在「删除该配置 / 再次点击确认删除」之间切换，靠 testID 稳定定位 */}
                 <Button
-                  label={confirmDelete ? "再次点击确认删除" : "删除该配置"}
+                  testID="plan-delete-button"
+                  label={
+                    confirmDelete
+                      ? t("common.confirmDelete")
+                      : t("plan.deleteButtonAlt")
+                  }
                   onPress={() => {
                     remove();
                   }}

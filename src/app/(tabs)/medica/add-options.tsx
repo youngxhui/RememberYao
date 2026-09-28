@@ -3,15 +3,17 @@ import { Stack, useRouter } from "expo-router";
 
 import { nativeLayout } from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "@/i18n";
 
 export default function AddOptionsScreen() {
   const router = useRouter();
+  const t = useTranslation();
   const theme = useTheme();
 
   return (
     <>
       <Stack.Screen.BackButton displayMode="minimal" />
-      <Stack.Title large>添加药品</Stack.Title>
+      <Stack.Title large>{t("medication.formTitle")}</Stack.Title>
       <Host seedColor="#0F766E" style={{ flex: 1 }}>
         <ScrollView
           style={{ padding: 16, paddingBottom: 32 }}
@@ -20,29 +22,30 @@ export default function AddOptionsScreen() {
           <Column spacing={12}>
             <OptionRow
               icon="camera.fill"
-              title="拍照识别药品"
-              subtitle="识别药品名称、规格等信息"
-              hint="即将推出"
+              title={t("medication.scanPhoto")}
+              subtitle={t("medication.scanPhotoSubtitle")}
+              hint={t("medication.comingSoon")}
             />
             <OptionRow
+              testID="add-option-manual"
               icon="square.and.pencil"
-              title="手动输入"
-              subtitle="填写药品名称、库存等信息"
+              title={t("medication.manualInput")}
+              subtitle={t("medication.manualInputSubtitle")}
               onPress={() => {
                 router.push("/(tabs)/medica/form");
               }}
             />
             <OptionRow
               icon="barcode.viewfinder"
-              title="扫描条形码"
-              subtitle="扫描药品条码自动填写"
-              hint="即将推出"
+              title={t("medication.scanBarcode")}
+              subtitle={t("medication.scanBarcodeSubtitle")}
+              hint={t("medication.comingSoon")}
             />
             <Text
               style={{ paddingTop: 8 }}
               textStyle={{ fontSize: 12, color: theme.textSecondary }}
             >
-              拍照识别与扫码功能开发中，可先通过手动输入添加药品
+              {t("medication.addOptionsFootnote")}
             </Text>
           </Column>
         </ScrollView>
@@ -54,12 +57,15 @@ export default function AddOptionsScreen() {
 type OptionIcon = "camera.fill" | "square.and.pencil" | "barcode.viewfinder";
 
 function OptionRow({
+  testID,
   icon,
   title,
   subtitle,
   hint,
   onPress,
 }: {
+  /** 仅可点选的选项需要，禁用项（即将推出）留空 */
+  testID?: string;
   icon: OptionIcon;
   title: string;
   subtitle: string;
@@ -69,6 +75,7 @@ function OptionRow({
   const theme = useTheme();
   return (
     <Row
+      testID={testID}
       alignment="center"
       spacing={12}
       onPress={onPress}

@@ -1,0 +1,76 @@
+appId: com.youngxhui.RememberYao
+---
+# 首页（今日）冒烟：引导页 → 空态 → tab 往返
+# 断言优先用 testID；只有真正渲染出来的业务文案才用文本（见 docs/conventions/data-state.md）
+#
+# 两个实测踩坑，决定了下面的写法：
+# 1. @expo/ui 的 Text 在 iOS 上不落 testID（TextView.swift 漏调
+#    applyAccessibilityIdentifier），所以「跳过」只能按文案断言。
+#    首页是 Expo UI 为主 + 两块 RN island：universal 的 Row/Column 落
+#    accessibilityIdentifier，island 内的 Pressable 落自己的 testID。
+# 2. clearState 后首次切 tab 时 NativeTabs 会重挂载，裸 assertVisible 容易在
+#    切换生效前就判定失败 —— 切 tab 后一律 waitForAnimationToEnd + extendedWaitUntil。
+- launchApp:
+    clearState: true
+
+# ── 引导页（在 tab 组之外，全屏无 tab 栏）──────────────────
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-next-button"
+    timeout: 30000
+- assertVisible: "用药提醒"
+# 第一页没有「跳过」
+- assertNotVisible: "跳过"
+- tapOn:
+    id: "onboarding-next-button"
+- assertVisible: "轻松管理家庭用药"
+- assertVisible: "跳过"
+- tapOn:
+    id: "onboarding-next-button"
+- extendedWaitUntil:
+    visible:
+      id: "home-tab"
+    timeout: 30000
+
+# ── 首页内容 ─────────────────────────────────────────────
+# 空数据：提醒卡堆叠整块不渲染（没有待办），库存速览显示空态文案
+# （这行出现 = store 已加载完）
+- extendedWaitUntil:
+    visible: "还没有在服用的药品"
+    timeout: 20000
+# 巨型日期头部的添加药品按钮（首页是 Expo UI 树，testID 照旧）
+- assertVisible:
+    id: "home-add-medication-button"
+# 成员筛选：@expo/ui 的 Picker（appearance=menu）。只有一家以上成员才渲染，
+# clearState 后是 0 个，所以这里是 optional
+- assertVisible:
+    id: "home-member-picker"
+    optional: true
+# 底部 tab 栏在（生产构建 3 个：home / medica / profile；
+# Maestro 跑的是 debug 构建，末尾多一个 playground-tab）
+- assertVisible:
+    id: "medica-tab"
+- assertVisible:
+    id: "profile-tab"
+
+# ── tab 往返：切走再回来，首页应重新加载且不崩 ────────────
+# 用 repeat 兜住「过引导页后第一次点 tab 会被吞」：点到底直到目标页出现
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: "medica-tab"
+      - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "全部 0"
+          timeout: 3000
+          optional: true
+- extendedWaitUntil:
+    visible: "全部 0"
+    timeout: 20000
+- tapOn:
+    id: "home-tab"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "还没有在服用的药品"
+    timeout: 20000

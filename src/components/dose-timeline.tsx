@@ -3,34 +3,47 @@ import { Button, Column, Row, Spacer, Text } from "@expo/ui";
 import { Avatar } from "@/components/avatar";
 import { nativeLayout } from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation, getTranslator, type Translate } from "@/i18n";
 import {
   medicationUnitLabel,
   reminderDueDate,
   skipReminder,
+  snoozedReminder,
   takeReminder,
   type Medication,
   type Person,
   type Reminder,
 } from "@/lib/store";
 
-export type StatusTone = "success" | "warning" | "primary" | "neutral";
+export type StatusTone =
+  | "success"
+  | "warning"
+  | "danger"
+  | "primary"
+  | "neutral";
 
-/** 提醒的展示状态：已服用 / 未服用 / 待服用 / 已跳过 */
+/** 提醒的展示状态：已服用 / 未服用 / 已漏服 / 待服用 / 稍后提醒 / 已跳过 */
 export function reminderStatusMeta(
   reminder: Reminder,
   now: Date = new Date(),
+  // t 默认取当前语言的全局翻译函数：这份元数据也被 React 之外的代码
+  // （通知排程）复用，调用方拿不到 hook 时不该直接抛错
+  t: Translate = getTranslator(),
 ): { label: string; tone: StatusTone } {
   switch (reminder.status) {
     case "taken":
-      return { label: "已服用", tone: "success" };
+      return { label: t("reminder.taken"), tone: "success" };
     case "skipped":
-      return { label: "已跳过", tone: "neutral" };
+      return { label: t("reminder.skipped"), tone: "neutral" };
     case "missed":
-      return { label: "未服用", tone: "warning" };
+      return { label: t("reminder.missed"), tone: "danger" };
     default:
+      if (snoozedReminder(reminder, now)) {
+        return { label: t("reminder.snooze"), tone: "primary" };
+      }
       return reminderDueDate(reminder) > now
-        ? { label: "待服用", tone: "primary" }
-        : { label: "未服用", tone: "warning" };
+        ? { label: t("reminder.pending"), tone: "primary" }
+        : { label: t("reminder.notTaken"), tone: "warning" };
   }
 }
 
@@ -43,6 +56,8 @@ export function toneColors(
       return { color: theme.success, soft: theme.successSoft };
     case "warning":
       return { color: theme.warning, soft: theme.warningSoft };
+    case "danger":
+      return { color: theme.danger, soft: theme.dangerSoft };
     case "primary":
       return { color: theme.primary, soft: theme.primarySoft };
     default:
@@ -92,7 +107,8 @@ function DoseRow({
   onChanged?: () => void;
 }) {
   const theme = useTheme();
-  const meta = reminderStatusMeta(reminder);
+  const t = useTranslation();
+  const meta = reminderStatusMeta(reminder, new Date(), t);
   const canResolve =
     reminder.status === "pending" || reminder.status === "missed";
 
@@ -103,6 +119,7 @@ function DoseRow({
 
   return (
     <Row
+      testID={`dose-row-${reminder.id}`}
       alignment="center"
       spacing={10}
       style={{
@@ -122,11 +139,13 @@ function DoseRow({
         modifiers={[nativeLayout({ unconstrainedWidth: true })]}
       >
         <Text textStyle={{ fontSize: 15, fontWeight: "600" }}>
-          {medication?.name ?? "未知药品"}
+          {medication?.name ?? t("home.unknownMedication")}
         </Text>
         <Text textStyle={{ fontSize: 12, color: theme.textSecondary }}>
-          {`${reminder.doseAmount}${
-            medication ? medicationUnitLabel(medication.unit) : "片"
+          {`${reminder.doseAmount} ${
+            medication
+              ? medicationUnitLabel(medication.unit, t)
+              : t("medication.unitTablet")
           }`}
         </Text>
         {showPerson && person ? (
@@ -142,12 +161,19 @@ function DoseRow({
       {interactive && canResolve ? (
         <Row spacing={6}>
           <Button
-            label="跳过"
+            testID={`dose-skip-${reminder.id}`}
+            label={t("reminder.skip")}
             variant="outlined"
             onPress={() => act(() => skipReminder(reminder.id))}
           />
+          {/* 文案在「已服用 / 补服」之间切换，靠 testID 稳定定位 */}
           <Button
-            label={reminder.status === "missed" ? "补服" : "已服用"}
+            testID={`dose-take-${reminder.id}`}
+            label={
+              reminder.status === "missed"
+                ? t("reminder.lateTake")
+                : t("reminder.taken")
+            }
             onPress={() => act(() => takeReminder(reminder.id))}
           />
         </Row>
@@ -165,7 +191,7 @@ export function DoseTimeline({
   persons,
   interactive = false,
   onChanged,
-  emptyText = "没有记录",
+  emptyText,
 }: {
   reminders: Reminder[];
   medications: Medication[];
@@ -175,10 +201,11 @@ export function DoseTimeline({
   emptyText?: string;
 }) {
   const theme = useTheme();
+  const t = useTranslation();
   if (reminders.length === 0) {
     return (
       <Text textStyle={{ color: theme.textSecondary, fontSize: 13 }}>
-        {emptyText}
+        {emptyText ?? t("common.empty")}
       </Text>
     );
   }

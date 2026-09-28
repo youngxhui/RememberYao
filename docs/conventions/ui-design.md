@@ -12,6 +12,8 @@
 2. **平台专属** —— 从 `@expo/ui/swift-ui` 或 `@expo/ui/jetpack-compose` 导入。仅当 universal 层缺组件或缺 modifier，或确实需要平台特有行为时用。
 3. **RN 内建** —— 仅当 `@expo/ui` 真的没有对应组件。
 
+唯一稳定的例外是 **`flex`**：universal `style` 只映射到 SwiftUI/Compose 的固定属性，没有 flex 语义。凡内部靠 `flex: 1` 撑开或伸缩的子树（导轨连接线、行内 `flex: 1` 的文字、Reanimated 绝对定位的牌堆），整块留成 `RNHostView` island 走 RN 布局，**不要**逐块桥接。现状见 `src/screens/home`：Expo UI 为主，三块 island（导轨 / 牌堆 / 库存），宽度由宿主实测后经 `containerWidth` 传进去。
+
 常见需求对照：
 
 | 需求 | 用 |
@@ -41,6 +43,15 @@
 modifier 工厂是纯 JS —— `frame(params)` 只是 `return { $type: "frame", ...params }`（见 `createModifier`），零原生依赖。所以在 Android 上 import 它不会崩，但传给 Compose 的是它不认识的 modifier，**布局会静默失效**（比如 `maxWidth: Infinity` 不再撑满宽度）。这比崩溃更隐蔽，同样必须隔离。
 
 通用路由中已有 universal / community 组件（如 `DateTimePicker`）的能力直接使用通用组件，不额外包装；只有 `TabView` 与两端 modifier 等尚需平台隔离的能力集中到 `src/components/native-layout.{ios,android}.tsx`。`no-restricted-imports` 已升级为 error，禁止在通用文件里直接导入平台子包。
+
+### universal 层覆盖不到时，先想清楚值不值得拆
+
+除了 modifier 名称不通约，**同一件 UI 在两端的原生组件也可能完全不是同一个东西**（分段筛选：iOS 是 `Picker` + `pickerStyle('segmented')`，Android 是 `SingleChoiceSegmentedButtonRow` + `SegmentedButton`，props 也要自己抹平）。拆之前先问一句值不值得：
+
+- **universal 层的选项枚举可能本来就够用。** 成员筛选试过拆平台分段控件，最终退回 universal `Picker appearance="menu"` —— segmented 到 4 段以上每段被压成细条，而成员数量不可控；菜单只占一行、选项还能纵向滚动。
+- **平台专属路径无法用静态检查验证。** `android/` 目录还没生成时，拆出去的 Android 实现是纯盲写。
+
+所以定位是：**universal 能满足就用 universal，实在满足不了（比如 `TabView`、SwiftUI 独有的 `.insetGrouped`）才拆**。拆之前读 `node_modules/@expo/ui/src/universal/<组件>/types.d.ts` 确认选项真的没有 —— 包里的类型比文档更权威。
 
 正确做法：
 

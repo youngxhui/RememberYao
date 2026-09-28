@@ -18,10 +18,13 @@ import {
   nativeFieldModifiers,
   nativeLayout,
 } from "@/components/native-layout";
+import { useTranslation } from "@/i18n";
 import {
   MEDICATION_TYPES,
   MEDICATION_UNITS,
   addMedication,
+  medicationTypeLabel,
+  medicationUnitLabel,
   updateMedication,
   useAppData,
   type MedicationType,
@@ -30,6 +33,7 @@ import {
 
 export default function MedicationFormScreen() {
   const router = useRouter();
+  const t = useTranslation();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditing = Boolean(id);
   const { medications, loading } = useAppData();
@@ -100,15 +104,18 @@ export default function MedicationFormScreen() {
   return (
     <>
       <Stack.Screen.BackButton displayMode="minimal" />
-      <Stack.Title large>{isEditing ? "编辑药品" : "添加药品"}</Stack.Title>
+      <Stack.Title large>
+        {isEditing ? t("medication.editTitle") : t("medication.formTitle")}
+      </Stack.Title>
       <Host seedColor="#40621a" style={{ flex: 1 }}>
         <Column
           modifiers={[nativeLayout({ fullWidth: true, fullHeight: true })]}
         >
           <FieldGroup>
-            <FieldGroup.Section title="基础信息">
+            <FieldGroup.Section title={t("medication.sectionBasic")}>
               <TextInput
-                placeholder="药品名称"
+                testID="medication-name-input"
+                placeholder={t("medication.name")}
                 autoFocus={!isEditing}
                 onChangeText={() => setNameError(false)}
                 value={name}
@@ -118,35 +125,47 @@ export default function MedicationFormScreen() {
                   style={{ paddingHorizontal: 16 }}
                   textStyle={{ color: "#ff3b30" }}
                 >
-                  请填写药品名称
+                  {t("medication.nameRequired")}
                 </Text>
               ) : null}
               <Picker
+                testID="medication-type-picker"
                 selectedValue={type}
                 onValueChange={(value) => setType(value as MedicationType)}
               >
-                {MEDICATION_TYPES.map((t) => (
-                  <Picker.Item key={t.value} label={t.label} value={t.value} />
+                {MEDICATION_TYPES.map((tp) => (
+                  <Picker.Item
+                    key={tp}
+                    label={medicationTypeLabel(tp, t)}
+                    value={tp}
+                  />
                 ))}
               </Picker>
               <Picker
+                testID="medication-unit-picker"
                 selectedValue={unit}
                 onValueChange={(value) => setUnit(value as MedicationUnit)}
               >
                 {MEDICATION_UNITS.map((u) => (
-                  <Picker.Item key={u.value} label={u.label} value={u.value} />
+                  <Picker.Item
+                    key={u}
+                    label={medicationUnitLabel(u, t)}
+                    value={u}
+                  />
                 ))}
               </Picker>
             </FieldGroup.Section>
-            <FieldGroup.Section title="库存">
+            <FieldGroup.Section title={t("medication.sectionStock")}>
               <TextInput
-                placeholder="总数量"
+                testID="medication-total-input"
+                placeholder={t("medication.totalQuantity")}
                 keyboardType="number-pad"
                 onChangeText={() => setQuantityError(false)}
                 value={totalQuantity}
               />
               <TextInput
-                placeholder="当前剩余数量（留空则等于总数量）"
+                testID="medication-remaining-input"
+                placeholder={t("medication.remainingPlaceholder")}
                 keyboardType="number-pad"
                 value={remainingQuantity}
               />
@@ -155,13 +174,14 @@ export default function MedicationFormScreen() {
                   style={{ paddingHorizontal: 16 }}
                   textStyle={{ color: "#ff3b30" }}
                 >
-                  请填写有效的总数量
+                  {t("medication.quantityInvalid")}
                 </Text>
               ) : null}
             </FieldGroup.Section>
-            <FieldGroup.Section title="备注">
+            <FieldGroup.Section title={t("medication.notes")}>
               <TextInput
-                placeholder="备注"
+                testID="medication-notes-input"
+                placeholder={t("medication.notesPlaceholder")}
                 multiline
                 numberOfLines={3}
                 value={notes}
@@ -171,7 +191,8 @@ export default function MedicationFormScreen() {
               modifiers={nativeFieldModifiers({ flush: true })}
             >
               <Button
-                label="保存"
+                testID="medication-save-button"
+                label={t("common.save")}
                 onPress={() => {
                   save();
                 }}
@@ -181,7 +202,7 @@ export default function MedicationFormScreen() {
               >
                 <Row modifiers={[nativeLayout({ fullWidth: true })]}>
                   <Spacer />
-                  <Text>保存</Text>
+                  <Text>{t("common.save")}</Text>
                   <Spacer />
                 </Row>
               </Button>

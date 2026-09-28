@@ -11,5 +11,5 @@ export default function Index() {
   }, []);
 
   if (seen === null) return null;
-  return <Redirect href={seen ? "/(tabs)/home" : "/(tabs)/home/onboarding"} />;
+  return <Redirect href={seen ? "/(tabs)/home" : "/onboarding"} />;
 }

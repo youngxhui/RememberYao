@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { nativeLayout } from "@/components/native-layout";
 import { ProgressBar } from "@/components/progress-bar";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "@/i18n";
 import {
   medicationTypeLabel,
   medicationUnitLabel,
@@ -16,6 +17,7 @@ import {
 export default function MedicaScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const t = useTranslation();
   const { medications, plans, loading, reload } = useAppData();
   const [onlyLow, setOnlyLow] = useState(false);
 
@@ -36,7 +38,7 @@ export default function MedicaScreen() {
 
   return (
     <>
-      <Stack.Title large>药品库存</Stack.Title>
+      <Stack.Title large>{t("medication.listTitle")}</Stack.Title>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           onPress={() => {
@@ -44,7 +46,7 @@ export default function MedicaScreen() {
           }}
         >
           <Stack.Toolbar.Icon sf="plus" />
-          <Stack.Toolbar.Label>添加</Stack.Toolbar.Label>
+          <Stack.Toolbar.Label>{t("common.add")}</Stack.Toolbar.Label>
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Host seedColor="#0F766E" style={{ flex: 1 }}>
@@ -55,12 +57,14 @@ export default function MedicaScreen() {
           <Column spacing={12}>
             <Row spacing={8}>
               <FilterChip
-                label={`全部 ${medications.length}`}
+                testID="medica-filter-all"
+                label={t("medication.filterAll", { count: medications.length })}
                 active={!onlyLow}
                 onPress={() => setOnlyLow(false)}
               />
               <FilterChip
-                label={`库存不足 ${lowCount}`}
+                testID="medica-filter-low"
+                label={t("medication.filterLow", { count: lowCount })}
                 active={onlyLow}
                 onPress={() => setOnlyLow(true)}
               />
@@ -71,9 +75,7 @@ export default function MedicaScreen() {
               <Column alignment="center" spacing={8} style={{ paddingTop: 96 }}>
                 <Icon name="pills.fill" size={40} color="#8a8a8e" />
                 <Text textStyle={{ color: theme.textSecondary }}>
-                  {onlyLow
-                    ? "没有库存不足的药品"
-                    : "药箱还是空的，点右上角添加药品"}
+                  {onlyLow ? t("medication.emptyLow") : t("medication.empty")}
                 </Text>
               </Column>
             ) : (
@@ -81,6 +83,7 @@ export default function MedicaScreen() {
                 {list.map(({ medication, summary }) => (
                   <StockCard
                     key={medication.id}
+                    testID={`medica-card-${medication.id}`}
                     medication={medication}
                     daysLeft={summary.daysLeft}
                     low={summary.low}
@@ -102,10 +105,12 @@ export default function MedicaScreen() {
 }
 
 function FilterChip({
+  testID,
   label,
   active,
   onPress,
 }: {
+  testID: string;
   label: string;
   active: boolean;
   onPress: () => void;
@@ -113,6 +118,7 @@ function FilterChip({
   const theme = useTheme();
   return (
     <Row
+      testID={testID}
       style={{
         backgroundColor: active ? theme.primarySoft : theme.backgroundElement,
         borderRadius: 999,
@@ -135,18 +141,21 @@ function FilterChip({
 }
 
 function StockCard({
+  testID,
   medication,
   daysLeft,
   low,
   onPress,
 }: {
+  testID: string;
   medication: Medication;
   daysLeft: number | null;
   low: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const unit = medicationUnitLabel(medication.unit);
+  const t = useTranslation();
+  const unit = medicationUnitLabel(medication.unit, t);
   const percent =
     medication.totalQuantity > 0
       ? medication.remainingQuantity / medication.totalQuantity
@@ -159,6 +168,7 @@ function StockCard({
 
   return (
     <Column
+      testID={testID}
       spacing={8}
       onPress={onPress}
       style={{
@@ -176,9 +186,12 @@ function StockCard({
             {medication.name}
           </Text>
           <Text textStyle={{ fontSize: 12, color: theme.textSecondary }}>
-            {`${medicationTypeLabel(medication.type)} · 剩余 ${
-              medication.remainingQuantity
-            }/${medication.totalQuantity} ${unit}`}
+            {t("medication.remainingOfTotal", {
+              type: medicationTypeLabel(medication.type, t),
+              remaining: medication.remainingQuantity,
+              total: medication.totalQuantity,
+              unit,
+            })}
           </Text>
         </Column>
         <Spacer />
@@ -190,7 +203,7 @@ function StockCard({
               color: low ? theme.danger : theme.textSecondary,
             }}
           >
-            {`剩余 ${daysLeft} 天`}
+            {t("medication.daysLeft", { days: daysLeft })}
           </Text>
         ) : null}
       </Row>
@@ -208,14 +221,16 @@ function StockCard({
           />
           <Text textStyle={{ fontSize: 12, color: theme.warning }}>
             {daysLeft !== null
-              ? `预计 ${daysLeft} 天后用完，建议补充`
-              : "库存不足，建议补充"}
+              ? t("medication.lowWarnDays", { days: daysLeft })
+              : t("medication.lowWarn")}
           </Text>
         </Row>
       ) : null}
       <Row alignment="center">
         <Spacer />
-        <Text textStyle={{ fontSize: 13, color: theme.primary }}>查看详情</Text>
+        <Text textStyle={{ fontSize: 13, color: theme.primary }}>
+          {t("medication.detail")}
+        </Text>
       </Row>
     </Column>
   );

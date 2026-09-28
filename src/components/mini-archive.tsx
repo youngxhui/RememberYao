@@ -4,9 +4,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useRef, useState, type ComponentProps } from "react";
 import {
   Pressable,
-  StyleSheet,
   Text as RNText,
   View as RNView,
+  StyleSheet,
   useWindowDimensions,
   type LayoutChangeEvent,
   type ScrollViewInstance,
@@ -26,11 +26,13 @@ import { scheduleOnRN } from "react-native-worklets";
 
 import { Fonts } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation, type Translate } from "@/i18n";
 import {
   medicationTypeLabel,
   medicationUnitLabel,
   type Medication,
 } from "@/lib/store";
+import { withAlpha } from "@/utils/color";
 
 /** 说明书正文的一行 */
 export type ArchiveRow = { label: string; value: string };
@@ -128,38 +130,36 @@ const returnDelay = (i: number) => 120 + Math.min(i, 2) * 120;
 /** 闭合扇形的递增步长：张数越多扇得越紧 */
 const stackStep = (n: number) => Math.min(1, 3 / n);
 
-/** #rrggbb → rgba()，用于设计稿 color-mix(x 55%, transparent) 这类半透明渐变 */
-export function withAlpha(hex: string, alpha: number): string {
-  if (!hex.startsWith("#")) return hex;
-  const value =
-    hex.length === 4
-      ? hex
-          .slice(1)
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : hex.slice(1);
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
 /** store 药品 → 说明书条目：只展示 store 里真实存在的字段 */
 export function archiveEntryFromMedication(
   medication: Medication,
+  t: Translate,
 ): ArchiveEntry {
-  const unit = medicationUnitLabel(medication.unit);
+  const unit = medicationUnitLabel(medication.unit, t);
   return {
     id: medication.id,
     name: medication.name,
     rows: [
-      { label: "总量", value: `${medication.totalQuantity} ${unit}` },
-      { label: "剩余", value: `${medication.remainingQuantity} ${unit}` },
-      { label: "包装", value: medicationTypeLabel(medication.type) },
-      { label: "备注", value: medication.notes.trim() || "无" },
+      {
+        label: t("medication.totalQuantity"),
+        value: `${medication.totalQuantity} ${unit}`,
+      },
+      {
+        label: t("medication.remaining"),
+        value: `${medication.remainingQuantity} ${unit}`,
+      },
+      {
+        label: t("medication.packaging"),
+        value: medicationTypeLabel(medication.type, t),
+      },
+      {
+        label: t("medication.notes"),
+        value: medication.notes.trim() || t("common.none"),
+      },
     ],
-    footer: `建档 ${medication.createdAt.slice(0, 10)}`,
+    footer: t("medication.archiveCreatedAt", {
+      date: medication.createdAt.slice(0, 10),
+    }),
   };
 }
 
@@ -172,13 +172,14 @@ export function archiveEntryFromMedication(
 export function MiniArchive({
   entries,
   containerWidth,
-  title = "我的档案",
-  subtitle = "Mini Archive",
+  title,
+  subtitle,
   // closedHint / openHint / emptyHint 暂不生效：caption 提示段已按调试需要移除，
   // 字段保留在 MiniArchiveProps 中，恢复时加回解构即可
   onSelectEntry,
   style,
 }: MiniArchiveProps) {
+  const t = useTranslation();
   const reduced = useReducedMotion();
   const count = entries.length;
 
@@ -299,8 +300,8 @@ export function MiniArchive({
           }}
         >
           <FolderSlot
-            title={title}
-            subtitle={subtitle}
+            title={title ?? t("medication.archiveTitle")}
+            subtitle={subtitle ?? t("medication.archiveSubtitle")}
             open={open}
             count={count}
             reduced={reduced}
@@ -308,10 +309,10 @@ export function MiniArchive({
             entries={entries}
             accessibilityLabel={
               count === 0
-                ? "我的档案，暂无药品"
+                ? t("medication.archiveEmptyAccessibility")
                 : open
-                  ? "我的档案，点按收起"
-                  : "我的档案，点按展开"
+                  ? t("medication.archiveCollapseAccessibility")
+                  : t("medication.archiveExpandAccessibility")
             }
             onPress={toggleFolder}
           />
@@ -339,7 +340,7 @@ export function MiniArchive({
  * RNHostView 写百分比 style，跨平台适配层对 style 的支持并不一致。
  * 纯 RN 页面继续直接用 MiniArchive。
  */
-export function MiniArchiveSwiftUI(props: MiniArchiveProps) {
+export function MiniArchiveExpoUI(props: MiniArchiveProps) {
   return (
     <RNHostView matchContents>
       <MiniArchive {...props} />
@@ -477,7 +478,6 @@ function FolderFront({
           overflow: "hidden",
           borderWidth: 1,
           borderColor: "rgba(255,255,255,0.22)",
-          boxShadow: `0 26px 48px -14px ${archive.shadow}`,
           transformOrigin: ["0%", "50%", 0],
           transform: [
             { perspective: 1500 },
@@ -664,6 +664,7 @@ function LeafletSlot({
   reduced: boolean;
   onPress?: () => void;
 }) {
+  const t = useTranslation();
   // 淡入起点 = 起飞延迟 + 各自飞行时长 − 270ms，落位后 150ms 收尾
   const delay = reduced
     ? 0
@@ -689,8 +690,8 @@ function LeafletSlot({
           onPress={onPress}
           accessibilityRole="button"
           accessibilityLabel={entry.name}
-          accessibilityHint="点按查看药品详情"
-          testID="mini-archive-entry"
+          accessibilityHint={t("medication.archiveEntryHint")}
+          testID={`mini-archive-entry-${entry.id}`}
         >
           <LeafletBody entry={entry} />
         </Pressable>
@@ -706,6 +707,7 @@ function LeafletSlot({
  * 打开时放大飞入卡位，落点与列表项必须像素级一致，所以两者同一实现
  */
 function LeafletBody({ entry }: { entry: ArchiveEntry }) {
+  const t = useTranslation();
   const archive = useTheme().archive;
   return (
     <RNView
@@ -757,7 +759,7 @@ function LeafletBody({ entry }: { entry: ArchiveEntry }) {
           numberOfLines={1}
           style={{ marginTop: 3, fontSize: 8, color: archive.stampMuted }}
         >
-          {entry.subtitle ?? "请仔细阅读并按说明使用"}
+          {entry.subtitle ?? t("medication.archiveReadMe")}
         </RNText>
       </RNView>
       <RNView

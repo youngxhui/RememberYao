@@ -13,6 +13,7 @@ import {
 import { ReminderCardStack } from "@/components/reminder-card-stack";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "@/i18n";
 import { useAppData } from "@/lib/store";
 
 /**
@@ -23,6 +24,7 @@ import { useAppData } from "@/lib/store";
 export default function PlaygroundScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const t = useTranslation();
   const { medications, persons, plans, reminders, loading, reload } =
     useAppData();
 
@@ -32,7 +34,9 @@ export default function PlaygroundScreen() {
     }, [reload]),
   );
 
-  const entries = medications.map(archiveEntryFromMedication);
+  const entries = medications.map((medication) =>
+    archiveEntryFromMedication(medication, t),
+  );
   // 与 ReminderCardStack 内部同口径，仅用于空态提示文案
   const pendingCount = reminders.filter(
     (r) => r.status === "pending" || r.status === "missed",
@@ -40,7 +44,7 @@ export default function PlaygroundScreen() {
 
   return (
     <>
-      <Stack.Title large>Playground</Stack.Title>
+      <Stack.Title large>{t("tab.playground")}</Stack.Title>
       <RNView style={{ flex: 1, backgroundColor: theme.background }}>
         <RNScrollView
           style={{ flex: 1 }}
@@ -77,7 +81,7 @@ export default function PlaygroundScreen() {
                     marginBottom: Spacing.two,
                   }}
                 >
-                  提醒卡堆叠（上下滑动换卡）
+                  {t("common.playgroundCardStack")}
                 </RNText>
                 <ReminderCardStack
                   reminders={reminders}
@@ -88,13 +92,15 @@ export default function PlaygroundScreen() {
                 />
                 {pendingCount === 0 ? (
                   <RNText style={{ color: theme.textSecondary, fontSize: 13 }}>
-                    暂无待处理提醒 —— 新建用药计划后这里会生成卡片
+                    {t("common.playgroundEmpty")}
                   </RNText>
                 ) : null}
               </RNView>
             </>
           ) : (
-            <RNText style={{ color: theme.textSecondary }}>加载中…</RNText>
+            <RNText style={{ color: theme.textSecondary }}>
+              {t("home.loading")}
+            </RNText>
           )}
         </RNScrollView>
       </RNView>

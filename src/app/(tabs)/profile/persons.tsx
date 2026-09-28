@@ -14,11 +14,13 @@ import { useCallback, useState } from "react";
 
 import { nativeLayout } from "@/components/native-layout";
 import { useTheme } from "@/hooks/use-theme";
+import { useTranslation } from "@/i18n";
 import { addPerson, useAppData } from "@/lib/store";
 
 export default function PersonsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const t = useTranslation();
   const { persons, plans, reload } = useAppData();
   const [nameError, setNameError] = useState(false);
   const name = useNativeState("");
@@ -48,7 +50,7 @@ export default function PersonsScreen() {
 
   return (
     <>
-      <Stack.Title large>家庭成员</Stack.Title>
+      <Stack.Title large>{t("person.listTitle")}</Stack.Title>
       <Host seedColor="#40621a" style={{ flex: 1 }}>
         <ScrollView
           style={{ padding: 16, paddingBottom: 32 }}
@@ -63,7 +65,8 @@ export default function PersonsScreen() {
             }}
           >
             <TextInput
-              placeholder="姓名，如：爷爷"
+              testID="person-name-input"
+              placeholder={t("person.nameInputPlaceholder")}
               value={name}
               onChangeText={() => setNameError(false)}
             />
@@ -72,11 +75,12 @@ export default function PersonsScreen() {
                 style={{ paddingVertical: 2 }}
                 textStyle={{ color: "#ff3b30" }}
               >
-                请填写姓名
+                {t("person.nameRequired")}
               </Text>
             ) : null}
             <Button
-              label="添加家庭成员"
+              testID="person-add-button"
+              label={t("person.addMemberButton")}
               onPress={() => {
                 add();
               }}
@@ -88,12 +92,12 @@ export default function PersonsScreen() {
             style={{ paddingTop: 20, paddingBottom: 8, paddingLeft: 4 }}
             textStyle={{ fontSize: 13, color: theme.textSecondary }}
           >
-            家庭成员
+            {t("person.listTitle")}
           </Text>
           {persons.length === 0 ? (
             <Column alignment="center" style={{ paddingTop: 40 }}>
               <Text textStyle={{ color: theme.textSecondary }}>
-                还没有家庭成员，先在上方添加
+                {t("person.empty")}
               </Text>
             </Column>
           ) : (
@@ -101,13 +105,16 @@ export default function PersonsScreen() {
               {persons.map((person) => (
                 <ListItem
                   key={person.id}
+                  testID={`person-item-${person.id}`}
                   onPress={() => {
                     router.push({
                       pathname: "/(tabs)/profile/person-detail",
                       params: { id: person.id },
                     });
                   }}
-                  supportingText={`${planCount(person.id)} 个用药配置`}
+                  supportingText={t("person.planCount", {
+                    count: planCount(person.id),
+                  })}
                 >
                   {person.name}
                 </ListItem>
