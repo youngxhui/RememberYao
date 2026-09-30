@@ -42,11 +42,11 @@ appId: com.youngxhui.RememberYao
     id: "add-option-manual"
 
 # ── 表单：Amoxil，总数 30、剩 5（低档，留给「库存不足」筛选）──
-# 表单不是 ScrollView，保存按钮布局在屏幕底部，会被弹出键盘盖住：
-# 每个字段输入后先收起键盘再 tap 下一个字段（键盘弹起时 tap 焦点不动、
-# 值会落进旧字段）。QWERTY 键盘点「Return」收起；总数/剩余是 number pad
-# 没有 Return 键，用 pressKey: enter 收起（实测 hideKeyboard 对 SwiftUI
-# TextField 无效，点静态文本也不收）。
+# 表单按 design/add-medication.html 重做成 ScrollView 后，保存按钮在内容末尾而非
+# 屏幕底部，且会被弹出键盘盖住：每个字段输入后先收起键盘再 tap 下一个字段
+# （键盘弹起时 tap 焦点不动、值会落进旧字段）。QWERTY 键盘点「Return」收起；
+# 数量是 number pad 没有 Return 键，用 pressKey: enter 收起（实测 hideKeyboard
+# 对 SwiftUI TextField 无效，点静态文本也不收）。最后滚到保存按钮再点。
 - extendedWaitUntil:
     visible:
       id: "medication-name-input"
@@ -61,6 +61,10 @@ appId: com.youngxhui.RememberYao
     id: "medication-remaining-input"
 - inputText: "5"
 - pressKey: enter
+- scrollUntilVisible:
+    element:
+      id: "medication-save-button"
+    direction: DOWN
 - tapOn:
     id: "medication-save-button"
 

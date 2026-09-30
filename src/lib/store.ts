@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useState } from "react";
 
 import { replaceAll, selectAll, type PersistedData } from "@/db/repo";
@@ -20,11 +19,17 @@ export type Medication = {
   type: MedicationType;
   /** 用途分类。与 `type`（包装形式）是两个维度，不要混 */
   category: MedicationCategory;
+  /** 规格，如 "10mg/片"。自由文本，没有统一取值表 */
+  specification: string;
   unit: MedicationUnit;
   /** 总数量（入库时的数量） */
   totalQuantity: number;
   /** 当前剩余数量 */
   remainingQuantity: number;
+  /** 有效期 "YYYY-MM-DD"，null 表示未记录 */
+  expiryDate: string | null;
+  /** 是否处方药 */
+  prescription: boolean;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -105,8 +110,9 @@ export type MedicationUsage = {
  * 全局设置偏好。
  *
  * 独立于业务实体存在：这些开关影响通知调度，但不属于任何药品或用药人。
- * 默认值与 `src/db/client.ts` 的 MIGRATION_V2 列默认值保持一致 ——
- * 新装的用户和老库补列后的用户读到的必须是同一份默认值。
+ * 默认值必须与 `src/db/schema.ts` 里 settings 各列的 `.default()` 保持一致 ——
+ * 列默认值管「写库时没给值」，这里管「读不到行时给什么」，两边不同就会出现
+ * 「重启前是 true、重启后变 false」这类只在开发期冒出来的怪问题。
  */
 export type Settings = {
   /** 总开关：关闭后不再调度任何提醒通知 */
@@ -177,7 +183,7 @@ export const MEDICATION_TYPES: MedicationType[] = [
   "loose",
 ];
 
-/** 药品用途分类：首项同时是「添加药品」表单与老库迁移的默认值 */
+/** 药品用途分类：首项同时是「添加药品」表单与建表列默认值 */
 export const MEDICATION_CATEGORIES: MedicationCategory[] = [
   "chronic",
   "acute",
@@ -272,6 +278,13 @@ export function parseDateTime(key: string, time: string): Date {
   return new Date(y, m - 1, d, hours, minutes, 0, 0);
 }
 
+/** "YYYY-MM-DD" → 本地 Date（当天 00:00）。`parseDateTime` 的日期部分单独抽出来，
+ *  给只需要日期的原生选择器用（有效期、开始/结束日期） */
+export function dateFromKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 /** 提醒的计划服用时间 */
 export function reminderDueDate(reminder: Reminder): Date {
   return parseDateTime(reminder.date, reminder.time);
@@ -305,9 +318,6 @@ export function compareTime(a: string, b: string): number {
 
 // ─── 存储读写 ─────────────────────────────────────────────
 
-/** 迁移标记：旧 AsyncStorage 数据的键；导入成功后删除 */
-const LEGACY_STORAGE_KEY = "rememberyao-data-v1";
-
 let cache: AppData | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
 let initPromise: Promise<AppData> | null = null;
@@ -327,35 +337,14 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-/** 兼容旧数据：补全服用记录的快照字段 */
-function normalizeData(data: AppData): AppData {
-  if (data.usages.every((u) => u.medicationName && u.personName && u.time)) {
-    return data;
-  }
-  const t = getTranslator();
-  const usages = data.usages.map((u) => {
-    const medication = data.medications.find((m) => m.id === u.medicationId);
-    const person = data.persons.find((p) => p.id === u.personId);
-    const reminder = data.reminders.find((r) => r.id === u.reminderId);
-    return {
-      ...u,
-      medicationName:
-        u.medicationName ?? medication?.name ?? t("status.deletedMedication"),
-      personName: u.personName ?? person?.name ?? t("status.deletedPerson"),
-      time: u.time ?? reminder?.time ?? "",
-      late: u.late ?? false,
-    };
-  });
-  return { ...data, usages };
-}
-
-/** 行 → 实体：把 snake_case 列名转回驼峰，解开 `times` 的 JSON，并收窄枚举/可选字段 */
+/** 行 → 实体：把 snake_case 列名转回驼峰，解开 `times` 的 JSON，并收窄枚举字段 */
 function fromRows(rows: PersistedData): AppData {
   return {
     medications: rows.medications.map((m) => ({
       ...m,
       type: m.type as MedicationType,
-      // 老库补列后不该出现空值，仍按 settings 的做法逐字段兜底而不是整体信任
+      // 枚举列在库里是自由 TEXT，读出来统一按枚举收窄；不在取值表内的值
+      // （理论上不会有）落到首项，而不是把脏值带进 UI
       category: MEDICATION_CATEGORIES.includes(m.category as MedicationCategory)
         ? (m.category as MedicationCategory)
         : DEFAULT_MEDICATION_CATEGORY,
@@ -373,26 +362,20 @@ function fromRows(rows: PersistedData): AppData {
       resolvedAt: r.resolvedAt ?? undefined,
     })),
     usages: rows.usages,
-    // 单行表读不到行（新装 / 老库没写过）就用默认值，不补一行空记录
+    // 单行表读不到行（新装 / 还没写过设置）就用默认值，不补一行空记录
     settings: fromSettingsRow(rows.settings[0]),
   };
 }
 
-/** 设置行 → 实体。老库里可能残留 NULL（加列前的行），逐字段兜底而不是整体信任 */
+/**
+ * 设置行 → 实体。读不到行（新装 / 还没写过设置）时用默认值，
+ * 不补一行空记录 —— 单行表的空态就靠返回默认值表达。
+ */
 function fromSettingsRow(
   row: PersistedData["settings"][number] | undefined,
 ): Settings {
   if (!row) return DEFAULT_SETTINGS;
-  return {
-    notificationsEnabled:
-      row.notificationsEnabled ?? DEFAULT_SETTINGS.notificationsEnabled,
-    snoozeMinutes: row.snoozeMinutes ?? DEFAULT_SETTINGS.snoozeMinutes,
-    quietStart: row.quietStart ?? null,
-    quietEnd: row.quietEnd ?? null,
-    soundEnabled: row.soundEnabled ?? DEFAULT_SETTINGS.soundEnabled,
-    missedAlertStreak:
-      row.missedAlertStreak ?? DEFAULT_SETTINGS.missedAlertStreak,
-  };
+  return row;
 }
 
 function safeParseTimes(raw: string): string[] {
@@ -404,13 +387,12 @@ function safeParseTimes(raw: string): string[] {
   }
 }
 
-/** 实体 → 行：驼峰转 snake_case，`times` 序列化为 JSON，可选字段补 null */
+/** 实体 → 行：驼峰转 snake_case，`times` 序列化为 JSON。
+ *  `snoozedUntil` / `resolvedAt` / `late` 的 `undefined → null / false` 是实体可选
+ *  字段与「列非空」之间的类型桥接，不是老数据兜底，不能删。 */
 function toRows(data: AppData): PersistedData {
   return {
-    medications: data.medications.map((m) => ({
-      ...m,
-      notes: m.notes ?? "",
-    })),
+    medications: data.medications,
     persons: data.persons,
     plans: data.plans.map((p) => ({
       ...p,
@@ -445,35 +427,11 @@ function toSettingsRow(settings: Settings) {
 }
 
 /**
- * 首次读取：开库 → 迁移旧数据 → 读全表。
- * 导入成功后才清掉 AsyncStorage 里的旧数据，失败则保留原始数据不动。
+ * 首次读取：开库 → 读全表。
+ * 表结构由 `src/db/client.ts` 负责保证（版本不符即重建）。
  */
 async function initDb(): Promise<AppData> {
-  // 旧版本把全量 JSON 存在 AsyncStorage，首次启动导入到 SQLite
-  const raw = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
-  if (raw) {
-    try {
-      const legacy = normalizeData({
-        ...EMPTY_DATA,
-        ...(JSON.parse(raw) as AppData),
-      });
-      const existing = await selectAll();
-      const isEmptyDb =
-        existing.medications.length === 0 &&
-        existing.persons.length === 0 &&
-        existing.plans.length === 0;
-      // 库里有数据就不覆盖：可能是「装过新版 → 降级旧版写入 → 再升级」，
-      // 那时旧数据比库里的少，覆盖会丢掉用户在库里的记录
-      if (isEmptyDb) {
-        await replaceAll(toRows(legacy));
-      }
-      await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
-    } catch (error) {
-      // 导入失败就保留旧数据，下次启动重试，绝不静默丢数据
-      console.warn("旧数据迁移失败，已保留原数据待下次重试", error);
-    }
-  }
-  return normalizeData(fromRows(await selectAll()));
+  return fromRows(await selectAll());
 }
 
 async function readData(): Promise<AppData> {
@@ -1067,7 +1025,7 @@ export function useAppData() {
     setLoading(false);
   }, []);
 
-  // 首次挂载时从 AsyncStorage 载入数据 —— 这正是 effect 的用途（与外部系统同步）。
+  // 首次挂载时从 SQLite 载入数据 —— 这正是 effect 的用途（与外部系统同步）。
   // reload() 是 async，setState 发生在 await 之后的微任务里，并非同步调用，
   // 不会引发级联渲染；react/set-state-in-effect 看不穿 async 边界，此处为误报
   // （oxlint 行内禁用对该规则无效，故在 .oxlintrc.json 用 overrides 关闭）。

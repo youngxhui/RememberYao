@@ -17,6 +17,7 @@ import {
 
 import type {
   NativeButtonModifiers,
+  NativeConcentricShape,
   NativeFieldModifiers,
   NativeLayoutOptions,
   NativeOnboardingPagerProps,
@@ -44,6 +45,11 @@ export const nativeButtonModifiers: NativeButtonModifiers = ({
 } = {}) => (fullWidth ? [fillMaxWidth()] : []);
 
 export const nativeFieldModifiers: NativeFieldModifiers = () => [];
+
+// Android 没有同心圆角概念：Compose 的圆角就是写死值。返回空数组表示不加
+// modifier —— style 里的 borderRadius 会照常生效（omitUserOverridden 对空数组
+// 直接返回原样），视觉上退回统一的 18pt 圆角
+export const nativeConcentricShape: NativeConcentricShape = () => [];
 
 function pageValue(child: React.ReactNode): string | undefined {
   if (!isValidElement(child)) return undefined;

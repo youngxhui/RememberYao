@@ -1,7 +1,7 @@
-import { Row, ScrollView, Text } from "@expo/ui";
+import { Row, ScrollView } from "@expo/ui";
 
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
+import { Chip } from "@/components/chip";
+import { Spacing } from "@/constants/theme";
 import { useTranslation, type Path } from "@/i18n";
 import type { MedicationCategory } from "@/lib/store";
 
@@ -40,43 +40,22 @@ export function FilterRow({
   filter: MedicaFilter;
   onSelect: (next: MedicaFilter) => void;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
 
   return (
     <ScrollView direction="horizontal" showsIndicators={false}>
       <Row spacing={Spacing.two}>
-        {MEDICA_FILTERS.map((item) => {
-          const active = filter === item.key;
-          return (
-            <Row
-              key={item.key}
-              testID={`medica-filter-${item.key}`}
-              onPress={() => {
-                onSelect(item.key);
-              }}
-              style={{
-                paddingHorizontal: Spacing.three,
-                paddingVertical: Spacing.two,
-                borderRadius: Radius.pill,
-                // 1.5 是设计稿 chip 的描边宽度
-                borderWidth: 1.5,
-                borderColor: active ? theme.text : theme.border,
-                backgroundColor: active ? theme.text : theme.surface,
-              }}
-            >
-              <Text
-                textStyle={{
-                  fontSize: 14,
-                  fontWeight: "600",
-                  color: active ? theme.surface : theme.textSecondary,
-                }}
-              >
-                {t(item.label)}
-              </Text>
-            </Row>
-          );
-        })}
+        {MEDICA_FILTERS.map((item) => (
+          <Chip
+            key={item.key}
+            testID={`medica-filter-${item.key}`}
+            label={t(item.label)}
+            active={filter === item.key}
+            onPress={() => {
+              onSelect(item.key);
+            }}
+          />
+        ))}
       </Row>
     </ScrollView>
   );

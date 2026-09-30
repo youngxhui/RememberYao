@@ -1,6 +1,7 @@
 import { TabView } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
+  clipShape,
   controlSize,
   fixedSize,
   frame,
@@ -11,6 +12,7 @@ import { Children, isValidElement, type ReactElement } from "react";
 
 import type {
   NativeButtonModifiers,
+  NativeConcentricShape,
   NativeFieldModifiers,
   NativeLayoutOptions,
   NativeOnboardingPagerComponent,
@@ -45,6 +47,10 @@ export const nativeFieldModifiers: NativeFieldModifiers = ({
   flush = false,
 } = {}) =>
   flush ? [listRowInsets({ leading: 0, trailing: 0, top: 0, bottom: 0 })] : [];
+
+export const nativeConcentricShape: NativeConcentricShape = (
+  fallbackRadius: number,
+) => [clipShape("containerRelativeShape", fallbackRadius)];
 
 function OnboardingPager({
   selection,

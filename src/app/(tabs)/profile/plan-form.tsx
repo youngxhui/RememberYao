@@ -24,6 +24,7 @@ import { useTranslation } from "@/i18n";
 import { requestNotificationPermission } from "@/lib/notifications";
 import {
   addPlan,
+  dateFromKey,
   dateKey,
   dateToTime,
   defaultTimes,
@@ -331,9 +332,4 @@ export default function PlanFormScreen() {
       </Host>
     </>
   );
-}
-
-function dateFromKey(key: string): Date {
-  const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d);
 }

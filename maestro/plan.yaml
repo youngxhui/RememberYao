@@ -51,6 +51,11 @@ appId: com.youngxhui.RememberYao
     id: "medication-remaining-input"
 - inputText: "5"
 - pressKey: enter
+# 表单是 ScrollView，保存按钮在内容末尾，先滚过去
+- scrollUntilVisible:
+    element:
+      id: "medication-save-button"
+    direction: DOWN
 - tapOn:
     id: "medication-save-button"
 - extendedWaitUntil:

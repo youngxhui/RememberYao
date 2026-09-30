@@ -5,6 +5,7 @@ import {
   ListItem,
   Row,
   ScrollView,
+  Spacer,
   Text,
   TextInput,
   useNativeState,
@@ -30,6 +31,7 @@ import {
   planStatusLabel,
   restockMedication,
   stockSummary,
+  todayKey,
   useAppData,
 } from "@/lib/store";
 
@@ -116,7 +118,7 @@ export default function MedicationDetailScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Title large>{medication.name}</Stack.Title>
-      <Host seedColor="#40621a" style={{ flex: 1 }}>
+      <Host seedColor={theme.primary} style={{ flex: 1 }}>
         <ScrollView
           style={{ padding: 16, paddingBottom: 32 }}
           showsIndicators={false}
@@ -129,12 +131,26 @@ export default function MedicationDetailScreen() {
               padding: 16,
             }}
           >
-            <Text textStyle={{ fontSize: 15, color: theme.textSecondary }}>
-              {t("medication.typeAndUnit", {
-                type: medicationTypeLabel(medication.type, t),
-                unit,
-              })}
-            </Text>
+            <Row alignment="center" spacing={Spacing.two}>
+              <Text textStyle={{ fontSize: 15, color: theme.textSecondary }}>
+                {t("medication.typeAndUnit", {
+                  type: medicationTypeLabel(medication.type, t),
+                  unit,
+                })}
+              </Text>
+              <Spacer flexible />
+              {medication.prescription ? (
+                <Text
+                  textStyle={{
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: theme.warningStrong,
+                  }}
+                >
+                  {t("medication.prescriptionYes")}
+                </Text>
+              ) : null}
+            </Row>
             <Row alignment="end" spacing={4}>
               <Text textStyle={{ fontSize: 32, fontWeight: "700" }}>
                 {String(medication.remainingQuantity)}
@@ -165,6 +181,25 @@ export default function MedicationDetailScreen() {
             {medication.notes ? (
               <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
                 {medication.notes}
+              </Text>
+            ) : null}
+            {medication.specification ? (
+              <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
+                {`${t("medication.specification")} · ${medication.specification}`}
+              </Text>
+            ) : null}
+            {medication.expiryDate ? (
+              <Text
+                testID="medication-expiry-value"
+                textStyle={{
+                  fontSize: 14,
+                  color:
+                    medication.expiryDate < todayKey()
+                      ? theme.danger
+                      : theme.textSecondary,
+                }}
+              >
+                {`${t("medication.expiryDate")} · ${medication.expiryDate}`}
               </Text>
             ) : null}
           </Column>

@@ -5,31 +5,28 @@ import * as schema from "./schema";
 
 export const DATABASE_NAME = "rememberyao.db";
 
-/** 打开数据库并跑完迁移；并发调用只会真正执行一次 */
-export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
-  const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
-  await migrate(db);
-  return db;
-}
+/**
+ * 表结构版本。改 `schema.ts` 就 +1。
+ *
+ * 开发阶段不做增量迁移：启动时发现库里的版本不是这个值，直接删库重建。
+ * 代价是本地数据丢失，开发阶段换表结构本就要重来，比留着半张旧表崩在
+ * `no such column` 上好。
+ */
+const SCHEMA_VERSION = 1;
 
-let drizzleDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
-
-/** 获取 Drizzle 实例（懒打开）。store 层在首次读数据时调用。 */
-export async function getDb(): Promise<NonNullable<typeof drizzleDb>> {
-  if (!drizzleDb) {
-    drizzleDb = drizzle(await openDatabase(), { schema });
-  }
-  return drizzleDb;
-}
-
-const MIGRATION_V1 = `
+/** 建表 SQL：与 `schema.ts` 一一对应，只在这份开发用的最新结构上执行 */
+const CREATE_TABLES = `
 CREATE TABLE IF NOT EXISTS medications (
   id TEXT PRIMARY KEY NOT NULL,
   name TEXT NOT NULL,
   type TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'chronic',
+  specification TEXT NOT NULL DEFAULT '',
   unit TEXT NOT NULL,
   total_quantity INTEGER NOT NULL,
   remaining_quantity INTEGER NOT NULL,
+  expiry_date TEXT,
+  prescription INTEGER NOT NULL DEFAULT 0,
   notes TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -86,10 +83,6 @@ CREATE TABLE IF NOT EXISTS usages (
 );
 CREATE INDEX IF NOT EXISTS usages_taken_at_idx ON usages (taken_at);
 CREATE INDEX IF NOT EXISTS usages_reminder_idx ON usages (reminder_id);
-`;
-
-/** 设置偏好：单行表，id 恒为 'singleton'。每列都有默认值，老库补列后直接读到默认值 */
-const MIGRATION_V2 = `
 CREATE TABLE IF NOT EXISTS settings (
   id TEXT PRIMARY KEY NOT NULL,
   notifications_enabled INTEGER NOT NULL DEFAULT 1,
@@ -101,44 +94,53 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `;
 
-/** 补 `medications.category`（用途分类）。
- *  老记录没有分类信息，只能落到一个默认值上：取枚举首项「慢性病」，
- *  与设计稿里占比最高的分类一致；用户可以在添加/编辑药品里改。
- *  SQLite 的 `ADD COLUMN` 不支持 `IF NOT EXISTS`，靠 user_version 保证只跑一次。 */
-const MIGRATION_V3 = `
-ALTER TABLE medications ADD COLUMN category TEXT NOT NULL DEFAULT 'chronic';
-`;
+/** 全部表的清单，删库重建时用。顺序无所谓，没有跨表外键 */
+const TABLES = [
+  "medications",
+  "persons",
+  "plans",
+  "reminders",
+  "usages",
+  "settings",
+] as const;
 
-const MIGRATIONS: Record<number, string> = {
-  1: MIGRATION_V1,
-  2: MIGRATION_V2,
-  3: MIGRATION_V3,
-};
+/** 打开数据库并确保表结构与 `SCHEMA_VERSION` 一致；并发调用只会真正执行一次 */
+export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
+  const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+  await ensureSchema(db);
+  return db;
+}
 
-/** 迁移条数：循环边界由它推导，加一条 MIGRATION 就自动多跑一次 */
-const MIGRATION_COUNT = Object.keys(MIGRATIONS).length;
+let drizzleDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
+
+/** 获取 Drizzle 实例（懒打开）。store 层在首次读数据时调用。 */
+export async function getDb(): Promise<NonNullable<typeof drizzleDb>> {
+  if (!drizzleDb) {
+    drizzleDb = drizzle(await openDatabase(), { schema });
+  }
+  return drizzleDb;
+}
 
 /**
- * 按 `user_version` 顺序执行迁移。
- * 迁移 SQL 全部用 `IF NOT EXISTS`，重复执行安全；失败时抛错，
- * 让上层显示 error 态而不是带着半张表继续跑。
+ * 版本不符就整库重建，一致则补齐缺失的表。
+ *
+ * `user_version` 只在建表成功后才写入，所以中途失败会让版本停留在旧值，
+ * 下次启动重来一遍。失败直接抛给上层显示 error 态，不带着半张表继续跑。
  */
-export async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
-  // WAL 提升并发读性能；外键约束保证级联删除一致
+async function ensureSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync("PRAGMA journal_mode = WAL;");
   await db.execAsync("PRAGMA foreign_keys = ON;");
 
   const row = await db.getFirstAsync<{ user_version: number }>(
     "PRAGMA user_version",
   );
-  let version = row?.user_version ?? 0;
+  const stored = row?.user_version ?? 0;
 
-  while (version < MIGRATION_COUNT) {
-    const next = version + 1;
-    const sqlText = MIGRATIONS[next];
-    if (!sqlText) throw new Error(`缺少第 ${next} 号迁移`);
-    await db.execAsync(sqlText);
-    await db.execAsync(`PRAGMA user_version = ${next}`);
-    version = next;
+  if (stored !== SCHEMA_VERSION) {
+    for (const table of TABLES) {
+      await db.execAsync(`DROP TABLE IF EXISTS ${table}`);
+    }
   }
+  await db.execAsync(CREATE_TABLES);
+  await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }

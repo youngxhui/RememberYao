@@ -1,9 +1,10 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
 import { Stack } from "expo-router/stack";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { AppState, useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { useTheme } from "@/hooks/use-theme";
 import { I18nProvider, useI18n } from "@/i18n";
 import {
   addNotificationResponseListener,
@@ -26,7 +27,27 @@ export default function RootLayout() {
 
 function AppShell() {
   const colorScheme = useColorScheme();
+  const theme = useTheme();
   const { language } = useI18n();
+
+  // 默认主题的 primary 是系统蓝，header 的返回按钮/标题强调色会跟业务区的青绿脱节，
+  // 这里按明暗模式取基础主题再把品牌色与页面底色换成本项目的 token
+  const navigationTheme = useMemo(() => {
+    const base = colorScheme === "dark" ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      dark: colorScheme === "dark",
+      colors: {
+        ...base.colors,
+        primary: theme.primary,
+        background: theme.canvas,
+        card: theme.surface,
+        border: theme.border,
+        text: theme.text,
+        notification: theme.danger,
+      },
+    };
+  }, [colorScheme, theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +80,7 @@ function AppShell() {
   }, [language]);
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navigationTheme}>
       {/* 根 Stack 只负责分流：引导页必须待在 tab 组之外，否则底部 tab 栏会压在它上面 */}
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />

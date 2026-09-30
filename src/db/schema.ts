@@ -19,9 +19,17 @@ export const medications = sqliteTable("medications", {
   type: text("type").notNull(),
   /** 用途分类：慢性病 / 临时用药 / 保健品。药品库列表按它筛选 */
   category: text("category").notNull().default("chronic"),
+  /** 规格，如 "10mg/片"。自由文本，没有统一取值表 */
+  specification: text("specification").notNull().default(""),
   unit: text("unit").notNull(),
   totalQuantity: integer("total_quantity").notNull(),
   remainingQuantity: integer("remaining_quantity").notNull(),
+  /** 有效期 "YYYY-MM-DD"，null 表示未记录（不参与到期提醒） */
+  expiryDate: text("expiry_date"),
+  /** 是否处方药，只影响展示与将来可能的用药建议 */
+  prescription: integer("prescription", { mode: "boolean" })
+    .notNull()
+    .default(false),
   notes: text("notes").notNull().default(""),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
@@ -108,7 +116,8 @@ export const usages = sqliteTable(
  *
  * 单独一张表而不是挂到任何业务表上：它是全局偏好，不属于某个药品或成员；
  * 全量快照的 `replaceAll` 对单行表也天然幂等。
- * 每列都带默认值，老库补列后直接读到默认值，不会是 NULL。
+ * 每列都带默认值，写库时不给值也不会是 NULL；这些默认值同时是
+ * `store.ts` 里 `DEFAULT_SETTINGS` 的单一来源，改一处要同步另一处。
  */
 export const settings = sqliteTable("settings", {
   /** 恒为 "singleton"，保证表里只有一行 */
