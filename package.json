@@ -49,7 +49,8 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "typecheck": "tsc --noEmit",
-    "check": "bun run typecheck && bun run lint && bun run format:check"
+    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "i18n:check": "bun scripts/check-i18n.ts"
   },
   "private": true
 }

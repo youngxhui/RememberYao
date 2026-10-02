@@ -43,7 +43,7 @@ appId: com.youngxhui.RememberYao
 - extendedWaitUntil:
     visible: "本周概览"
     timeout: 20000
-# 首屏（折叠线以上）：档案卡 + 本周概览。家庭成员/菜单在折叠线以下，需先下滑
+# 首屏（折叠线以上）：档案卡 + 本周概览。家庭成员在折叠线以下，需先下滑
 - assertVisible: "我的档案，暂无药品"
 - assertVisible: "应服 0 次"
 # 滑动起点放在 x=90%：避开中间的 Mini Archive（RN island 横向分页），直滚外层
@@ -116,7 +116,7 @@ appId: com.youngxhui.RememberYao
     visible: "还没有家庭成员，先在上方添加"
     timeout: 20000
 
-# ── 回「我的」根页面：空态回来，页面不崩；再下滑验菜单卡 ──
+# ── 回「我的」根页面：空态回来，页面不崩；设置入口只剩右上角 toolbar ──
 - tapOn: "我的"
 - waitForAnimationToEnd
 - extendedWaitUntil:
@@ -124,15 +124,6 @@ appId: com.youngxhui.RememberYao
       id: "profile-add-member-button"
     timeout: 20000
 - assertVisible: "还没有家庭成员，点右上角添加"
-# 从家庭成员区再往下滚，菜单卡（设置/通知/导出/隐私）在折叠线以下
-- swipe:
-    start: 90%, 70%
-    end: 90%, 35%
-    duration: 400
-- extendedWaitUntil:
-    visible: "设置"
-    timeout: 10000
-- assertVisible: "通知设置"
-- assertVisible: "导出报告"
-- assertVisible: "即将推出"
-- assertVisible: "隐私与数据"
+# 底部菜单卡（设置/通知设置/隐私与数据）已删：设置统一走右上角 toolbar 按钮
+# （Stack.Toolbar.Button 不支持 testID，只能按文案定位）
+- assertVisible: "设置"

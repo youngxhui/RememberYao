@@ -36,11 +36,22 @@ export type Medication = {
 };
 
 /** 用药人：家庭中的具体用药人 */
+/** 性别枚举；存库为 TEXT，UI 侧本地化 */
+export type Gender = "male" | "female" | "other";
+
 export type Person = {
   id: string;
   name: string;
   /** 头像底色（取姓名首字展示） */
   avatarColor: string;
+  /** 性别；未填写为 undefined */
+  gender?: Gender;
+  /** 年龄（周岁）；未填写为 undefined */
+  age?: number;
+  /** 过敏原列表；空数组表示未填写 */
+  allergies: string[];
+  /** 基础病 / 慢性病史列表；空数组表示未填写 */
+  underlyingConditions: string[];
   createdAt: string;
 };
 
@@ -204,6 +215,30 @@ export const PERSON_AVATAR_COLORS = [
   "#DB2777",
 ];
 
+/**
+ * 姓名 → 取色索引：对姓名做稳定的 31 倍滚动 hash，再对色板长度取模。
+ * 纯函数，同名恒得同色；只依赖 UTF-16 code unit，跨运行 / 跨语言稳定。
+ * `Math.imul` + `| 0` 把中间结果压回 32 位有符号整数，避免长姓名累加成
+ * 浮点后取模失真。
+ */
+function hashName(name: string): number {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) {
+    h = (Math.imul(h, 31) + name.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+/**
+ * 按姓名 hash 从头像色板取色（重名同色）。替代早先按创建顺序轮询 ——
+ * 姓名不变色就稳定，不会因为前面增删成员而变色。
+ */
+export function pickAvatarColor(name: string): string {
+  return PERSON_AVATAR_COLORS[
+    hashName(name.trim()) % PERSON_AVATAR_COLORS.length
+  ];
+}
+
 /** 宽限期（分钟）：到点后这么久仍未处理才标记为漏服 */
 export const GRACE_MINUTES = 60;
 
@@ -350,7 +385,15 @@ function fromRows(rows: PersistedData): AppData {
         : DEFAULT_MEDICATION_CATEGORY,
       unit: m.unit as MedicationUnit,
     })),
-    persons: rows.persons,
+    // 新增强制列（allergies / underlying_conditions）是 JSON 字符串，
+    // gender / age 可空；从库里还原成实体形状
+    persons: rows.persons.map((p) => ({
+      ...p,
+      gender: parseGender(p.gender),
+      age: p.age ?? undefined,
+      allergies: safeParseTags(p.allergies),
+      underlyingConditions: safeParseTags(p.underlyingConditions),
+    })),
     plans: rows.plans.map((p) => ({
       ...p,
       times: safeParseTimes(p.times),
@@ -387,13 +430,38 @@ function safeParseTimes(raw: string): string[] {
   }
 }
 
+/** 性别列收窄：库里的自由 TEXT 只在取值表内认，其它（脏值 / null）当未填写 */
+function parseGender(raw: string | null): Gender | undefined {
+  return raw === "male" || raw === "female" || raw === "other"
+    ? raw
+    : undefined;
+}
+
+/** JSON 字符串数组列 → string[]（过敏史 / 基础病），坏值退化成空数组 */
+function safeParseTags(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((x): x is string => typeof x === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 /** 实体 → 行：驼峰转 snake_case，`times` 序列化为 JSON。
  *  `snoozedUntil` / `resolvedAt` / `late` 的 `undefined → null / false` 是实体可选
  *  字段与「列非空」之间的类型桥接，不是老数据兜底，不能删。 */
 function toRows(data: AppData): PersistedData {
   return {
     medications: data.medications,
-    persons: data.persons,
+    persons: data.persons.map((p) => ({
+      ...p,
+      gender: p.gender ?? null,
+      age: p.age ?? null,
+      allergies: JSON.stringify(p.allergies),
+      underlyingConditions: JSON.stringify(p.underlyingConditions),
+    })),
     plans: data.plans.map((p) => ({
       ...p,
       times: JSON.stringify(p.times),
@@ -689,15 +757,27 @@ export async function deleteMedication(id: string): Promise<void> {
 
 // ─── 用药人 CRUD ──────────────────────────────────────────
 
-export async function addPerson(name: string): Promise<Person> {
+/** 新建用药人的输入：除姓名外都是可选的基础信息 */
+export type PersonInput = {
+  name: string;
+  gender?: Gender;
+  age?: number;
+  allergies?: string[];
+  underlyingConditions?: string[];
+};
+
+export async function addPerson(input: PersonInput): Promise<Person> {
   const now = nowIso();
   const next = await updateData((data) => {
     const person: Person = {
       id: genId(),
-      name: name.trim(),
-      // 头像底色按当前人数顺序取色，保证稳定不随机
-      avatarColor:
-        PERSON_AVATAR_COLORS[data.persons.length % PERSON_AVATAR_COLORS.length],
+      name: input.name.trim(),
+      gender: input.gender,
+      age: input.age,
+      allergies: input.allergies ?? [],
+      underlyingConditions: input.underlyingConditions ?? [],
+      // 头像底色按姓名 hash 取色：同名同色，稳定，且不受他人增删影响
+      avatarColor: pickAvatarColor(input.name),
       createdAt: now,
     };
     return { ...data, persons: [...data.persons, person] };
@@ -705,12 +785,34 @@ export async function addPerson(name: string): Promise<Person> {
   return next.persons[next.persons.length - 1];
 }
 
-export async function updatePerson(id: string, name: string): Promise<void> {
+/**
+ * 更新用药人基础信息（含改名）。只覆盖传入的字段，未传的保持原值 ——
+ * 注意 undefined 表示「不改」，与实体里「未填写也是 undefined」是两回事。
+ * 目前 UI 只建不编辑，先备好数据层。
+ */
+export async function updatePerson(
+  id: string,
+  patch: {
+    name?: string;
+    gender?: Gender;
+    age?: number;
+    allergies?: string[];
+    underlyingConditions?: string[];
+  },
+): Promise<void> {
   await updateData((data) => ({
     ...data,
-    persons: data.persons.map((p) =>
-      p.id === id ? { ...p, name: name.trim() } : p,
-    ),
+    persons: data.persons.map((p) => {
+      if (p.id !== id) return p;
+      const updated: Person = { ...p };
+      if (patch.name !== undefined) updated.name = patch.name.trim();
+      if (patch.gender !== undefined) updated.gender = patch.gender;
+      if (patch.age !== undefined) updated.age = patch.age;
+      if (patch.allergies !== undefined) updated.allergies = patch.allergies;
+      if (patch.underlyingConditions !== undefined)
+        updated.underlyingConditions = patch.underlyingConditions;
+      return updated;
+    }),
   }));
 }
 

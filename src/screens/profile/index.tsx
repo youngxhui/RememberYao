@@ -1,7 +1,6 @@
 import {
   Column,
   Host,
-  Icon,
   ListItem,
   Row,
   ScrollView,
@@ -9,10 +8,11 @@ import {
   Text,
 } from "@expo/ui";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, type ComponentProps } from "react";
+import { useCallback, useMemo } from "react";
 
 import { AvatarMark } from "@/components/avatar";
 import { MiniArchiveExpoUI } from "@/components/mini-archive";
+import { nativeContinuousShape } from "@/components/native-layout";
 import { RoundIconButton } from "@/components/round-icon-button";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useExpoUiContentWidth } from "@/hooks/use-expo-ui-content-width";
@@ -38,13 +38,11 @@ import { withAlpha } from "@/utils/color";
  */
 const WATCH_STREAK = 1;
 
-type IconName = ComponentProps<typeof Icon>["name"];
-
 /** 家庭成员卡右上角的健康徽章 */
 type MemberTone = "ok" | "watch" | "none";
 
 /**
- * 我的：档案横排 + 本周概览 + 家庭成员 + 菜单入口。
+ * 我的：档案横排 + 本周概览 + 家庭成员。
  * 视觉基准 = design/profile.html。
  *
  * 整屏跑在 `Host` + 原生 `ScrollView` 里（Expo UI 为主），RN 只留两个 island：
@@ -61,13 +59,15 @@ type MemberTone = "ok" | "watch" | "none";
  *
  * 大标题走原生 `Stack.Title large`（就是设计稿的 hero-title），内容里只留副标题
  * 和右上角设置按钮，避免「我的」在同一屏出现两次。
+ *
+ * 原本底部的「设置 / 通知设置 / 隐私与数据」菜单卡已删：这三项最终都跳到
+ * 同一个设置页，而右上角 toolbar 已经有设置入口，重复两遍没有意义。
  */
 export function Profile() {
   const router = useRouter();
   const theme = useTheme();
   const t = useTranslation();
-  const { medications, persons, plans, reminders, loading, reload } =
-    useAppData();
+  const { persons, plans, reminders, loading, reload } = useAppData();
   const {
     width: contentWidth,
     onHostLayout,
@@ -122,34 +122,36 @@ export function Profile() {
             paddingBottom: Spacing.five,
           }}
         >
-          {/* 档案横排按设计稿通栏（不跟着其它区块内缩），横向才有完整行程可滑 */}
-          <MiniArchiveExpoUI
-            containerWidth={contentWidth > 0 ? contentWidth : undefined}
-            entries={[]}
-            onSelectEntry={(entry) => {
-              router.push({
-                pathname: "/(tabs)/medica/detail",
-                params: { id: entry.id },
-              });
-            }}
-          />
+          {/* 原生 ScrollView 会在「直接子元素」之间塞入约 56pt 的固定间距
+              （真机实测，与 Column spacing 无关），所以所有区块必须收进同一个
+              Column，区块间距交给各区块自己的 paddingTop 精确控制
+              —— 首页（src/screens/home）同一套写法。
+              外缘左右边距仍由各区块自己带：档案横排要通栏，不跟着内缩 */}
+          <Column spacing={0}>
+            {/* 档案横排按设计稿通栏（不跟着其它区块内缩），横向才有完整行程可滑 */}
+            <MiniArchiveExpoUI
+              containerWidth={contentWidth > 0 ? contentWidth : undefined}
+              entries={[]}
+              onSelectEntry={(entry) => {
+                router.push({
+                  pathname: "/(tabs)/medica/detail",
+                  params: { id: entry.id },
+                });
+              }}
+            />
 
-          {!loading && medications.length === 0 ? (
-            <Hint text={t("profile.archiveEmpty")} />
-          ) : null}
+            {/* 首屏还在读数据时不给「0% / 0 / 0」的假数字，直接不渲染这一段 */}
+            {loading ? null : (
+              <WeekOverview stats={stats} cardWidth={statCardWidth} />
+            )}
 
-          {/* 首屏还在读数据时不给「0% / 0 / 0」的假数字，直接不渲染这一段 */}
-          {loading ? null : (
-            <WeekOverview stats={stats} cardWidth={statCardWidth} />
-          )}
-
-          <FamilySection
-            persons={persons}
-            loading={loading}
-            planCounts={planCounts}
-            watching={watching}
-          />
-          <MenuSection />
+            <FamilySection
+              persons={persons}
+              loading={loading}
+              planCounts={planCounts}
+              watching={watching}
+            />
+          </Column>
         </ScrollView>
       </Host>
     </>
@@ -244,6 +246,10 @@ function StatCard({
         borderColor: theme.border,
         backgroundColor: theme.surface,
       }}
+      // universal style 的 borderRadius 只会生成 clipShape(roundedRectangle)：
+      // 圆弧角在 iOS 上比系统卡片「硬」。这里换成连续曲线圆角
+      // （等价 RN 的 borderCurve: continuous），Android 侧为空实现
+      modifiers={nativeContinuousShape(Radius.card)}
     >
       {/* universal 的 Text 没有 fontVariant：等宽数字拿不到，
           数字位宽偶尔抖 1px，是这层 API 的已知代价 */}
@@ -370,6 +376,8 @@ function MemberCard({
         borderColor: theme.border,
         backgroundColor: theme.surface,
       }}
+      // 同 StatCard：连续曲线圆角，圆角曲线跟系统卡片一致
+      modifiers={nativeContinuousShape(Radius.card)}
     >
       <ListItem
         testID={`profile-member-${person.id}`}
@@ -439,133 +447,6 @@ function MemberBadge({ tone }: { tone: MemberTone }) {
     >
       {label}
     </Text>
-  );
-}
-
-type MenuItem = {
-  testID: string;
-  label: string;
-  icon: IconName;
-  /** 右侧灰色小字。用于「还没做」的行，比留一个点不动的箭头诚实 */
-  hint?: string;
-  onPress?: () => void;
-};
-
-function MenuSection() {
-  const theme = useTheme();
-  const router = useRouter();
-  const t = useTranslation();
-
-  // 通知设置没有独立页面：设置页第一组就是提醒开关，落在顶部不需要再深链
-  const items: MenuItem[] = [
-    {
-      testID: "profile-menu-settings",
-      label: t("profile.menuSettings"),
-      icon: "gearshape",
-      onPress: () => {
-        router.push("/(tabs)/profile/settings");
-      },
-    },
-    {
-      testID: "profile-menu-notifications",
-      label: t("profile.menuNotifications"),
-      icon: "bell",
-      onPress: () => {
-        router.push("/(tabs)/profile/settings");
-      },
-    },
-    {
-      testID: "profile-menu-export",
-      label: t("profile.menuExport"),
-      icon: "square.and.arrow.up",
-      hint: t("common.comingSoon"),
-    },
-    {
-      testID: "profile-menu-privacy",
-      label: t("profile.menuPrivacy"),
-      icon: "checkmark.shield",
-      onPress: () => {
-        router.push({
-          pathname: "/(tabs)/profile/settings",
-          params: { focus: "privacy" },
-        });
-      },
-    },
-  ];
-
-  return (
-    <Column
-      style={{ paddingTop: Spacing.four, paddingHorizontal: Spacing.screen }}
-    >
-      {/* borderRadius 在 iOS 上会转成 clipShape，卡片自带圆角裁剪，
-          所以不需要（universal style 也不支持）overflow: hidden */}
-      <Column
-        style={{
-          borderRadius: Radius.card,
-          borderWidth: 1,
-          borderColor: theme.border,
-          backgroundColor: theme.surface,
-        }}
-      >
-        {items.map((item, index) => (
-          // 位置即身份：菜单顺序固定，不会重排
-          <Column key={item.testID}>
-            {index > 0 ? <HairLine /> : null}
-            <MenuRow item={item} />
-          </Column>
-        ))}
-      </Column>
-    </Column>
-  );
-}
-
-/** 分组行之间的发丝线：通栏落在卡片里，对齐设计稿的 border-bottom */
-function HairLine() {
-  const theme = useTheme();
-  // 空的 Column / Row 宽高都是 0，补一个横向弹性 Spacer 才能撑满卡片
-  return (
-    <Row style={{ height: 1, backgroundColor: theme.border }}>
-      <Spacer flexible />
-    </Row>
-  );
-}
-
-function MenuRow({ item }: { item: MenuItem }) {
-  const theme = useTheme();
-  // 「还没做」的行不给 onPress：没有按压反馈比「点了没反应」更符合预期，
-  // 这类行也就不是 button，右侧不出箭头
-  const interactive = item.onPress !== undefined;
-
-  return (
-    // 16px 内边距落在 ListItem 外面：行内要塞原生图标与文字，
-    // 放进 universal style 只会和控件自己的内边距叠起来
-    <Column style={{ padding: Spacing.three }}>
-      <ListItem
-        testID={item.testID}
-        onPress={item.onPress}
-        leading={
-          <Icon
-            name={item.icon}
-            size={22}
-            color={theme.textSecondary}
-            accessibilityLabel={item.label}
-          />
-        }
-        trailing={
-          item.hint ? (
-            <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>
-              {item.hint}
-            </Text>
-          ) : interactive ? (
-            <Icon name="chevron.right" size={18} color={theme.textSecondary} />
-          ) : undefined
-        }
-      >
-        <Text textStyle={{ fontSize: 17, color: theme.text }}>
-          {item.label}
-        </Text>
-      </ListItem>
-    </Column>
   );
 }
 

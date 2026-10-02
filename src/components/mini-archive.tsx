@@ -307,13 +307,6 @@ export function MiniArchive({
             reduced={reduced}
             dimStyle={dimStyle}
             entries={entries}
-            accessibilityLabel={
-              count === 0
-                ? t("medication.archiveEmptyAccessibility")
-                : open
-                  ? t("medication.archiveCollapseAccessibility")
-                  : t("medication.archiveExpandAccessibility")
-            }
             onPress={toggleFolder}
           />
           {entries.map((entry, index) => (
@@ -357,7 +350,6 @@ function FolderSlot({
   reduced,
   dimStyle,
   entries,
-  accessibilityLabel,
   onPress,
 }: {
   title: string;
@@ -367,7 +359,6 @@ function FolderSlot({
   reduced: boolean;
   dimStyle: object;
   entries: ArchiveEntry[];
-  accessibilityLabel: string;
   onPress: () => void;
 }) {
   const [pressed, setPressed] = useState(false);
@@ -378,7 +369,6 @@ function FolderSlot({
       onPressOut={() => setPressed(false)}
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
-      accessibilityLabel={accessibilityLabel}
       testID="mini-archive-folder"
       style={{
         width: CARD_W,

@@ -3,6 +3,7 @@ import {
   buttonStyle,
   clipShape,
   controlSize,
+  createModifier,
   fixedSize,
   frame,
   listRowInsets,
@@ -12,6 +13,7 @@ import { Children, isValidElement, type ReactElement } from "react";
 
 import type {
   NativeButtonModifiers,
+  NativeContinuousShape,
   NativeConcentricShape,
   NativeFieldModifiers,
   NativeLayoutOptions,
@@ -51,6 +53,18 @@ export const nativeFieldModifiers: NativeFieldModifiers = ({
 export const nativeConcentricShape: NativeConcentricShape = (
   fallbackRadius: number,
 ) => [clipShape("containerRelativeShape", fallbackRadius)];
+
+// clipShape('continuous')：JS 侧 helper 没暴露 roundedCornerStyle，直接拼
+// modifier 配置 —— 原生 ClipShapeModifier 收 roundedCornerStyle 字段
+export const nativeContinuousShape: NativeContinuousShape = (
+  radius: number,
+) => [
+  createModifier("clipShape", {
+    shape: "roundedRectangle",
+    cornerRadius: radius,
+    roundedCornerStyle: "continuous",
+  }),
+];
 
 function OnboardingPager({
   selection,

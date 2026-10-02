@@ -39,6 +39,14 @@ export const persons = sqliteTable("persons", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   avatarColor: text("avatar_color").notNull(),
+  /** 性别；null = 未填写。存库是自由 TEXT，读时按 Gender 收窄 */
+  gender: text("gender"),
+  /** 年龄（周岁）；null = 未填写 */
+  age: integer("age"),
+  /** 过敏原列表，JSON 字符串数组（整体读写，从不按元素查询） */
+  allergies: text("allergies").notNull().default("[]"),
+  /** 基础病 / 慢性病史列表，JSON 字符串数组 */
+  underlyingConditions: text("underlying_conditions").notNull().default("[]"),
   createdAt: text("created_at").notNull(),
 });
 

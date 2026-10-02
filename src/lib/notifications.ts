@@ -169,6 +169,37 @@ export async function rescheduleReminders(data: AppData): Promise<void> {
   }
 }
 
+/**
+ * playground 调试用：几秒后发一条形状与真实提醒一致的测试通知。
+ *
+ * 刻意不挂 reminderId —— 通知栏的「已服用 / 跳过」按钮仍会出现（可验证
+ * 分类与文案重注册），但点了不会去改 store 里的真实数据。
+ */
+export async function sendTestNotification(delaySeconds = 5): Promise<void> {
+  const t = getTranslator();
+  await requestNotificationPermission();
+  await Notifications.scheduleNotificationAsync({
+    identifier: `test-${Date.now()}`,
+    content: {
+      title: t("notification.title"),
+      body: t("notification.body", {
+        person: t("notification.defaultPerson"),
+        medication: t("notification.defaultMedication"),
+        amount: "1",
+      }),
+      color: BRAND_COLOR,
+      sound: true,
+      categoryIdentifier: CATEGORY_ID,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: delaySeconds,
+      repeats: false,
+      ...(Platform.OS === "android" ? { channelId: CHANNEL_ID } : {}),
+    },
+  });
+}
+
 let syncChain: Promise<void> = Promise.resolve();
 
 /** 上一轮同步时已提醒过的「连续漏服」成员，避免每次重排都重复弹一条 */

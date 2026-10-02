@@ -51,6 +51,18 @@ export type NativeConcentricShape = (
   fallbackRadius: number,
 ) => NativeModifier[];
 
+/**
+ * 连续曲线圆角：iOS `RoundedRectangle(cornerRadius:, style: .continuous)`，
+ * 等价 RN 的 `borderCurve: "continuous"`（AGENTS.md UI 规则 9）。
+ *
+ * universal style 的 `borderRadius` 只会生成 `.circular` 的
+ * RoundedRectangle，圆弧角在 iOS 上比系统卡片「硬」，这就是「圆角不自然」的来源。
+ * 这里显式指定半径：`nativeConcentricShape` 的半径由「最近的容器」算出，卡片
+ * 处在宽度由 Spacer / Row 决定的容器里时解析不到有限尺寸，会退化成胶囊形
+ * （真机实测：三等分统计卡直接变药丸），所以卡片一律用本函数指定死半径。
+ */
+export type NativeContinuousShape = (radius: number) => NativeModifier[];
+
 export type NativeOnboardingPagerTabProps = {
   value: string;
   children: ReactNode;
@@ -77,6 +89,9 @@ export const nativeButtonModifiers: NativeButtonModifiers = () => [];
 export const nativeFieldModifiers: NativeFieldModifiers = () => [];
 
 export const nativeConcentricShape: NativeConcentricShape = () => [];
+
+// web / 兜底实现：不加 modifier，style 里的 borderRadius 照常生效
+export const nativeContinuousShape: NativeContinuousShape = () => [];
 
 function OnboardingPager({ children }: NativeOnboardingPagerProps) {
   return createElement(Fragment, null, children);

@@ -102,6 +102,10 @@ export async function replaceAll(data: PersistedData): Promise<void> {
           set: {
             name: sql`excluded.name`,
             avatarColor: sql`excluded.avatar_color`,
+            gender: sql`excluded.gender`,
+            age: sql`excluded.age`,
+            allergies: sql`excluded.allergies`,
+            underlyingConditions: sql`excluded.underlying_conditions`,
             createdAt: sql`excluded.created_at`,
           },
         });

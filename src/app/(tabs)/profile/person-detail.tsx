@@ -1,4 +1,13 @@
-import { Button, Column, Host, ListItem, ScrollView, Text } from "@expo/ui";
+import {
+  Button,
+  Column,
+  Host,
+  ListItem,
+  Row,
+  ScrollView,
+  Spacer,
+  Text,
+} from "@expo/ui";
 import {
   Stack,
   useFocusEffect,
@@ -54,6 +63,33 @@ export default function PersonDetailScreen() {
 
   const personPlans = plans.filter((p) => p.personId === person.id);
 
+  // 基本信息行：只列已填写的项，未填项不占位（性别/年龄/过敏/基础病都可选）
+  const basicRows: { label: string; value: string }[] = [];
+  if (person.gender) {
+    const value =
+      person.gender === "male"
+        ? t("person.genderMale")
+        : person.gender === "female"
+          ? t("person.genderFemale")
+          : t("person.genderOther");
+    basicRows.push({ label: t("person.gender"), value });
+  }
+  if (person.age != null) {
+    basicRows.push({ label: t("person.age"), value: String(person.age) });
+  }
+  if (person.allergies.length > 0) {
+    basicRows.push({
+      label: t("person.allergies"),
+      value: person.allergies.join("、"),
+    });
+  }
+  if (person.underlyingConditions.length > 0) {
+    basicRows.push({
+      label: t("person.underlyingConditions"),
+      value: person.underlyingConditions.join("、"),
+    });
+  }
+
   const removePerson = async () => {
     if (!confirmDeletePerson) {
       setConfirmDeletePerson(true);
@@ -75,6 +111,31 @@ export default function PersonDetailScreen() {
           <Column alignment="center" style={{ paddingVertical: 12 }}>
             <Avatar color={person.avatarColor} name={person.name} size={64} />
           </Column>
+
+          {basicRows.length > 0 ? (
+            <>
+              <SectionTitle>{t("person.basicInfo")}</SectionTitle>
+              <SectionCard>
+                {basicRows.map((row, index) => (
+                  <Column key={row.label}>
+                    {index > 0 ? <HairLine /> : null}
+                    <Row alignment="center" style={{ padding: Spacing.three }}>
+                      <Text textStyle={{ color: theme.text }}>{row.label}</Text>
+                      <Spacer flexible />
+                      <Text
+                        textStyle={{
+                          color: theme.textSecondary,
+                          textAlign: "right",
+                        }}
+                      >
+                        {row.value}
+                      </Text>
+                    </Row>
+                  </Column>
+                ))}
+              </SectionCard>
+            </>
+          ) : null}
 
           <SectionTitle>{t("person.plans")}</SectionTitle>
           {personPlans.length === 0 ? (

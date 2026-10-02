@@ -17,6 +17,7 @@ import {
 
 import type {
   NativeButtonModifiers,
+  NativeContinuousShape,
   NativeConcentricShape,
   NativeFieldModifiers,
   NativeLayoutOptions,
@@ -50,6 +51,9 @@ export const nativeFieldModifiers: NativeFieldModifiers = () => [];
 // modifier —— style 里的 borderRadius 会照常生效（omitUserOverridden 对空数组
 // 直接返回原样），视觉上退回统一的 18pt 圆角
 export const nativeConcentricShape: NativeConcentricShape = () => [];
+
+// 同上：Compose 原生就是所需圆角，不需要额外 modifier
+export const nativeContinuousShape: NativeContinuousShape = () => [];
 
 function pageValue(child: React.ReactNode): string | undefined {
   if (!isValidElement(child)) return undefined;

@@ -12,7 +12,7 @@ export const DATABASE_NAME = "rememberyao.db";
  * 代价是本地数据丢失，开发阶段换表结构本就要重来，比留着半张旧表崩在
  * `no such column` 上好。
  */
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 /** 建表 SQL：与 `schema.ts` 一一对应，只在这份开发用的最新结构上执行 */
 const CREATE_TABLES = `
@@ -35,6 +35,10 @@ CREATE TABLE IF NOT EXISTS persons (
   id TEXT PRIMARY KEY NOT NULL,
   name TEXT NOT NULL,
   avatar_color TEXT NOT NULL,
+  gender TEXT,
+  age INTEGER,
+  allergies TEXT NOT NULL DEFAULT '[]',
+  underlying_conditions TEXT NOT NULL DEFAULT '[]',
   created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS plans (
