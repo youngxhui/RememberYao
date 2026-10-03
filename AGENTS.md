@@ -176,5 +176,5 @@ ios/                      prebuild 产物；改 app.json 后需重新 prebuild
 - 桌面 Widget：`expo-widgets` 已配置（app.json plugins），尚未实现。
 - 单元测试：`store.ts` 的提醒生成 / 库存扣减是纯函数，适合优先覆盖。
 - lockfile：`pnpm-lock.yaml` / `package-lock.json` 已废弃，确认后可删。
-- **原生依赖已变更**：新增 `expo-sqlite` / `expo-localization`（app.json plugins 已自动登记）。iOS 端必须重新 `npx expo run:ios` 才会生效，Expo Go 跑不起来。
+- **原生依赖已变更**：新增 `expo-sqlite` / `expo-localization`（app.json plugins 已自动登记）、`expo-haptics`（Mini Archive 开合 commit 触感，需 `pod install` 后重新 `npx expo run:ios` 才生效）。iOS 端必须重新 `npx expo run:ios` 才会生效，Expo Go 跑不起来。
 - **i18n 漏翻检查**：新增界面文案后确认 `zh.ts` / `en.ts` 键名一致（`bun run check` 只能查出「用了不存在的键」，查不出「en 缺翻译」）。两侧键数应始终相等。

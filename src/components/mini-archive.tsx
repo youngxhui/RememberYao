@@ -1,5 +1,6 @@
 import { RNHostView } from "@expo/ui";
 import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useRef, useState, type ComponentProps } from "react";
 import {
@@ -107,6 +108,8 @@ const DIM_RANGE = 260;
 const FLY_EASE = cubicBezier(0.3, 0.4, 0.2, 1);
 // 封皮翻开曲线（设计稿 cubic-bezier(0.23,1,0.32,1)）
 const COVER_EASE = cubicBezier(0.23, 1, 0.32, 1);
+/** 按压反馈时长：反馈带 100–150ms，文件夹与说明书卡一致 */
+const PRESS_SCALE_MS = 130;
 // CSS 默认 ease，用于按压反馈与交叉淡入淡出
 const CSS_EASE = cubicBezier(0.25, 0.1, 0.25, 1);
 
@@ -120,13 +123,30 @@ const GRAD_135 = {
   end: { x: 0.85, y: 0.85 },
 };
 
-/** 单张飞行时长：距离越远飞得久，平均速度压在 ≤1000px/s */
-const flyDuration = (i: number) => 1200 + i * 140;
+// ── 时长预算 ──
+// 整套开合约 1s 收尾、封皮 ~650ms、单张飞行 ≤770ms。delight 档允许超过
+// 常规 UI 的 300ms 上限，但早前 1.2s+ 的飞行在旧机上读作卡顿而非隆重；
+// 它同时也是 Android 上原生 scrollTo 不可抓取期间死区窗口的主体，能砍则砍。
+const FLY_BASE = 420;
+const FLY_STEP = 70;
+const TAKEOFF_STEP = 80;
+const RETURN_STEP = 80;
+/** 封皮翻开时长：超过 ~700ms 整组动作会脱拍 */
+const COVER_DURATION = 650;
+/** 单张飞行时长：距离越远飞得久，线性步进避免末片冲刺 */
+const flyDuration = (i: number) => FLY_BASE + i * FLY_STEP;
 /** 展开：按堆叠层序反转（最上层先飞），min() 封顶让头 3 张错峰 */
 const takeoffDelay = (i: number, n: number) =>
-  120 + Math.min(n - 1 - i, 2) * 120;
+  TAKEOFF_STEP + Math.min(n - 1 - i, 2) * TAKEOFF_STEP;
 /** 收起：按堆叠顺序依次归位 */
-const returnDelay = (i: number) => 120 + Math.min(i, 2) * 120;
+const returnDelay = (i: number) => RETURN_STEP + Math.min(i, 2) * RETURN_STEP;
+/** 开合 commit 的一次轻触反馈：与 open 翻转同帧（阈值穿越处调用，
+ *  点按与手滑两条路径都汇聚到那里；一次动作一次，不逐帧） */
+function commitFolderHaptic() {
+  // 触感是纯装饰：原生模块缺失（旧构建未重新链接）或设备不支持时，
+  // 静默吞掉，别把未捕获的 promise 拒绝抛成红屏
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+}
 /** 闭合扇形的递增步长：张数越多扇得越紧 */
 const stackStep = (n: number) => Math.min(1, 3 / n);
 
@@ -246,7 +266,11 @@ export function MiniArchive({
   useAnimatedReaction(
     () => scrollX.get() > OPEN_THRESHOLD,
     (current, previous) => {
-      if (current !== previous) scheduleOnRN(setOpen, current);
+      if (current !== previous) {
+        scheduleOnRN(setOpen, current);
+        // 阈值穿越就是 snap commit 的一刻：轻触反馈与封面起始同帧
+        scheduleOnRN(commitFolderHaptic);
+      }
     },
   );
 
@@ -383,7 +407,7 @@ function FolderSlot({
           height: FOLDER_H,
           transform: [{ scale: pressed ? 0.97 : 1 }],
           transitionProperty: "transform",
-          transitionDuration: reduced ? 0 : 200,
+          transitionDuration: reduced ? 0 : PRESS_SCALE_MS,
           transitionTimingFunction: CSS_EASE,
         }}
       >
@@ -474,7 +498,7 @@ function FolderFront({
             { rotateY: open ? "-58deg" : "0deg" },
           ],
           transitionProperty: "transform",
-          transitionDuration: reduced ? 0 : 1250,
+          transitionDuration: reduced ? 0 : COVER_DURATION,
           transitionTimingFunction: COVER_EASE,
         },
       ]}
@@ -597,11 +621,11 @@ function MiniLeaf({
         { rotate: `${-4 + index * 3.5 * step}deg` },
         { scale: STACK_SCALE },
       ];
-  // 淡出起点 = 起飞延迟 + 飞行时长 + 错峰，落位前与列表卡的淡入交叉
+  // 淡出起点 = 落点前 ~80ms，与列表卡的淡入交叉（列表卡见 LeafletSlot）
   const opacityDelay = open
     ? reduced
       ? 0
-      : flyDuration(index) + Math.min(count - 1 - index, 2) * 100
+      : takeoffDelay(index, count) + flyDuration(index) - 80
     : reduced
       ? 0
       : returnDelay(index);
@@ -655,11 +679,12 @@ function LeafletSlot({
   onPress?: () => void;
 }) {
   const t = useTranslation();
-  // 淡入起点 = 起飞延迟 + 各自飞行时长 − 270ms，落位后 150ms 收尾
+  const [pressed, setPressed] = useState(false);
+  // 淡入起点 = 对应飞行卡落点前 ~120ms，两卡交叉淡入、落点像素级一致
   const delay = reduced
     ? 0
     : open
-      ? 1050 + index * 140 + Math.min(count - 1 - index, 2) * 120
+      ? takeoffDelay(index, count) + flyDuration(index) - 120
       : 0;
   return (
     <Animated.View
@@ -669,15 +694,20 @@ function LeafletSlot({
         alignItems: "center",
         justifyContent: "center",
         opacity: open ? 1 : 0,
-        transitionProperty: "opacity",
-        transitionDuration: reduced ? 150 : 420,
-        transitionDelay: delay,
-        transitionTimingFunction: CSS_EASE,
+        // 闭合时整列卡位露在屏幕右缘：不可见也不可点，别留隐形点击区
+        pointerEvents: open ? "auto" : "none",
+        transform: [{ scale: pressed ? 0.97 : 1 }],
+        transitionProperty: ["opacity", "transform"],
+        transitionDuration: [reduced ? 150 : 420, reduced ? 0 : PRESS_SCALE_MS],
+        transitionDelay: [delay, 0],
+        transitionTimingFunction: [CSS_EASE, CSS_EASE],
       }}
     >
       {onPress ? (
         <Pressable
           onPress={onPress}
+          onPressIn={() => setPressed(true)}
+          onPressOut={() => setPressed(false)}
           accessibilityRole="button"
           accessibilityLabel={entry.name}
           accessibilityHint={t("medication.archiveEntryHint")}

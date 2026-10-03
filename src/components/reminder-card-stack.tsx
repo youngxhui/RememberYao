@@ -1,5 +1,6 @@
 import { RNHostView } from "@expo/ui";
 import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -177,7 +178,6 @@ export function ReminderCardStack({
   // order = 视觉顺序（首项为顶卡）。与数据解耦，换卡时手动轮转
   const [order, setOrder] = useState<string[]>([]);
   const [sinking, setSinking] = useState(false);
-  const [activeSeg, setActiveSeg] = useState(0);
   const [midTop, setMidTop] = useState<number | null>(null);
   const [hostWidth, setHostWidth] = useState(0);
   const { width: windowWidth } = useWindowDimensions();
@@ -224,10 +224,9 @@ export function ReminderCardStack({
     setMidTop((prev) => (prev === y ? prev : y));
   }, []);
 
-  // 过阈值的 RN 线程副作用只做一次：顶卡降层 + 指示器滚一段
+  // 过阈值的 RN 线程副作用只做一次：顶卡沉底期间降层
   const commit = useCallback(() => {
     setSinking(true);
-    setActiveSeg((seg) => seg + 1);
   }, []);
 
   // 松手轮转牌堆：前→后、其余各前进一步，与子卡的沉底目标严格互补。
@@ -270,6 +269,8 @@ export function ReminderCardStack({
           if (Math.abs(dy) >= THRESHOLD) {
             phase.set(2);
             scheduleOnRN(commit);
+            // 阈值穿越 = 沉底开始：commit 触感与动画同帧
+            scheduleOnRN(fireSwapHaptic);
           }
         })
         .onFinalize(() => {
@@ -293,6 +294,13 @@ export function ReminderCardStack({
   const orderedReminders = finalOrder
     .map((id) => visible.find((r) => r.id === id))
     .filter((r): r is Reminder => r !== undefined);
+
+  // 指示器高亮段 = 当前顶卡在可见列表中的下标，由 order 推导而非自由
+  // 计数器：列表收缩 / 补充（标记服用、新提醒到达）时自动跟随，不会错位
+  const activeSeg = Math.max(
+    0,
+    visible.findIndex((r) => r.id === orderedReminders[0]?.id),
+  );
 
   const today = todayKey();
   const tomorrow = addDays(today, 1);
@@ -352,7 +360,7 @@ export function ReminderCardStack({
     <RNView style={{ paddingBottom: STACK_PAD_BOTTOM }}>
       <StackIndicator
         ids={visible.map((r) => r.id)}
-        active={activeSeg % n}
+        active={activeSeg}
         top={midTop}
         reduced={reduced}
       />
@@ -388,11 +396,34 @@ export function ReminderCardStack({
   );
 }
 
+/** 指示器分段几何：未激活 9×9 圆点，激活 6×70 长条 */
+const SEG_DOT = 9;
+const SEG_ACTIVE_W = 6;
+const SEG_ACTIVE_H = 70;
+const SEG_GAP = 8;
+
+/** 第 index 个分段的静止 top：与「纵向 column + 间距 SEG_GAP」的排版
+ *  逐像素一致。绝对定位下直接算出，动画期间不牵连兄弟节点重排 */
+const segTop = (index: number, active: number): number => {
+  let top = 0;
+  for (let i = 0; i < index; i += 1) {
+    top += (i === active ? SEG_ACTIVE_H : SEG_DOT) + SEG_GAP;
+  }
+  return top;
+};
+
+/** 换卡 commit（阈值穿越 = 牌开始沉底）的一次轻触反馈 */
+function fireSwapHaptic() {
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+}
+
 /**
  * 牌堆指示器：固定在卡片右侧，不随卡片移动（用户可见行为的硬要求）。
- * 高亮段加长、其余段变点，仅尺寸 / 底色过渡 —— 设计稿的「滚动」感
- * 本质是兄弟段位移，这里只有 3 个无子节点小视图且低频触发，
- * 用 CSS transition 直改布局尺寸是可接受的取舍。
+ * 高亮段加长、其余段变点，是尺寸 morph 而非位移 —— 按 expo-animation 的
+ * 属性规则，width/height 只允许落在「绝对定位且无子节点」的叶子节点上
+ * （进度条豁免），所以每个分段都绝对定位：top 偏移与居中全部走 transform
+ * （零布局），width/height 过渡不再推挤兄弟段。分段 top 与原
+ * 「column + gap」排版逐像素一致，视觉与改动前无差。
  */
 function StackIndicator({
   ids,
@@ -415,20 +446,23 @@ function StackIndicator({
         position: "absolute",
         right: 27,
         top,
+        // 显式宽度：分段绝对定位后 left:"50%" 需要容器有宽才能居中
+        width: SEG_DOT,
         zIndex: 5,
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 8,
       }}
     >
       {ids.map((id, index) => {
         const on = index === active;
+        const w = on ? SEG_ACTIVE_W : SEG_DOT;
         return (
           <Animated.View
             key={id}
             style={{
-              width: on ? 6 : 9,
-              height: on ? 70 : 9,
+              position: "absolute",
+              left: "50%",
+              top: 0,
+              width: w,
+              height: on ? SEG_ACTIVE_H : SEG_DOT,
               borderRadius: 999,
               backgroundColor: withAlpha(
                 on ? theme.promo.ink : theme.promo.dot,
@@ -436,9 +470,24 @@ function StackIndicator({
               ),
               borderWidth: 1,
               borderColor: theme.promo.edge,
-              transitionProperty: ["width", "height", "backgroundColor"],
-              transitionDuration: reduced ? [0, 0, 0] : [620, 620, 300],
-              transitionTimingFunction: [SWAP_EASE, SWAP_EASE, LINEAR_EASE],
+              // 居中 + 分段偏移走 transform：过渡零布局
+              transform: [
+                { translateX: -w / 2 },
+                { translateY: segTop(index, active) },
+              ],
+              transitionProperty: [
+                "width",
+                "height",
+                "transform",
+                "backgroundColor",
+              ],
+              transitionDuration: reduced ? [0, 0, 0, 0] : [620, 620, 620, 300],
+              transitionTimingFunction: [
+                SWAP_EASE,
+                SWAP_EASE,
+                SWAP_EASE,
+                LINEAR_EASE,
+              ],
             }}
           />
         );
