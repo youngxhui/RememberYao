@@ -10,7 +10,7 @@
     "ios": {
       "deploymentTarget": "26.0",
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "top.youngxhui.rememberyao",
+      "bundleIdentifier": "top.youngxhui.rememberyao.k3f9",
       "infoPlist": {}
     },
     "android": {
@@ -57,10 +57,10 @@
               "appExtensions": [
                 {
                   "targetName": "ExpoWidgetsTarget",
-                  "bundleIdentifier": "top.youngxhui.rememberyao.ExpoWidgetsTarget",
+                  "bundleIdentifier": "top.youngxhui.rememberyao.k3f9.ExpoWidgetsTarget",
                   "entitlements": {
                     "com.apple.security.application-groups": [
-                      "group.top.youngxhui.rememberyao"
+                      "group.top.youngxhui.rememberyao.k3f9"
                     ]
                   }
                 }
