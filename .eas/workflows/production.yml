@@ -1,0 +1,44 @@
+name: Production builds
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+concurrency:
+  group: production
+  cancel_in_progress: false
+
+jobs:
+  build_ios_production:
+    name: Build iOS production
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  build_android_production:
+    name: Build Android production
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  comment:
+    name: Comment production builds
+    needs: [build_ios_production, build_android_production]
+    type: github-comment
+    params:
+      message: |
+        ## 🚀 Production builds
+
+        | Platform | Version | Build | Build ID |
+        | -------- | ------- | ----- | ------- |
+        | iOS | `${{ needs.build_ios_production.outputs.app_version }}` | `${{ needs.build_ios_production.outputs.app_build_version }}` | `${{ needs.build_ios_production.outputs.build_id }}` |
+        | Android | `${{ needs.build_android_production.outputs.app_version }}` | `${{ needs.build_android_production.outputs.app_build_version }}` | `${{ needs.build_android_production.outputs.build_id }}` |
+
+        *Not submitted to the stores. Submit manually from the [EAS Dashboard](https://expo.dev/accounts/youngxhui/projects/remember-yao/builds).*
+      build_ids:
+        - ${{ needs.build_ios_production.outputs.build_id }}
+        - ${{ needs.build_android_production.outputs.build_id }}

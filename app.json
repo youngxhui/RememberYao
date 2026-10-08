@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "RememberYao",
-    "slug": "RememberYao",
+    "slug": "remember-yao",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,9 +10,11 @@
     "ios": {
       "deploymentTarget": "26.0",
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.youngxhui.RememberYao"
+      "bundleIdentifier": "top.youngxhui.rememberyao",
+      "infoPlist": {}
     },
     "android": {
+      "package": "top.youngxhui.rememberyao",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -41,6 +43,34 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ExpoWidgetsTarget",
+                  "bundleIdentifier": "top.youngxhui.rememberyao.ExpoWidgetsTarget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.top.youngxhui.rememberyao"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "f0af2784-8ff7-40fa-a002-4fdb35957b38"
+      }
+    },
+    "owner": "youngxhui"
   }
 }
