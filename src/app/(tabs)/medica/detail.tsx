@@ -59,11 +59,15 @@ export default function MedicationDetailScreen() {
       <>
         <Stack.Screen.BackButton displayMode="minimal" />
         <Host style={{ flex: 1 }}>
-          <Column alignment="center" style={{ paddingTop: 120 }}>
+          {/* 同药品库空态：VStack 按内容收缩贴 leading，单靠 alignment="center"
+              只会让文案停在左上角。用 HStack + 左右弹性 Spacer 压到中线 */}
+          <Row alignment="center" style={{ paddingTop: 120 }}>
+            <Spacer flexible />
             <Text textStyle={{ color: theme.textSecondary }}>
               {t("medication.notFound")}
             </Text>
-          </Column>
+            <Spacer flexible />
+          </Row>
         </Host>
       </>
     );

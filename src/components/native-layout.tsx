@@ -63,6 +63,23 @@ export type NativeConcentricShape = (
  */
 export type NativeContinuousShape = (radius: number) => NativeModifier[];
 
+/**
+ * 液态玻璃 chip 的 modifier（iOS 26 Liquid Glass）。
+ *
+ * iOS 用 `glassEffect(.regular, in: .capsule)`：磨砂底与高光描边由系统绘制，JS 侧
+ * 不能再叠 `backgroundColor` / `borderWidth` —— 实色会把玻璃糊成一片，只剩一个
+ * 药丸轮廓。激活态加 `.tint()` 上品牌色，与未激活的透明玻璃分层，替代老写法
+ * 「深墨实心」；品牌色本身仍只做着色、不抢内容。
+ *
+ * 返回 `null` 表示当前平台没有液态玻璃能力。Compose 没有对应物，web 也没有 ——
+ * 见各平台文件里的说明。
+ */
+export type NativeChipModifiers = (options: {
+  active: boolean;
+  /** 激活态玻璃着色，传 `theme.primary` */
+  tint: string;
+}) => NativeModifier[] | null;
+
 export type NativeOnboardingPagerTabProps = {
   value: string;
   children: ReactNode;
@@ -92,6 +109,9 @@ export const nativeConcentricShape: NativeConcentricShape = () => [];
 
 // web / 兜底实现：不加 modifier，style 里的 borderRadius 照常生效
 export const nativeContinuousShape: NativeContinuousShape = () => [];
+
+// web 没有液态玻璃：chip 目前只剩文字，等 web 端要真机呈现时再补实底回退
+export const nativeChipModifiers: NativeChipModifiers = () => null;
 
 function OnboardingPager({ children }: NativeOnboardingPagerProps) {
   return createElement(Fragment, null, children);

@@ -102,8 +102,6 @@ export const en = {
     totalQuantity: "Total quantity",
     notes: "Notes",
     remaining: "Left",
-    listSubtitle: "Every medicine in the house",
-    countBadge: "{count}",
     searchPlaceholder: "Search medicines",
     filterAll: "All",
     filterLow: "Low stock",
@@ -273,10 +271,8 @@ export const en = {
   settings: {
     title: "Settings",
     language: "Language",
-    zhHint: "Simplified Chinese",
-    enHint: "English (US)",
-    languageHint:
-      "Switching applies to the UI and reminder notifications right away",
+    languageSub: "Language used by the app and reminders",
+    sectionGeneral: "General",
     sectionReminder: "Reminders",
     sectionData: "Data",
     sectionAbout: "About",

@@ -51,11 +51,15 @@ export default function PersonDetailScreen() {
       <>
         <Stack.Screen.BackButton displayMode="minimal" />
         <Host style={{ flex: 1 }}>
-          <Column alignment="center" style={{ paddingTop: 120 }}>
+          {/* 同药品详情页：HStack + 弹性 Spacer 才能把文案压到中线，
+              VStack 的 alignment="center" 只在自己那个内容宽的盒子里自居中 */}
+          <Row alignment="center" style={{ paddingTop: 120 }}>
+            <Spacer flexible />
             <Text textStyle={{ color: theme.textSecondary }}>
               {t("person.notFound")}
             </Text>
-          </Column>
+            <Spacer flexible />
+          </Row>
         </Host>
       </>
     );
@@ -108,9 +112,13 @@ export default function PersonDetailScreen() {
           style={{ padding: 16, paddingBottom: 32 }}
           showsIndicators={false}
         >
-          <Column alignment="center" style={{ paddingVertical: 12 }}>
+          {/* 头像居中同样不能靠 VStack 的 alignment：收缩成内容宽后会贴左。
+              左右各一个弹性 Spacer 把它压到中线 */}
+          <Row alignment="center" style={{ paddingVertical: 12 }}>
+            <Spacer flexible />
             <Avatar color={person.avatarColor} name={person.name} size={64} />
-          </Column>
+            <Spacer flexible />
+          </Row>
 
           {basicRows.length > 0 ? (
             <>

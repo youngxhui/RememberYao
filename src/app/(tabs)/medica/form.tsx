@@ -385,7 +385,6 @@ export default function MedicationFormScreen() {
                     testID="medication-prescription-yes"
                     label={t("medication.prescriptionYes")}
                     active={prescription}
-                    inset
                     onPress={() => {
                       setPrescription(true);
                     }}
@@ -394,7 +393,6 @@ export default function MedicationFormScreen() {
                     testID="medication-prescription-no"
                     label={t("medication.prescriptionNo")}
                     active={!prescription}
-                    inset
                     onPress={() => {
                       setPrescription(false);
                     }}

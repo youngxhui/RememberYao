@@ -51,9 +51,11 @@ type CardModel = {
  * `nativeLayout({ unconstrainedWidth })` 可压缩、行尾的状态胶囊按固有宽度排布并
  * 推到边（见 docs/conventions/expo-ui-layout.md）。
  *
- * 大标题走原生 `Stack.Title large`（就是设计稿的 hero-title），内容里只留副标题
- * 和药品数徽章，避免同一个标题在同一屏出现两次；搜索同样走原生的
- * `Stack.SearchBar`（AGENTS 硬规则 13），没有自己拼一个搜索框。
+ * 大标题走原生 `Stack.Title large`（就是设计稿的 hero-title），内容里从搜索栏
+ * 直接进分类筛选行；搜索同样走原生的 `Stack.SearchBar`（AGENTS 硬规则 13），
+ * 没有自己拼一个搜索框。
+ * 设计稿 hero-title 那一行的副标题与「N 种」徽章已去掉：标题上移到导航栏之后，
+ * 这两个元素只是设计稿的残留，药品数在列表里数得出来。
  *
  * 设计稿卡片右端还有个「更多」省略号按钮：它需要一个真能用的菜单，而
  * `@expo/ui` 的 universal 层没有 `Menu`（`swift-ui/Menu` 是 iOS-only，
@@ -112,7 +114,6 @@ export function Medica() {
               paddingVertical: Spacing.three,
             }}
           >
-            <ListIntro total={medications.length} />
             <FilterRow filter={filter} onSelect={setFilter} />
             <MedicationList
               cards={cards}
@@ -151,48 +152,6 @@ export function buildMedicationCards(
     cards.push({ medication, level });
   }
   return cards;
-}
-
-/**
- * 副标题 + 药品数徽章。设计稿把副标题和徽章放在 hero-title 同一行；标题交给
- * `Stack.Title` 之后只剩这两样，于是合成一行放在筛选行上方。
- */
-function ListIntro({ total }: { total: number }) {
-  const theme = useTheme();
-  const t = useTranslation();
-
-  return (
-    <Row alignment="center" spacing={Spacing.two}>
-      <Column modifiers={[nativeLayout({ unconstrainedWidth: true })]}>
-        <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>
-          {t("medication.listSubtitle")}
-        </Text>
-      </Column>
-      <Spacer flexible />
-      <Row
-        alignment="center"
-        spacing={6}
-        style={{
-          borderRadius: Radius.pill,
-          backgroundColor: theme.primary,
-          paddingHorizontal: Spacing.three,
-          paddingVertical: 10,
-        }}
-      >
-        <Icon name="pills.fill" size={18} color={theme.onPrimary} />
-        <Text
-          textStyle={{
-            fontFamily: Fonts.mono,
-            fontSize: 14,
-            fontWeight: "700",
-            color: theme.onPrimary,
-          }}
-        >
-          {t("medication.countBadge", { count: total })}
-        </Text>
-      </Row>
-    </Row>
-  );
 }
 
 function MedicationList({
@@ -375,33 +334,48 @@ function EmptyState({ body }: { body: Path }) {
   const t = useTranslation();
 
   return (
-    <Column alignment="center" spacing={Spacing.two} style={{ paddingTop: 60 }}>
-      <Icon
-        name="bookmark"
-        size={56}
-        color={withAlpha(theme.textSecondary, 0.4)}
-        accessibilityLabel={t(body)}
-      />
-      <Text
-        textStyle={{
-          fontSize: 17,
-          fontWeight: "700",
-          color: theme.textSecondary,
-          textAlign: "center",
-        }}
+    // 居中靠外层 Row 的左右弹性 Spacer，不是 Column 自己的 alignment="center"：
+    // VStack 按内容收缩并贴父容器-leading，center 只是在这个窄盒子里自居中，
+    // 整块空态会挤在屏幕左侧（就是上报的那个 bug）。
+    // 也不能用 `nativeLayout({ fullWidth: true })` 的 maxWidth: Infinity ——
+    // medica/form.tsx 的 PhotoScanArea 真机实测过，同位置下仍是小方块。
+    // HStack + Spacer flexible 能撑满（同屏药品卡里把库存胶囊推到行尾的那对
+    // `Spacer flexible` 就是这写法）。
+    <Row alignment="center">
+      <Spacer flexible />
+      <Column
+        alignment="center"
+        spacing={Spacing.two}
+        style={{ paddingTop: 60 }}
       >
-        {t("medication.emptyTitle")}
-      </Text>
-      <Text
-        textStyle={{
-          fontSize: 13,
-          color: theme.textSecondary,
-          textAlign: "center",
-        }}
-      >
-        {t(body)}
-      </Text>
-    </Column>
+        <Icon
+          name="bookmark"
+          size={56}
+          color={withAlpha(theme.textSecondary, 0.4)}
+          accessibilityLabel={t(body)}
+        />
+        <Text
+          textStyle={{
+            fontSize: 17,
+            fontWeight: "700",
+            color: theme.textSecondary,
+            textAlign: "center",
+          }}
+        >
+          {t("medication.emptyTitle")}
+        </Text>
+        <Text
+          textStyle={{
+            fontSize: 13,
+            color: theme.textSecondary,
+            textAlign: "center",
+          }}
+        >
+          {t(body)}
+        </Text>
+      </Column>
+      <Spacer flexible />
+    </Row>
   );
 }
 

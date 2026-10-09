@@ -23,6 +23,11 @@ export const Colors = {
     primary: "#0F766E",
     onPrimary: "#FFFFFF",
     primarySoft: "#E6F4F1",
+    // 液态玻璃 chip 的文字色。玻璃的明暗由背后的页面底色决定，不随明暗模式翻面，
+    // 所以两端共用同一组值（同 archive 的「纸与印刷色」是实物）：
+    // 选中态底是品牌色玻璃（偏深）配白字，未选中态是透明玻璃（偏亮）配黑字
+    onGlassChipActive: "#FFFFFF",
+    onGlassChipInactive: "#000000",
     // 服药状态：已服 / 即将到期 / 漏服
     success: "#16A34A",
     successSoft: "#EAF6EE",
@@ -77,6 +82,9 @@ export const Colors = {
     primary: "#2DD4BF",
     onPrimary: "#062B27",
     primarySoft: "#14312D",
+    // 同 light：玻璃 chip 的文字色不随明暗模式翻面
+    onGlassChipActive: "#FFFFFF",
+    onGlassChipInactive: "#000000",
     success: "#4ADE80",
     successSoft: "#132B1C",
     warning: "#FBBF24",

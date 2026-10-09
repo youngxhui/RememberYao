@@ -24,7 +24,7 @@ import {
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useMedicationExport } from "@/hooks/use-medication-export";
 import { useTheme } from "@/hooks/use-theme";
-import { useTranslation } from "@/i18n";
+import { LANGUAGE_LABELS, LANGUAGES, useI18n } from "@/i18n";
 import {
   isNotificationEnabled,
   requestNotificationPermission,
@@ -46,7 +46,7 @@ const DEFAULT_QUIET_END = "07:00";
 type SettingIconName = ComponentProps<typeof Icon>["name"];
 
 /**
- * 设置页：提醒 / 家庭照护 / 数据 / 关于 四组。
+ * 设置页：通用 / 提醒 / 数据 / 关于 四组。
  * 视觉基准 = design/settings.html。
  *
  * 分组容器用 `@expo/ui` 的 `FieldGroup`（iOS = SwiftUI Form）—— 与同栈的
@@ -60,10 +60,14 @@ type SettingIconName = ComponentProps<typeof Icon>["name"];
  * 行首图标保留品牌色底块（design 的 .setting-icon）以维持品牌感；Switch /
  * Picker / DateTimePicker 都是真原生控件 —— RN 的 Switch 已被 oxlint 禁用，
  * 手搓一个只会更不像。每个开关都接真实的 store / 通知行为，没有假开关。
+ *
+ * 「语言」用行内 `Picker` 而不是跳独立页面：只有两个选项，单独一屏反而是绕路。
+ * 语言存在 i18n 的 Context 里，切完本屏自然跟着重渲染；通知栏文案由根
+ * `_layout` 监听 language 重注册。
  */
 export function Settings() {
   const theme = useTheme();
-  const t = useTranslation();
+  const { t, language, setLanguage } = useI18n();
   const exportReport = useMedicationExport();
   const { settings, reload } = useAppData();
   const [permissionGranted, setPermissionGranted] = useState(true);
@@ -99,6 +103,32 @@ export function Settings() {
       <Stack.Title large>{t("settings.title")}</Stack.Title>
       <Host seedColor={theme.primary} style={{ flex: 1 }}>
         <FieldGroup>
+          {/* ── 通用 ── */}
+          <FieldGroup.Section title={t("settings.sectionGeneral")}>
+            <SettingRow
+              icon="globe"
+              label={t("settings.language")}
+              sub={t("settings.languageSub")}
+              trailing={
+                <Picker
+                  testID="settings-language-picker"
+                  selectedValue={language}
+                  onValueChange={(value) => {
+                    setLanguage(value);
+                  }}
+                >
+                  {LANGUAGES.map((lang) => (
+                    <Picker.Item
+                      key={lang}
+                      label={LANGUAGE_LABELS[lang]}
+                      value={lang}
+                    />
+                  ))}
+                </Picker>
+              }
+            />
+          </FieldGroup.Section>
+
           {/* ── 提醒 ── */}
           <FieldGroup.Section title={t("settings.sectionReminder")}>
             <SettingRow

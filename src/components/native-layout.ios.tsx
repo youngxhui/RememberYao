@@ -6,6 +6,7 @@ import {
   createModifier,
   fixedSize,
   frame,
+  glassEffect,
   listRowInsets,
   tabViewStyle,
 } from "@expo/ui/swift-ui/modifiers";
@@ -13,6 +14,7 @@ import { Children, isValidElement, type ReactElement } from "react";
 
 import type {
   NativeButtonModifiers,
+  NativeChipModifiers,
   NativeContinuousShape,
   NativeConcentricShape,
   NativeFieldModifiers,
@@ -63,6 +65,24 @@ export const nativeContinuousShape: NativeContinuousShape = (
     shape: "roundedRectangle",
     cornerRadius: radius,
     roundedCornerStyle: "continuous",
+  }),
+];
+
+/**
+ * iOS 26 液态玻璃 chip。
+ *
+ * 不套 `GlassEffectContainer`：容器是用来让多个玻璃效果「融合」的，而筛选行的
+ * chip 之间有 8pt 间距，本来也融不到一起；单个 `glassEffect` 在容器外同样正常
+ * 渲染，少引一个 iOS-only 组件就少一处平台分裂。
+ *
+ * 不给 `interactive`：它会让玻璃在按压时放大 / 回弹，而筛选 chip 是「看一眼就
+ * 点一下」的低调控件，那个形变太抢戏。激活态才给 `tint`：未激活保持透明玻璃，
+ * 选中那颗被品牌色染出层次。
+ */
+export const nativeChipModifiers: NativeChipModifiers = ({ active, tint }) => [
+  glassEffect({
+    glass: active ? { variant: "regular", tint } : { variant: "regular" },
+    shape: "capsule",
   }),
 ];
 

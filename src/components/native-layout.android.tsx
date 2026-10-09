@@ -17,6 +17,7 @@ import {
 
 import type {
   NativeButtonModifiers,
+  NativeChipModifiers,
   NativeContinuousShape,
   NativeConcentricShape,
   NativeFieldModifiers,
@@ -54,6 +55,11 @@ export const nativeConcentricShape: NativeConcentricShape = () => [];
 
 // 同上：Compose 原生就是所需圆角，不需要额外 modifier
 export const nativeContinuousShape: NativeContinuousShape = () => [];
+
+// Compose 没有 Liquid Glass：Android 上 chip 目前只剩文字，没有底色也没有描边。
+// 已知缺口，等 android/ 生成后按那边的实际能力补（Compose 的 background/border
+// 走 `modifiers` 逃生舱会落在 padding 内侧、盒子模型不对，得连同内边距一起搬过来）
+export const nativeChipModifiers: NativeChipModifiers = () => null;
 
 function pageValue(child: React.ReactNode): string | undefined {
   if (!isValidElement(child)) return undefined;

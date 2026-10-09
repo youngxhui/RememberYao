@@ -9,7 +9,6 @@ export default function ProfileLayout() {
         <Stack.Screen name="persons" />
         <Stack.Screen name="person-detail" />
         <Stack.Screen name="plan-form" />
-        <Stack.Screen name="language" />
         <Stack.Screen name="settings" />
       </Stack>
     </>

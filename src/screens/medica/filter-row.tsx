@@ -30,8 +30,8 @@ const MEDICA_FILTERS: { key: MedicaFilter; label: Path }[] = [
  * 原生滚动容器由系统按手势方向仲裁，真机上横滑、竖滑互不干扰。
  *
  * 5 个 chip 加间距约 440pt，比内容区（屏宽 − 2×`Spacing.screen`）宽，所以必须横滑。
- * 滑到底时末位 chip 与屏幕右缘的留白来自外层 `Column` 的 `paddingHorizontal`，
- * 这里不再补尾部间距（补了会让内容恒定多出一段可滑距离）。
+ * 滑到底时末位 chip 与屏幕右缘的留白来自内层 `Row` 的 `padding`（首尾各 8pt），
+ * 和外层 `Column` 的 `paddingHorizontal` 叠起来刚好让 chip 不顶边。
  */
 export function FilterRow({
   filter,
@@ -44,7 +44,9 @@ export function FilterRow({
 
   return (
     <ScrollView direction="horizontal" showsIndicators={false}>
-      <Row spacing={Spacing.two}>
+      {/* 整行补一圈内边距：液态玻璃的高光棱线外扩超出胶囊本身，紧贴 ScrollView
+          边界会被裁掉一截；左右各 8pt 也让首尾 chip 不顶边 */}
+      <Row spacing={Spacing.three} style={{ padding: Spacing.two }}>
         {MEDICA_FILTERS.map((item) => (
           <Chip
             key={item.key}
