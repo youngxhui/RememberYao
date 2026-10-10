@@ -1,7 +1,7 @@
 appId: top.youngxhui.rememberyao.k3f9
 ---
 # 用药配置（plan-form）创建 + 成员详情页用药配置行的验证：
-# 1) plan-form 的 Picker（药品/用药人，iOS menu 样式）首次在模拟器上验证；
+# 1) plan-form 的用药人 Picker（iOS menu 样式）与药品多选列表；
 # 2) person-detail 的用药配置行走 SectionCard + 发丝线 —— 原 List 嵌 ScrollView
 #    塌陷 bug（iOS = SwiftUI List 滚动容器）修复后，配置行要真实占高渲染。
 #
@@ -103,19 +103,17 @@ appId: top.youngxhui.rememberyao.k3f9
     id: "plan-add-button"
 - extendedWaitUntil:
     visible:
-      id: "plan-medication-picker"
+      id: "plan-person-picker"
     timeout: 20000
 
-# 药品 Picker：menu 样式，点开选「Amoxil」
-- tapOn:
-    id: "plan-medication-picker"
+# 药品是多选列表（每行一个 checkbox，label 就是药名）：点药名那一行勾选
 - extendedWaitUntil:
     visible: "Amoxil"
     timeout: 10000
 - tapOn: "Amoxil"
 - waitForAnimationToEnd
 
-# 用药人 Picker：点开选「Mom」
+# 用药人 Picker：menu 样式，点开选「Mom」
 - extendedWaitUntil:
     visible:
       id: "plan-person-picker"
@@ -129,7 +127,7 @@ appId: top.youngxhui.rememberyao.k3f9
 - waitForAnimationToEnd
 
 # 剂量默认 1、次数默认每日 1 次、时间默认 08:00、日期默认今天，直接保存
-# 表单较长的编辑页保存键在底部，先滚到可见再点
+# 表单是 ScrollView，保存按钮在内容末尾，先滚过去
 - scrollUntilVisible:
     element:
       id: "plan-save-button"
@@ -155,17 +153,17 @@ appId: top.youngxhui.rememberyao.k3f9
     visible: ".*2026-09-28 起 · 长期.*"
     timeout: 10000
 
-# ── 点配置行进编辑：plan-form 里 Picker 已按已存值选中 ──
+# ── 点配置行进编辑：plan-form 里已按已存值回填 ──
 - tapOn: "服用中"
-# 编辑表单较长：先确认回填生效
+# 编辑表单较长：勾中的那味药下方会出现「药名 · 每次剂量（单位）」的剂量字段，
+# 用它确认回填生效（剂量输入框的 testID 带药 id，脚本拿不到）
 - extendedWaitUntil:
-    visible:
-      id: "plan-dose-input"
+    visible: ".*每次剂量（片）.*"
     timeout: 20000
 - assertVisible: "编辑用药配置"
-# 编辑页底部的「删除该配置」按钮（SwiftUI Form 末行紧贴 tab 栏）对 Maestro 合成
-# tap 不响应（同构造的保存键正常），属自动化怪癖而非 app bug —— 删除配置的验证
-# 留给手工/真机，这里不迁就。直接返回详情页收尾。
+# 编辑页底部的「删除该配置」按钮历史上对 Maestro 合成 tap 不响应（原先它是 SwiftUI
+# Form 末行、紧贴 tab 栏；表单重做成 ScrollView 后可能已恢复，但未复跑验证）——
+# 删除配置的验证留给手工/真机，这里不迁就。直接返回详情页收尾。
 - tapOn:
     id: "BackButton"
 - extendedWaitUntil:

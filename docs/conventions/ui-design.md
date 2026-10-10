@@ -143,6 +143,32 @@ const theme = useTheme();
 
 当组件的 props 开始描述**内容**（`leftIcon`、`subtitle`、`footerText`、`badgeCount`），停止加 prop，改用 `children`。一个渲染 `children` + token padding 的 `Card` 比带 12 个内容 prop 的 `Card` 活得久。props 只留给上面那四件事。
 
+## 原生自绘控件不要套外盒
+
+`@expo/ui` 里有一部分控件**自己就带 chrome**：菜单 `Picker`（`appearance="menu"`）是一颗
+约 34pt 的品牌色胶囊，compact 日期/时间选择器（`@expo/ui/community/datetime-picker` +
+`display="compact"`）是一颗灰底胶囊。把它们再塞进 `InputShell` 就是「盒子里嵌盒子」——
+双重描边、双重内边距，控件读起来还是不可点的标签。
+
+规则：**只有文字输入套 `InputShell`**；原生自绘控件一律裸放，需要强调时用
+`accentColor={theme.primary}` 上品牌色（日期选择器）、或靠 `Host` 的 `seedColor`
+（菜单 Picker）。
+
+另外，原生日期/时间选择器的**格式跟随 App 语言**，不跟随系统 locale —— 中文界面里弹
+「8:00 AM」很违和。用 `@/i18n` 的 `pickerFormat(language)`：iOS 走 `locale`，Android 的
+12/24 小时制没有 locale 可依，只能显式给 `is24Hour`。
+
+### 日期/时间选择器走 `NativeDatePicker`
+
+社区的 `@expo/ui/community/datetime-picker` 把原生 `DatePicker` 包在一个 `Host`
+（`matchContents`）里 —— 那是在 Expo UI 的原生树里嵌了一块 RN island，而 RN island 在
+SwiftUI 栈里的定位不可靠：放进 `Column` 会顶出父容器的内边距，放进 `Row` 会纵向偏移
+（plan-form 真机实测，表现为「选择器和标签对不齐」）。
+
+所以日期/时间选择一律用 `src/components/native-date-picker.{tsx,ios.tsx,android.tsx}`：
+iOS 直接渲染 SwiftUI `DatePicker`（compact 样式），由外层 VStack / HStack 正常排布；
+Android / web 继续用社区组件。三份实现的 props 必须完全一致。
+
 ## 什么时候抽公共组件
 
 **三个条件全部满足**才提升到 `src/components/`：

@@ -9,7 +9,6 @@ import {
   TextInput,
   useNativeState,
 } from "@expo/ui";
-import { DateTimePicker } from "@expo/ui/community/datetime-picker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
@@ -25,11 +24,12 @@ import {
   Subtitle,
 } from "@/components/form";
 import { InputShell } from "@/components/input-shell";
+import { NativeDatePicker } from "@/components/native-date-picker";
 import { nativeButtonModifiers } from "@/components/native-layout";
 import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useExpoUiContentWidth } from "@/hooks/use-expo-ui-content-width";
 import { useTheme } from "@/hooks/use-theme";
-import { useTranslation } from "@/i18n";
+import { pickerFormat, useI18n } from "@/i18n";
 import {
   DEFAULT_MEDICATION_CATEGORY,
   MEDICATION_CATEGORIES,
@@ -70,7 +70,8 @@ import {
  */
 export default function MedicationFormScreen() {
   const router = useRouter();
-  const t = useTranslation();
+  const { t, language } = useI18n();
+  const picker = pickerFormat(language);
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditing = Boolean(id);
@@ -469,14 +470,15 @@ export default function MedicationFormScreen() {
               )}
 
               <Field label={t("medication.expiryDate")}>
-                <InputShell spacing={Spacing.rowGap}>
+                <Row alignment="center" spacing={Spacing.rowGap}>
                   {expiryDate ? (
-                    <DateTimePicker
+                    <NativeDatePicker
                       testID="medication-expiry-picker"
                       value={dateFromKey(expiryDate)}
                       mode="date"
-                      display="compact"
-                      onValueChange={(_, date) => {
+                      accentColor={theme.primary}
+                      locale={picker.locale}
+                      onValueChange={(date) => {
                         setExpiryDate(dateKey(date));
                       }}
                     />
@@ -506,7 +508,7 @@ export default function MedicationFormScreen() {
                   >
                     {expiryDate ? t("common.clear") : t("medication.expirySet")}
                   </Text>
-                </InputShell>
+                </Row>
               </Field>
             </FormSection>
 

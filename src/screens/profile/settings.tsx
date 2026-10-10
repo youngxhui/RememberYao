@@ -11,7 +11,6 @@ import {
   Switch,
   Text,
 } from "@expo/ui";
-import { DateTimePicker } from "@expo/ui/community/datetime-picker";
 import Constants from "expo-constants";
 import { Stack, useFocusEffect } from "expo-router";
 import {
@@ -21,10 +20,11 @@ import {
   type ReactNode,
 } from "react";
 
+import { NativeDatePicker } from "@/components/native-date-picker";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useMedicationExport } from "@/hooks/use-medication-export";
 import { useTheme } from "@/hooks/use-theme";
-import { LANGUAGE_LABELS, LANGUAGES, useI18n } from "@/i18n";
+import { LANGUAGE_LABELS, LANGUAGES, pickerFormat, useI18n } from "@/i18n";
 import {
   isNotificationEnabled,
   requestNotificationPermission,
@@ -49,8 +49,10 @@ type SettingIconName = ComponentProps<typeof Icon>["name"];
  * 设置页：通用 / 提醒 / 数据 / 关于 四组。
  * 视觉基准 = design/settings.html。
  *
- * 分组容器用 `@expo/ui` 的 `FieldGroup`（iOS = SwiftUI Form）—— 与同栈的
- * plan-form、persons 同一套写法；分组标题走原生 `FieldGroup.Section title`，
+ * 分组容器用 `@expo/ui` 的 `FieldGroup`（iOS = SwiftUI Form）—— 设置页是「左标签 +
+ * 整行分隔」分组行的正解；表单页（添加药品 / 添加家庭成员 / 用药配置）走
+ * `@/components/form` 的卡片排版（label 在上、控件收在圆角描边盒子里），两套别混。
+ * 分组标题走原生 `FieldGroup.Section title`，
  * 行用统一的 `Row` 自己排布（[图标] 文本 …弹性空白… [右端控件]），行内边距、分组
  * 圆角与分隔线交给原生表单，不再自己拼描边卡片。
  *
@@ -68,6 +70,7 @@ type SettingIconName = ComponentProps<typeof Icon>["name"];
 export function Settings() {
   const theme = useTheme();
   const { t, language, setLanguage } = useI18n();
+  const picker = pickerFormat(language);
   const exportReport = useMedicationExport();
   const { settings, reload } = useAppData();
   const [permissionGranted, setPermissionGranted] = useState(true);
@@ -324,15 +327,16 @@ export function Settings() {
                     <Row alignment="center">
                       <Text>{t("settings.quietRange")}</Text>
                       <Spacer flexible />
-                      <DateTimePicker
+                      <NativeDatePicker
                         testID="settings-quiet-start"
                         value={timeToDate(
                           settings.quietStart ?? DEFAULT_QUIET_START,
                         )}
                         mode="time"
-                        display="compact"
-                        is24Hour
-                        onValueChange={(_, date) => {
+                        accentColor={theme.primary}
+                        locale={picker.locale}
+                        is24Hour={picker.is24Hour}
+                        onValueChange={(date) => {
                           void setQuietHours(
                             dateToTime(date),
                             settings.quietEnd ?? DEFAULT_QUIET_END,
@@ -340,15 +344,16 @@ export function Settings() {
                         }}
                       />
                       <Text textStyle={{ color: theme.textSecondary }}>–</Text>
-                      <DateTimePicker
+                      <NativeDatePicker
                         testID="settings-quiet-end"
                         value={timeToDate(
                           settings.quietEnd ?? DEFAULT_QUIET_END,
                         )}
                         mode="time"
-                        display="compact"
-                        is24Hour
-                        onValueChange={(_, date) => {
+                        accentColor={theme.primary}
+                        locale={picker.locale}
+                        is24Hour={picker.is24Hour}
+                        onValueChange={(date) => {
                           void setQuietHours(
                             settings.quietStart ?? DEFAULT_QUIET_START,
                             dateToTime(date),

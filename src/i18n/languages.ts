@@ -25,6 +25,20 @@ export function resolveDictionary(
   return dictionaries[language] ?? dictionaries[DEFAULT_LANGUAGE];
 }
 
+/**
+ * 原生日期 / 时间选择器的显示格式：跟 App 语言走，不跟系统 locale ——
+ * 中文界面里弹一个「8:00 AM」很违和（日期时间格式由界面语言决定，不硬编码语序）。
+ *
+ * `locale` 只有 iOS 认；Android 的 12/24 小时制没有 locale 可依，只能显式给
+ * `is24Hour`。
+ */
+export function pickerFormat(language: Language) {
+  return {
+    locale: language === "zh" ? "zh-Hans" : "en",
+    is24Hour: language === "zh",
+  };
+}
+
 export type TranslationTree = { [key: string]: string | TranslationTree };
 
 /** 路径取值：`t("a.b.c")`；缺失时返回 fallback 或 key，便于一眼看出漏翻 */

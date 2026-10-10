@@ -1432,9 +1432,13 @@ export async function deletePerson(id: string): Promise<void> {
 
 // ─── 用药配置 CRUD ────────────────────────────────────────
 
-export async function addPlan(
-  input: Omit<MedicationPlan, "id" | "createdAt" | "updatedAt">,
-): Promise<MedicationPlan> {
+/** 新建用药配置的入参 */
+type PlanInput = Omit<MedicationPlan, "id" | "createdAt" | "updatedAt">;
+
+/** 更新用药配置的补丁 */
+type PlanPatch = Partial<Omit<MedicationPlan, "id" | "createdAt">>;
+
+export async function addPlan(input: PlanInput): Promise<MedicationPlan> {
   const now = nowIso();
   const plan: MedicationPlan = {
     ...input,
@@ -1453,10 +1457,7 @@ export async function addPlan(
  * 这样修改时间/剂量/停用都会立即反映到未来的提醒上；
  * 已服用/已跳过/已漏服的记录作为历史保留。
  */
-export async function updatePlan(
-  id: string,
-  patch: Partial<Omit<MedicationPlan, "id" | "createdAt">>,
-): Promise<void> {
+export async function updatePlan(id: string, patch: PlanPatch): Promise<void> {
   await updateData((data) => {
     const plans = data.plans.map((p) =>
       p.id === id ? { ...p, ...patch, updatedAt: nowIso() } : p,
@@ -1476,6 +1477,53 @@ export async function deletePlan(id: string): Promise<void> {
     plans: data.plans.filter((p) => p.id !== id),
     reminders: data.reminders.filter((r) => r.planId !== id),
   }));
+}
+
+/**
+ * 一次落多笔用药配置变更（新增 / 更新 / 删除），只重排一次通知。
+ *
+ * 「为一位家人一次配多种药」会同时写好几笔配置。逐笔调 addPlan / updatePlan 的话，
+ * 每笔都会触发一次全量通知重排（先 cancelAll 再逐条重排），选四种药就闪四次；
+ * 这里合成一次写库 + 一次 syncRemindersIn，语义与逐笔调用完全一致。
+ */
+export async function applyPlanChanges(changes: {
+  add?: PlanInput[];
+  update?: { id: string; patch: PlanPatch }[];
+  remove?: string[];
+}): Promise<void> {
+  const add = changes.add ?? [];
+  const update = changes.update ?? [];
+  const remove = changes.remove ?? [];
+  if (add.length === 0 && update.length === 0 && remove.length === 0) return;
+  const now = nowIso();
+  const updatedIds = new Set(update.map((u) => u.id));
+  const removedIds = new Set(remove);
+  await updateData((data) => {
+    const created = add.map((input) => ({
+      ...input,
+      id: genId(),
+      createdAt: now,
+      updatedAt: now,
+    }));
+    const plans = [
+      ...data.plans
+        .filter((p) => !removedIds.has(p.id))
+        .map((p) => {
+          const patch = update.find((u) => u.id === p.id)?.patch;
+          return patch ? { ...p, ...patch, updatedAt: now } : p;
+        }),
+      ...created,
+    ];
+    // 被改的配置：尚未处理的提醒作废，交给 syncRemindersIn 按新配置重生成
+    // （已服用 / 已跳过 / 已漏服作为历史保留，同 updatePlan）；
+    // 被删的配置连提醒一起走（同 deletePlan）
+    const reminders = data.reminders.filter(
+      (r) =>
+        !removedIds.has(r.planId) &&
+        !(updatedIds.has(r.planId) && r.status === "pending"),
+    );
+    return syncRemindersIn({ ...data, plans, reminders });
+  });
 }
 
 // ─── 提醒处理（核心闭环） ─────────────────────────────────
