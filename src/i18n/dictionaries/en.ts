@@ -229,6 +229,7 @@ export const en = {
     person: "Person",
     personPlaceholder: "Choose a person",
     personHint: "This page configures medications for this person",
+    personFixedHint: "Configuring for this member — go back to switch",
     noPersonHint: "No family members yet — add one in Profile first",
     startDate: "Start date",
     endDate: "End date",

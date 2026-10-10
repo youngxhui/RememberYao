@@ -217,6 +217,7 @@ export const zh = {
     person: "用药人",
     personPlaceholder: "请选择用药人",
     personHint: "这里配置的是这位家人的用药",
+    personFixedHint: "为 TA 配置用药，换人请返回上一步",
     noPersonHint: "还没有家庭成员，去「我的」添加后再配置",
     startDate: "开始日期",
     endDate: "结束日期",

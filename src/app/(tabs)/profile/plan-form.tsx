@@ -14,6 +14,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
+import { MemberAvatar } from "@/components/avatar";
 import {
   ChipField,
   ErrorText,
@@ -52,9 +53,13 @@ const DEFAULT_DOSE = "1";
  * 用药配置：**先定人，再定他要吃的那些药**。
  *
  * 人与药是一对多 —— 一味药可以好几个人吃，一个人也可以同时吃好几味药。所以这一页
- * 的主语是「用药人」（单选），药品是**可多选**的一组：勾几味药就一次落几条配置，
- * 每味药各自的剂量单独填（单位不同：片 / 粒 / ml），而服用时间与起止日期是这组药
- * 共用的。编辑态同理：原来那味药被取消勾选，保存时就移除那条配置。
+ * 的主语是「用药人」，药品是**可多选**的一组：勾几味药就一次落几条配置，每味药各自
+ * 的剂量单独填（单位不同：片 / 粒 / ml），而服用时间与起止日期是这组药共用的。编辑态
+ * 同理：原来那味药被取消勾选，保存时就移除那条配置。
+ *
+ * 用药人是不是「可改」取决于入口：从用药人详情进来（`params.personId`）时人已经定了，
+ * 只读展示头像 + 姓名，不再摆选择器；从药品详情进来（`params.medicationId`）时不知道
+ * 谁吃，才给菜单 Picker 选。
  *
  * 排版与添加药品（`src/app/(tabs)/medica/form.tsx`）、添加家庭成员
  * （`src/app/(tabs)/profile/persons.tsx`）共用 `@/components/form` 的基元：画布底 +
@@ -86,7 +91,9 @@ export default function PlanFormScreen() {
   const isEditing = Boolean(params.id);
   const { medications, persons, plans, loading } = useAppData();
 
-  const [loaded, setLoaded] = useState(!isEditing);
+  // 首屏等 SQLite 载入再渲染：medications / persons 空着会闪一下「药箱还是空的」，
+  // 编辑态还会把回填闪成新建态（AGENTS.md：首屏加载没结束时不显示 empty 态）
+  const [loaded, setLoaded] = useState(false);
   const [personId, setPersonId] = useState(params.personId ?? "");
   // 勾选的药 → 每次剂量文本。用映射而不是单值：一个人可同时配多味药，
   // 每味药的单位不同，剂量必须逐味记。有键即「已勾选」
@@ -106,23 +113,24 @@ export default function PlanFormScreen() {
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // 编辑模式下只填充一次：等数据加载完再填，避免把用户已输入的内容覆盖掉
+  // 数据就绪后只填充一次：等 plans 载入完再填，避免把用户已输入的内容覆盖掉
   const filledRef = useRef(false);
   useEffect(() => {
-    if (!params.id) return;
     if (filledRef.current || loading) return;
     filledRef.current = true;
-    const existing = plans.find((p) => p.id === params.id);
-    if (existing) {
-      setPersonId(existing.personId);
-      setDoses({ [existing.medicationId]: String(existing.doseAmount) });
-      setEditingMedicationId(existing.medicationId);
-      setTimesPerDay(existing.times.length);
-      setTimes(existing.times);
-      setStartDate(existing.startDate);
-      setHasEndDate(Boolean(existing.endDate));
-      if (existing.endDate) setEndDate(existing.endDate);
-      setEnabled(existing.enabled);
+    if (params.id) {
+      const existing = plans.find((p) => p.id === params.id);
+      if (existing) {
+        setPersonId(existing.personId);
+        setDoses({ [existing.medicationId]: String(existing.doseAmount) });
+        setEditingMedicationId(existing.medicationId);
+        setTimesPerDay(existing.times.length);
+        setTimes(existing.times);
+        setStartDate(existing.startDate);
+        setHasEndDate(Boolean(existing.endDate));
+        if (existing.endDate) setEndDate(existing.endDate);
+        setEnabled(existing.enabled);
+      }
     }
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -271,6 +279,8 @@ export default function PlanFormScreen() {
   // 勾中的药按药品库顺序渲染：不用 Object.keys(doses)，勾选顺序会随点序变化，
   // 列表会跟着跳
   const selected = medications.filter((m) => doses[m.id] !== undefined);
+  // 入口带 personId（用药人详情）时主语已定；人已被删才退回选择器
+  const presetPerson = persons.find((p) => p.id === params.personId);
 
   return (
     <>
@@ -295,24 +305,48 @@ export default function PlanFormScreen() {
 
             {/* ── 用药人：这一页的主语。人与药一对多，先定人再定他的药 ── */}
             <FormSection title={t("plan.sectionPerson")}>
-              <Field label={t("plan.person")}>
-                <Picker
-                  testID="plan-person-picker"
-                  appearance="menu"
-                  selectedValue={personId}
-                  onValueChange={(value) => setPersonId(value as string)}
+              {presetPerson ? (
+                /* 从用药人详情进来时人已经定了（params.personId）：不再给选择器，
+                   直接显示是谁 —— 摆一个能改的选择器会让人以为还能换人 */
+                <Row
+                  alignment="center"
+                  spacing={Spacing.rowGap}
+                  style={{ paddingVertical: Spacing.two }}
                 >
-                  <Picker.Item label={t("plan.personPlaceholder")} value="" />
-                  {persons.map((p) => (
-                    <Picker.Item key={p.id} label={p.name} value={p.id} />
-                  ))}
-                </Picker>
-              </Field>
+                  <MemberAvatar
+                    color={presetPerson.avatarColor}
+                    name={presetPerson.name}
+                    size={36}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    textStyle={{ fontSize: 17, fontWeight: "600" }}
+                  >
+                    {presetPerson.name}
+                  </Text>
+                </Row>
+              ) : (
+                <Field label={t("plan.person")}>
+                  <Picker
+                    testID="plan-person-picker"
+                    appearance="menu"
+                    selectedValue={personId}
+                    onValueChange={(value) => setPersonId(value as string)}
+                  >
+                    <Picker.Item label={t("plan.personPlaceholder")} value="" />
+                    {persons.map((p) => (
+                      <Picker.Item key={p.id} label={p.name} value={p.id} />
+                    ))}
+                  </Picker>
+                </Field>
+              )}
               <HintText
                 text={
-                  persons.length === 0
-                    ? t("plan.noPersonHint")
-                    : t("plan.personHint")
+                  presetPerson
+                    ? t("plan.personFixedHint")
+                    : persons.length === 0
+                      ? t("plan.noPersonHint")
+                      : t("plan.personHint")
                 }
               />
             </FormSection>

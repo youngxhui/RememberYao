@@ -1,7 +1,7 @@
 appId: top.youngxhui.rememberyao.k3f9
 ---
 # 用药配置（plan-form）创建 + 成员详情页用药配置行的验证：
-# 1) plan-form 的用药人 Picker（iOS menu 样式）与药品多选列表；
+# 1) plan-form 的用药人多选药品列表（用药人由入口定死，不再给选择器）；
 # 2) person-detail 的用药配置行走 SectionCard + 发丝线 —— 原 List 嵌 ScrollView
 #    塌陷 bug（iOS = SwiftUI List 滚动容器）修复后，配置行要真实占高渲染。
 #
@@ -99,11 +99,11 @@ appId: top.youngxhui.rememberyao.k3f9
     timeout: 20000
 
 # ── 添加用药配置 → plan-form ──
+# 从成员详情进来，用药人已定（Mom）：页面直接显示是谁，不再有用药人选择器
 - tapOn:
     id: "plan-add-button"
 - extendedWaitUntil:
-    visible:
-      id: "plan-person-picker"
+    visible: "Mom"
     timeout: 20000
 
 # 药品是多选列表（每行一个 checkbox，label 就是药名）：点药名那一行勾选
@@ -111,19 +111,6 @@ appId: top.youngxhui.rememberyao.k3f9
     visible: "Amoxil"
     timeout: 10000
 - tapOn: "Amoxil"
-- waitForAnimationToEnd
-
-# 用药人 Picker：menu 样式，点开选「Mom」
-- extendedWaitUntil:
-    visible:
-      id: "plan-person-picker"
-    timeout: 10000
-- tapOn:
-    id: "plan-person-picker"
-- extendedWaitUntil:
-    visible: "Mom"
-    timeout: 10000
-- tapOn: "Mom"
 - waitForAnimationToEnd
 
 # 剂量默认 1、次数默认每日 1 次、时间默认 08:00、日期默认今天，直接保存
