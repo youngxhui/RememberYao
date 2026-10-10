@@ -1,4 +1,5 @@
 import {
+  Button,
   Column,
   Host,
   Icon,
@@ -111,7 +112,6 @@ export function Medica() {
             spacing={Spacing.three}
             style={{
               paddingHorizontal: Spacing.screen,
-              paddingVertical: Spacing.three,
             }}
           >
             <FilterRow filter={filter} onSelect={setFilter} />
@@ -332,6 +332,7 @@ function StockPill({
 function EmptyState({ body }: { body: Path }) {
   const theme = useTheme();
   const t = useTranslation();
+  const router = useRouter();
 
   return (
     // 居中靠外层 Row 的左右弹性 Spacer，不是 Column 自己的 alignment="center"：
@@ -373,6 +374,13 @@ function EmptyState({ body }: { body: Path }) {
         >
           {t(body)}
         </Text>
+        <Button
+          label={t("common.add")}
+          onPress={() => {
+            router.push("/(tabs)/medica/add-options");
+          }}
+          modifiers={[]}
+        />
       </Column>
       <Spacer flexible />
     </Row>

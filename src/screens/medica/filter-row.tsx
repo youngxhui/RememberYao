@@ -46,7 +46,7 @@ export function FilterRow({
     <ScrollView direction="horizontal" showsIndicators={false}>
       {/* 整行补一圈内边距：液态玻璃的高光棱线外扩超出胶囊本身，紧贴 ScrollView
           边界会被裁掉一截；左右各 8pt 也让首尾 chip 不顶边 */}
-      <Row spacing={Spacing.three} style={{ padding: Spacing.two }}>
+      <Row spacing={Spacing.two} style={{ padding: Spacing.one }}>
         {MEDICA_FILTERS.map((item) => (
           <Chip
             key={item.key}

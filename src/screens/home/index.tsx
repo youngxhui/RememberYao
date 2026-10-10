@@ -8,12 +8,11 @@ import {
   Spacer,
   Text,
 } from "@expo/ui";
-import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Linking } from "react-native";
 
 import { ReminderCardStackExpoUI } from "@/components/reminder-card-stack";
-import { RoundIconButton } from "@/components/round-icon-button";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useExpoUiContentWidth } from "@/hooks/use-expo-ui-content-width";
 import { useOnboardingGate } from "@/hooks/use-onboarding-gate";
@@ -56,7 +55,6 @@ function weekdayName(date: Date, locale: string): string {
 export function Home() {
   const theme = useTheme();
   const t = useTranslation();
-  const router = useRouter();
   const checkingOnboarding = useOnboardingGate();
   const { reminders, medications, persons, plans, loading, reload } =
     useAppData();
@@ -112,11 +110,7 @@ export function Home() {
               paddingVertical: Spacing.three,
             }}
           >
-            <HeroHeader
-              onAddMedication={() => {
-                router.push("/(tabs)/medica/add-options");
-              }}
-            />
+            <HeroHeader />
 
             <NotificationBanner />
 
@@ -153,7 +147,7 @@ export function Home() {
 }
 
 /** 巨型日期头部：右侧是添加药品的圆形按钮 */
-function HeroHeader({ onAddMedication }: { onAddMedication: () => void }) {
+function HeroHeader() {
   const theme = useTheme();
   const t = useTranslation();
   const { language } = useI18n();
@@ -200,14 +194,6 @@ function HeroHeader({ onAddMedication }: { onAddMedication: () => void }) {
         </Text>
       </Column>
       <Spacer flexible />
-      <RoundIconButton
-        testID="home-add-medication-button"
-        label={t("home.addMedication")}
-        icon="plus"
-        size={40}
-        iconSize={20}
-        onPress={onAddMedication}
-      />
     </Row>
   );
 }
