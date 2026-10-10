@@ -12,8 +12,8 @@ import { useCallback, useMemo } from "react";
 
 import { AvatarMark } from "@/components/avatar";
 import { MiniArchiveExpoUI } from "@/components/mini-archive";
-import { nativeContinuousShape } from "@/components/native-layout";
 import { RoundIconButton } from "@/components/round-icon-button";
+import { roundedBox } from "@/components/rounded-box";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useExpoUiContentWidth } from "@/hooks/use-expo-ui-content-width";
 import { useTheme } from "@/hooks/use-theme";
@@ -233,23 +233,25 @@ function StatCard({
   valueColor?: string;
 }) {
   const theme = useTheme();
+  const box = roundedBox({
+    color: theme.border,
+    background: theme.surface,
+    radius: Radius.card,
+    width: 1,
+    // 三等分卡靠调用方算好的 width 定宽，不能再喂 frame(maxWidth: .infinity)
+    fullWidth: false,
+  });
   return (
     <Column
       alignment="center"
       spacing={Spacing.one}
       style={{
+        ...box.style,
         width,
         paddingVertical: Spacing.three,
         paddingHorizontal: Spacing.rowGap,
-        borderRadius: Radius.card,
-        borderWidth: 1,
-        borderColor: theme.border,
-        backgroundColor: theme.surface,
       }}
-      // universal style 的 borderRadius 只会生成 clipShape(roundedRectangle)：
-      // 圆弧角在 iOS 上比系统卡片「硬」。这里换成连续曲线圆角
-      // （等价 RN 的 borderCurve: continuous），Android 侧为空实现
-      modifiers={nativeContinuousShape(Radius.card)}
+      modifiers={box.modifiers}
     >
       {/* universal 的 Text 没有 fontVariant：等宽数字拿不到，
           数字位宽偶尔抖 1px，是这层 API 的已知代价 */}
@@ -366,18 +368,20 @@ function MemberCard({
 }) {
   const theme = useTheme();
   const t = useTranslation();
+  const box = roundedBox({
+    color: theme.border,
+    background: theme.surface,
+    radius: Radius.card,
+    width: 1,
+  });
 
   return (
     <Column
       style={{
+        ...box.style,
         padding: Spacing.three,
-        borderRadius: Radius.card,
-        borderWidth: 1,
-        borderColor: theme.border,
-        backgroundColor: theme.surface,
       }}
-      // 同 StatCard：连续曲线圆角，圆角曲线跟系统卡片一致
-      modifiers={nativeContinuousShape(Radius.card)}
+      modifiers={box.modifiers}
     >
       <ListItem
         testID={`profile-member-${person.id}`}

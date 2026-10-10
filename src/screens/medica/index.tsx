@@ -13,6 +13,7 @@ import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 
 import { nativeLayout } from "@/components/native-layout";
+import { roundedBox } from "@/components/rounded-box";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation, type Path } from "@/i18n";
@@ -88,7 +89,7 @@ export function Medica() {
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           onPress={() => {
-            router.push("/(tabs)/medica/add-options");
+            router.push("/(tabs)/medica/form");
           }}
         >
           <Stack.Toolbar.Icon sf="plus" />
@@ -200,6 +201,12 @@ function MedicationCard({ card }: { card: CardModel }) {
   const t = useTranslation();
   const { medication, level } = card;
   const color = useStockColors(level);
+  const box = roundedBox({
+    color: theme.border,
+    background: theme.surface,
+    radius: Radius.card,
+    width: 1,
+  });
 
   return (
     <Row
@@ -215,14 +222,8 @@ function MedicationCard({ card }: { card: CardModel }) {
           params: { id: medication.id },
         });
       }}
-      style={{
-        // borderRadius 在 iOS 上是 clipShape：色条与内容都会被裁进卡片圆角里，
-        // 所以不需要（universal style 也不支持）overflow: hidden
-        borderRadius: Radius.card,
-        borderWidth: 1,
-        borderColor: theme.border,
-        backgroundColor: theme.surface,
-      }}
+      style={box.style}
+      modifiers={box.modifiers}
     >
       <Row
         style={{
@@ -266,18 +267,24 @@ function MedicationCard({ card }: { card: CardModel }) {
 
 function Thumb() {
   const theme = useTheme();
+  const box = roundedBox({
+    color: theme.border,
+    background: theme.primarySoft,
+    radius: 14,
+    width: 1,
+    // 固定尺寸的小盒子：fullWidth 的 frame(maxWidth: .infinity) 会把 style 里的
+    // width / height 顶掉（omitUserOverridden 按 $type 去重）
+    fullWidth: false,
+  });
   return (
     <Row
       alignment="center"
       style={{
+        ...box.style,
         width: THUMB_SIZE,
         height: THUMB_SIZE,
-        // 14 是设计稿 .med-thumb 的圆角，比通用的 Radius.tile 大一号
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: theme.border,
-        backgroundColor: theme.primarySoft,
       }}
+      modifiers={box.modifiers}
     >
       {/* Row 的 frame 只把内容压到纵轴中线，横轴中线靠这层 Column */}
       <Column alignment="center" style={{ width: THUMB_SIZE }}>
@@ -377,7 +384,7 @@ function EmptyState({ body }: { body: Path }) {
         <Button
           label={t("common.add")}
           onPress={() => {
-            router.push("/(tabs)/medica/add-options");
+            router.push("/(tabs)/medica/form");
           }}
           modifiers={[]}
         />

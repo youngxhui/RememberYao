@@ -23,6 +23,7 @@ import type {
   NativeFieldModifiers,
   NativeLayoutOptions,
   NativeOnboardingPagerProps,
+  NativeStrokeBorder,
 } from "@/components/native-layout";
 
 export function nativeLayout({
@@ -55,6 +56,10 @@ export const nativeConcentricShape: NativeConcentricShape = () => [];
 
 // 同上：Compose 原生就是所需圆角，不需要额外 modifier
 export const nativeContinuousShape: NativeContinuousShape = () => [];
+
+// Android 的 borderWidth + borderRadius 由 transformStyle.android.ts 的「分层背景」
+// 合成出圆角描边，本来就对；这里不加 modifier，继续走 style
+export const nativeStrokeBorder: NativeStrokeBorder = () => [];
 
 // Compose 没有 Liquid Glass：Android 上 chip 目前只剩文字，没有底色也没有描边。
 // 已知缺口，等 android/ 生成后按那边的实际能力补（Compose 的 background/border

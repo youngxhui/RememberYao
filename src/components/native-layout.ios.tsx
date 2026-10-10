@@ -21,6 +21,7 @@ import type {
   NativeLayoutOptions,
   NativeOnboardingPagerComponent,
   NativeOnboardingPagerProps,
+  NativeStrokeBorder,
 } from "@/components/native-layout";
 
 export function nativeLayout({
@@ -62,6 +63,27 @@ export const nativeContinuousShape: NativeContinuousShape = (
   radius: number,
 ) => [
   createModifier("clipShape", {
+    shape: "roundedRectangle",
+    cornerRadius: radius,
+    roundedCornerStyle: "continuous",
+  }),
+];
+
+/**
+ * 连续曲线圆角描边：直接拼 `strokeBorder` 的 modifier 配置。
+ *
+ * JS 侧 `strokeBorder` factory 同样没暴露 `roundedCornerStyle`（Swift 侧的
+ * StrokeBorderModifier 收这个字段），所以和 `nativeContinuousShape` 一样手拼。
+ * `style: { lineWidth }` 才是线宽 —— factory 的 `width` 参数不存在。
+ */
+export const nativeStrokeBorder: NativeStrokeBorder = ({
+  color,
+  width,
+  radius,
+}) => [
+  createModifier("strokeBorder", {
+    content: { type: "color", color },
+    style: { lineWidth: width },
     shape: "roundedRectangle",
     cornerRadius: radius,
     roundedCornerStyle: "continuous",

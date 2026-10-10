@@ -489,6 +489,7 @@ function FolderFront({
         {
           ...StyleSheet.absoluteFill,
           borderRadius: FOLDER_RADIUS,
+          borderCurve: "continuous",
           overflow: "hidden",
           borderWidth: 1,
           borderColor: "rgba(255,255,255,0.22)",

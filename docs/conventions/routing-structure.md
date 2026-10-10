@@ -38,7 +38,7 @@ export default function Layout() {
 ```tsx
 <Stack.Title large>今日</Stack.Title>
 <Stack.Toolbar placement="right">
-  <Stack.Toolbar.Button onPress={() => router.push("/medica/add-options")}>
+  <Stack.Toolbar.Button onPress={() => router.push("/medica/form")}>
     <Stack.Toolbar.Icon sf="plus" />
     <Stack.Toolbar.Label>添加</Stack.Toolbar.Label>
   </Stack.Toolbar.Button>
@@ -194,7 +194,7 @@ src/app/
   (tabs)/
     _layout.tsx          AppTabs（NativeTabs）
     home/                今日：进度、用药时间线、库存速览
-    medica/              药品：列表 / detail / form / add-options（拍照·手动·扫码入口）
+    medica/              药品：列表 / detail / form
     profile/             我的：persons / plan-form / person-detail
     playground/          调试页：只有 __DEV__ 构建才在 tab 栏里出现
 ```

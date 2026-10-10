@@ -135,7 +135,7 @@ src/
     (tabs)/
       _layout.tsx         AppTabs（NativeTabs），trigger name 用组内相对路由名
       home/               今日：只有路由，实现见 src/screens/home（Expo UI 为主 + 三块 RN island）
-      medica/             药品：index（只有路由）+ detail / form / add-options
+      medica/             药品：index（只有路由）+ detail / form
       profile/            我的：index（只有路由）+ persons / person-detail / plan-form / language / settings
       playground/         调试屏：只有 __DEV__ 构建才在 tab 栏里出现
   screens/

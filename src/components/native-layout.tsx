@@ -64,6 +64,29 @@ export type NativeConcentricShape = (
 export type NativeContinuousShape = (radius: number) => NativeModifier[];
 
 /**
+ * 连续曲线圆角描边（iOS）。
+ *
+ * universal style 的 `borderWidth` 在 iOS 上只会生成 `.border()` —— 一条**直角**
+ * 描边，圆角全靠后面的 `clipShape` 去裁。裁掉的只是直角多出的部分，描边本身仍按
+ * 矩形路径走，外侧一半被裁掉之后线条变细、四角发虚，这就是「圆角处理有问题」的
+ * 来源。
+ *
+ * 本 helper 直接拼 `strokeBorder` 的 modifier 配置（JS 侧 factory 没暴露
+ * `roundedCornerStyle`，与 `nativeContinuousShape` 同一套写法），让描边沿
+ * `RoundedRectangle(style: .continuous)` 的**内侧**走 —— 等价 RN 的
+ * `borderWidth` + `borderCurve: "continuous"`（见 reminder-card-stack 的卡片）。
+ *
+ * Android / web 返回空数组：`transformStyle.android.ts` 对
+ * `borderWidth + borderRadius` 有专门的「分层背景」合成，圆角描边本来就是对的，
+ * 继续用 style 里的 `borderWidth` / `borderColor` 即可。
+ */
+export type NativeStrokeBorder = (options: {
+  color: string;
+  width: number;
+  radius: number;
+}) => NativeModifier[];
+
+/**
  * 液态玻璃 chip 的 modifier（iOS 26 Liquid Glass）。
  *
  * iOS 用 `glassEffect(.regular, in: .capsule)`：磨砂底与高光描边由系统绘制，JS 侧
@@ -112,6 +135,9 @@ export const nativeContinuousShape: NativeContinuousShape = () => [];
 
 // web 没有液态玻璃：chip 目前只剩文字，等 web 端要真机呈现时再补实底回退
 export const nativeChipModifiers: NativeChipModifiers = () => null;
+
+// web 的 CSS border 本身就是贴圆角的，style 的 borderWidth 已足够
+export const nativeStrokeBorder: NativeStrokeBorder = () => [];
 
 function OnboardingPager({ children }: NativeOnboardingPagerProps) {
   return createElement(Fragment, null, children);

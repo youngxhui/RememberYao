@@ -18,7 +18,12 @@ import { useCallback, useState } from "react";
 
 import { Avatar } from "@/components/avatar";
 import { nativeButtonModifiers } from "@/components/native-layout";
-import { HairLine, SectionCard, SectionTitle } from "@/components/section-card";
+import {
+  HairLine,
+  InfoRow,
+  SectionCard,
+  SectionTitle,
+} from "@/components/section-card";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
@@ -127,18 +132,7 @@ export default function PersonDetailScreen() {
                 {basicRows.map((row, index) => (
                   <Column key={row.label}>
                     {index > 0 ? <HairLine /> : null}
-                    <Row alignment="center" style={{ padding: Spacing.three }}>
-                      <Text textStyle={{ color: theme.text }}>{row.label}</Text>
-                      <Spacer flexible />
-                      <Text
-                        textStyle={{
-                          color: theme.textSecondary,
-                          textAlign: "right",
-                        }}
-                      >
-                        {row.value}
-                      </Text>
-                    </Row>
+                    <InfoRow label={row.label} value={row.value} />
                   </Column>
                 ))}
               </SectionCard>

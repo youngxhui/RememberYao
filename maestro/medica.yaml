@@ -32,14 +32,13 @@ appId: com.youngxhui.RememberYao
     visible: "还没有在服用的药品，去「药品」添加后再设置服用时间"
     timeout: 20000
 
-# ── 首页 → 添加方式 → 手动输入 ──
+# ── 首页 → 直接进入手动录入表单 ──
 - tapOn:
     id: "home-add-medication-button"
 - extendedWaitUntil:
-    visible: "手动输入"
+    visible:
+      id: "medication-name-input"
     timeout: 20000
-- tapOn:
-    id: "add-option-manual"
 
 # ── 表单：Amoxil，总数 30、剩 5（低档，留给「库存不足」筛选）──
 # 表单按 design/add-medication.html 重做成 ScrollView 后，保存按钮在内容末尾而非
@@ -68,10 +67,11 @@ appId: com.youngxhui.RememberYao
 - tapOn:
     id: "medication-save-button"
 
-# ── 保存后回添加方式页；点导航栏返回按钮落回药品列表 ──
+# ── 保存后回药品列表；点导航栏返回按钮落回首页 ──
 # 不用边缘滑动 back（实测送键盘后那次会不触发），导航返回按钮稳定
 - extendedWaitUntil:
-    visible: "手动输入"
+    visible:
+      id: "medica-filter-chronic"
     timeout: 20000
 - tapOn: "药品库"
 - extendedWaitUntil:

@@ -1,6 +1,8 @@
 import { Column, Row, Spacer, Text } from "@expo/ui";
 import type { ReactNode } from "react";
 
+import { nativeLayout } from "@/components/native-layout";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 /**
@@ -42,6 +44,49 @@ export function HairLine() {
   return (
     <Row style={{ height: 1, backgroundColor: theme.backgroundSelected }}>
       <Spacer flexible />
+    </Row>
+  );
+}
+
+/**
+ * 分组卡片里的「标签 / 值」行（详情页的基础信息、用药人的基本信息共用）。
+ *
+ * 行高对齐 iOS 分组列表：12pt 上下内边距 + 15pt 文字 ≈ 44pt。值列允许压缩折行
+ * （`unconstrainedWidth`）—— 长规格名、过敏原列表会把整行撑爆，让标签列先让位。
+ */
+export function InfoRow({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  /** 值需要警示时传语义色（过期日期、处方药） */
+  valueColor?: string;
+}) {
+  const theme = useTheme();
+  return (
+    <Row
+      alignment="center"
+      style={{
+        paddingHorizontal: Spacing.three,
+        paddingVertical: Spacing.rowGap,
+      }}
+    >
+      <Text textStyle={{ fontSize: 15, color: theme.text }}>{label}</Text>
+      <Spacer flexible />
+      <Column modifiers={[nativeLayout({ unconstrainedWidth: true })]}>
+        <Text
+          numberOfLines={2}
+          textStyle={{
+            fontSize: 15,
+            color: valueColor ?? theme.textSecondary,
+            textAlign: "right",
+          }}
+        >
+          {value}
+        </Text>
+      </Column>
     </Row>
   );
 }

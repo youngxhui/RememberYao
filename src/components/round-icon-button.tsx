@@ -1,5 +1,6 @@
 import { Column, Icon, Row, type IconName } from "@expo/ui";
 
+import { roundedBox } from "@/components/rounded-box";
 import { Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -29,19 +30,26 @@ export function RoundIconButton({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const box = roundedBox({
+    color: theme.border,
+    background: theme.surface,
+    radius: Radius.pill,
+    width: 1,
+    // 固定尺寸的圆：fullWidth 的 frame(maxWidth: .infinity) 会把 style 里的
+    // width / height 顶掉（omitUserOverridden 按 $type 去重）
+    fullWidth: false,
+  });
   return (
     <Row
       testID={testID}
       alignment="center"
       onPress={onPress}
       style={{
+        ...box.style,
         width: size,
         height: size,
-        borderRadius: Radius.pill,
-        borderWidth: 1,
-        borderColor: theme.border,
-        backgroundColor: theme.surface,
       }}
+      modifiers={box.modifiers}
     >
       {/* Row 的 frame 只把内容压到纵轴中线（alignment=center → .leading），
           横轴中线要靠这层 Column（alignment=center → frame 横向居中） */}

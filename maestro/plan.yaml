@@ -27,14 +27,9 @@ appId: com.youngxhui.RememberYao
       id: "home-tab"
     timeout: 30000
 
-# ── 先建药品：首页 → 添加方式 → 手动输入 ──
+# ── 先建药品：首页 → 直接进入手动录入表单 ──
 - tapOn:
     id: "home-add-medication-button"
-- extendedWaitUntil:
-    visible: "手动输入"
-    timeout: 20000
-- tapOn:
-    id: "add-option-manual"
 - extendedWaitUntil:
     visible:
       id: "medication-name-input"
