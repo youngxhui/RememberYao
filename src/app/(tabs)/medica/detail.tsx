@@ -38,6 +38,8 @@ import { BottomTabInset, Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, useTranslation, type Language, type Path } from "@/i18n";
 import {
+  appendBlisterPacks,
+  blisterSummary,
   deleteMedication,
   medicationCategoryLabel,
   medicationTypeLabel,
@@ -63,7 +65,7 @@ const THUMB_SIZE = 52;
 const SPINE_HEIGHT = THUMB_SIZE + Spacing.three * 2;
 
 /**
- * 药品详情：库存概览 → 基础信息 → 用药配置 → 补货 → 操作。
+ * 药品详情：库存概览 → 基础信息 → 数字孪生 → 用药配置 → 补货 → 操作。
  *
  * 整屏是 Expo UI（`Host` + 原生 `ScrollView`），没有 RN island（进度条走
  * `ProgressBar` 那一小块 `RNHostView`）。视觉上接着药品库列表卡往下说：左侧
@@ -82,10 +84,12 @@ export default function MedicationDetailScreen() {
   const theme = useTheme();
   const { language } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { medications, persons, plans, loading, reload } = useAppData();
+  const { medications, persons, plans, packs, blisterSlots, loading, reload } =
+    useAppData();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [restockError, setRestockError] = useState(false);
   const restockAmount = useNativeState("");
+  const restockPackCount = useNativeState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -127,6 +131,7 @@ export default function MedicationDetailScreen() {
 
   const summary = stockSummary(medication, plans);
   const relatedPlans = plans.filter((p) => p.medicationId === medication.id);
+  const twin = blisterSummary(medication, packs, blisterSlots);
 
   const remove = async () => {
     if (!confirmDelete) {
@@ -145,6 +150,20 @@ export default function MedicationDetailScreen() {
     }
     await restockMedication(medication.id, amount);
     restockAmount.value = "";
+    setRestockError(false);
+    await reload();
+  };
+
+  // 板装药按板补货：补进来的板自动建好格子，库存不变式不破
+  // （按粒数补会补出没有槽位的药，见 store.ts restockMedication 的注释）
+  const restockPacks = async () => {
+    const count = Number.parseInt(restockPackCount.value, 10);
+    if (!Number.isFinite(count) || count <= 0) {
+      setRestockError(true);
+      return;
+    }
+    await appendBlisterPacks(medication.id, count);
+    restockPackCount.value = "";
     setRestockError(false);
     await reload();
   };
@@ -187,6 +206,19 @@ export default function MedicationDetailScreen() {
               language={language}
             />
 
+            {medication.type === "blister" ? (
+              <>
+                <SectionTitle>{t("medication.twinSection")}</SectionTitle>
+                <TwinEntry
+                  medication={medication}
+                  enabled={twin.enabled}
+                  openSeq={twin.openPack?.seq ?? null}
+                  full={twin.fullSlots}
+                  total={twin.totalSlots}
+                />
+              </>
+            ) : null}
+
             <SectionTitle>{t("plan.title")}</SectionTitle>
             <PlanSection
               plans={relatedPlans}
@@ -195,48 +227,99 @@ export default function MedicationDetailScreen() {
             />
 
             <SectionTitle>{t("medication.restock")}</SectionTitle>
-            <SectionCard>
-              <Column
-                spacing={Spacing.three}
-                style={{ padding: Spacing.three }}
-              >
-                <Row alignment="center" spacing={Spacing.rowGap}>
-                  {/* 输入框列允许压缩（unconstrainedWidth），右侧按钮按固有宽度
-                      排布 —— 同药品库卡片里「药名列 + 状态胶囊」那一行 */}
-                  <Column
-                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
+            {twin.enabled ? (
+              /* 板装孪生药的补货按「板」计：每板粒数固定，补几板就是几板格子 */
+              <SectionCard>
+                <Column
+                  spacing={Spacing.three}
+                  style={{ padding: Spacing.three }}
+                >
+                  <Row alignment="center" spacing={Spacing.rowGap}>
+                    <Column
+                      modifiers={[nativeLayout({ unconstrainedWidth: true })]}
+                    >
+                      <InputShell>
+                        <TextInput
+                          testID="restock-packs-input"
+                          placeholder={t("medication.restockPacksPlaceholder")}
+                          keyboardType="number-pad"
+                          onChangeText={() => {
+                            setRestockError(false);
+                          }}
+                          value={restockPackCount}
+                        />
+                      </InputShell>
+                    </Column>
+                    <Button
+                      testID="restock-packs-submit-button"
+                      label={t("medication.restockPacksSubmit")}
+                      onPress={() => {
+                        void restockPacks();
+                      }}
+                      modifiers={nativeButtonModifiers({ style: "glass" })}
+                    />
+                  </Row>
+                  {restockError ? (
+                    <Text textStyle={{ fontSize: 13, color: theme.danger }}>
+                      {t("medication.restockInvalid")}
+                    </Text>
+                  ) : null}
+                  <Text
+                    textStyle={{ fontSize: 12, color: theme.textSecondary }}
                   >
-                    <InputShell>
-                      <TextInput
-                        testID="restock-amount-input"
-                        placeholder={t("medication.restockPlaceholder")}
-                        keyboardType="number-pad"
-                        onChangeText={() => {
-                          setRestockError(false);
-                        }}
-                        value={restockAmount}
-                      />
-                    </InputShell>
-                  </Column>
-                  <Button
-                    testID="restock-submit-button"
-                    label={t("medication.restockSubmit")}
-                    onPress={() => {
-                      void restock();
-                    }}
-                    modifiers={nativeButtonModifiers({ style: "glass" })}
-                  />
-                </Row>
-                {restockError ? (
-                  <Text textStyle={{ fontSize: 13, color: theme.danger }}>
-                    {t("medication.restockInvalid")}
+                    {t("medication.restockPacksHint", {
+                      perPack: twin.slotsPerPack,
+                      unit: medicationUnitLabel(medication.unit, t),
+                    })}
                   </Text>
-                ) : null}
-                <Text textStyle={{ fontSize: 12, color: theme.textSecondary }}>
-                  {t("medication.restockHint")}
-                </Text>
-              </Column>
-            </SectionCard>
+                </Column>
+              </SectionCard>
+            ) : (
+              <SectionCard>
+                <Column
+                  spacing={Spacing.three}
+                  style={{ padding: Spacing.three }}
+                >
+                  <Row alignment="center" spacing={Spacing.rowGap}>
+                    {/* 输入框列允许压缩（unconstrainedWidth），右侧按钮按固有宽度
+                        排布 —— 同药品库卡片里「药名列 + 状态胶囊」那一行 */}
+                    <Column
+                      modifiers={[nativeLayout({ unconstrainedWidth: true })]}
+                    >
+                      <InputShell>
+                        <TextInput
+                          testID="restock-amount-input"
+                          placeholder={t("medication.restockPlaceholder")}
+                          keyboardType="number-pad"
+                          onChangeText={() => {
+                            setRestockError(false);
+                          }}
+                          value={restockAmount}
+                        />
+                      </InputShell>
+                    </Column>
+                    <Button
+                      testID="restock-submit-button"
+                      label={t("medication.restockSubmit")}
+                      onPress={() => {
+                        void restock();
+                      }}
+                      modifiers={nativeButtonModifiers({ style: "glass" })}
+                    />
+                  </Row>
+                  {restockError ? (
+                    <Text textStyle={{ fontSize: 13, color: theme.danger }}>
+                      {t("medication.restockInvalid")}
+                    </Text>
+                  ) : null}
+                  <Text
+                    textStyle={{ fontSize: 12, color: theme.textSecondary }}
+                  >
+                    {t("medication.restockHint")}
+                  </Text>
+                </Column>
+              </SectionCard>
+            )}
 
             <Column
               spacing={Spacing.three}
@@ -290,6 +373,76 @@ export default function MedicationDetailScreen() {
         </ScrollView>
       </Host>
     </>
+  );
+}
+
+/**
+ * 数字孪生入口：已建板 → 进度卡，点进孪生页；未建板 → 引导卡（孪生页承载
+ * 开启表单）。板装药独有，瓶装/散装不渲染这一区块。
+ */
+function TwinEntry({
+  medication,
+  enabled,
+  openSeq,
+  full,
+  total,
+}: {
+  medication: Medication;
+  enabled: boolean;
+  /** 当前开着的板的序号；null = 全部吃完 */
+  openSeq: number | null;
+  full: number;
+  total: number;
+}) {
+  const t = useTranslation();
+  const theme = useTheme();
+  const router = useRouter();
+  const box = roundedBox({
+    color: theme.border,
+    background: theme.surface,
+    radius: Radius.card,
+    width: 1,
+  });
+
+  return (
+    <Row
+      testID="medication-twin-entry"
+      alignment="center"
+      spacing={Spacing.rowGap}
+      onPress={() => {
+        router.push({
+          pathname: "/(tabs)/medica/twin",
+          params: { id: medication.id },
+        });
+      }}
+      style={{ ...box.style, padding: Spacing.three }}
+      modifiers={box.modifiers}
+    >
+      <Icon name="square.stack.3d.up.fill" size={22} color={theme.primary} />
+      <Column modifiers={[nativeLayout({ unconstrainedWidth: true })]}>
+        <Text
+          numberOfLines={1}
+          textStyle={{
+            fontSize: 16,
+            fontWeight: "600",
+            color: theme.text,
+          }}
+        >
+          {enabled ? t("medication.twinEntry") : t("medication.twinEnable")}
+        </Text>
+        <Text
+          numberOfLines={1}
+          textStyle={{ fontSize: 13, color: theme.textSecondary }}
+        >
+          {enabled
+            ? openSeq !== null
+              ? t("medication.twinProgressOpen", { seq: openSeq, full, total })
+              : t("medication.twinProgressDone")
+            : t("medication.twinEnableHint")}
+        </Text>
+      </Column>
+      <Icon name="chevron.right" size={14} color={theme.textSecondary} />
+    </Row>
   );
 }
 

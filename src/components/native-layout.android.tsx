@@ -21,6 +21,7 @@ import type {
   NativeContinuousShape,
   NativeConcentricShape,
   NativeFieldModifiers,
+  NativeGradientBackground,
   NativeLayoutOptions,
   NativeOnboardingPagerProps,
   NativeStrokeBorder,
@@ -65,6 +66,10 @@ export const nativeStrokeBorder: NativeStrokeBorder = () => [];
 // 已知缺口，等 android/ 生成后按那边的实际能力补（Compose 的 background/border
 // 走 `modifiers` 逃生舱会落在 padding 内侧、盒子模型不对，得连同内边距一起搬过来）
 export const nativeChipModifiers: NativeChipModifiers = () => null;
+
+// Compose 的 modifiers 包只有 animation 系列，没有 background / 渐变 / 阴影：
+// 泡罩药板的光影在 Android 上暂时只能靠平色 + 同心圆分层近似（见 twin.tsx）
+export const nativeGradientBackground: NativeGradientBackground = () => [];
 
 function pageValue(child: React.ReactNode): string | undefined {
   if (!isValidElement(child)) return undefined;

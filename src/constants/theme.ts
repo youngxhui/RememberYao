@@ -40,6 +40,27 @@ export const Colors = {
     successStrong: "#047857",
     warningStrong: "#B45309",
     dangerStrong: "#DC2626",
+    // 泡罩铝箔（数字孪生的药板）：铝箔纸是冷银、不随明暗翻面的“实物”，
+    // 但暗色下要压暗才不刺眼 —— base 是箔身、highlight 是泡罩受光面、
+    // shade 是压圈/暗部、dent 是服后的坑、ring 是热压封边。
+    // metal/seal/plastic/hole 是渐变色标：iOS 走 nativeGradientBackground
+    // 铺真渐变（Compose 的 modifiers 包没有 background，Android 退化平色，
+    // 体积感靠同心圆分层保留）。光源统一在左上（LIGHT），所有渐变中心都按它算
+    foil: {
+      base: "#E9ECEF",
+      highlight: "#F7F8FA",
+      shade: "#C3C9D1",
+      dent: "#DDE1E6",
+      ring: "#AEB5BF",
+      // 铝箔的各向异性金属：主高光 + 副高光两道，冷银调
+      metal: ["#F5F7F9", "#E7EBEF", "#D4DAE0", "#E4E9ED", "#CBD2D9"],
+      // 热封边：比箔身略暗略冷的一圈平环
+      seal: ["#DFE4EA", "#CBD2DA", "#BCC5CE"],
+      // 泡罩：透明塑料的径向受光，中心偏左上，边缘（泡壁掠射角）压最暗
+      plastic: ["#FFFFFF", "#FCFDFE", "#EAEFF4", "#CCD4DD", "#B9C3CE"],
+      // 凹坑：顶破的泡罩口，坑底暗、翻卷的箔口亮
+      hole: ["#7E8894", "#A9B2BC", "#C9D0D8", "#DDE2E7"],
+    },
     // Mini Archive 收藏夹：主题青绿封面 + 米白纸说明书
     archive: {
       coverTop: "#4CC9B9",
@@ -94,6 +115,18 @@ export const Colors = {
     successStrong: "#047857",
     warningStrong: "#B45309",
     dangerStrong: "#DC2626",
+    // 同 light 的 foil：暗色下整组压暗，泡罩仍读得出“银箔上的凸起”
+    foil: {
+      base: "#26282C",
+      highlight: "#3A3D43",
+      shade: "#17181B",
+      dent: "#1F2125",
+      ring: "#3F434A",
+      metal: ["#3B3E44", "#2F3237", "#282A2E", "#2D3035", "#232529"],
+      seal: ["#34373C", "#2B2E32", "#24262A"],
+      plastic: ["#9BA4AF", "#87909B", "#727B87", "#5D6570", "#4C535C"],
+      hole: ["#0F1114", "#1B1E22", "#25282D", "#2C3035"],
+    },
     canvas: "#0A0A0C",
     surface: "#1C1C1E",
     border: "#2C2C2E",

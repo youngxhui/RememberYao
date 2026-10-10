@@ -1,4 +1,4 @@
-appId: com.youngxhui.RememberYao
+appId: top.youngxhui.rememberyao.k3f9
 ---
 # 首页（今日）冒烟：引导页 → 空态 → tab 往返
 # 断言优先用 testID；只有真正渲染出来的业务文案才用文本（见 docs/conventions/data-state.md）

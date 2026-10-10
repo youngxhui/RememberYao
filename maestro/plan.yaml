@@ -1,4 +1,4 @@
-appId: com.youngxhui.RememberYao
+appId: top.youngxhui.rememberyao.k3f9
 ---
 # 用药配置（plan-form）创建 + 成员详情页用药配置行的验证：
 # 1) plan-form 的 Picker（药品/用药人，iOS menu 样式）首次在模拟器上验证；

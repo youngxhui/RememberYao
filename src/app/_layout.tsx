@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
 import { Stack } from "expo-router/stack";
 import { useEffect, useMemo } from "react";
-import { AppState, useColorScheme } from "react-native";
+import { AppState, StatusBar, useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { useTheme } from "@/hooks/use-theme";
@@ -20,6 +20,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <I18nProvider>
         <AppShell />
+        <StatusBar barStyle="auto" />
       </I18nProvider>
     </GestureHandlerRootView>
   );

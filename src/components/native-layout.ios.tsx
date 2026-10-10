@@ -1,5 +1,6 @@
 import { TabView } from "@expo/ui/swift-ui";
 import {
+  background,
   buttonStyle,
   clipShape,
   controlSize,
@@ -8,6 +9,7 @@ import {
   frame,
   glassEffect,
   listRowInsets,
+  shapes,
   tabViewStyle,
 } from "@expo/ui/swift-ui/modifiers";
 import { Children, isValidElement, type ReactElement } from "react";
@@ -18,6 +20,7 @@ import type {
   NativeContinuousShape,
   NativeConcentricShape,
   NativeFieldModifiers,
+  NativeGradientBackground,
   NativeLayoutOptions,
   NativeOnboardingPagerComponent,
   NativeOnboardingPagerProps,
@@ -107,6 +110,53 @@ export const nativeChipModifiers: NativeChipModifiers = ({ active, tint }) => [
     shape: "capsule",
   }),
 ];
+
+/**
+ * 渐变底（iOS）：`background(_:in:)` 直接铺 linear / radial 渐变。
+ *
+ * 泡罩药板的材质全在这里：铝箔的两道金属高光、泡罩的塑料受光、凹坑的
+ * 坑底暗/箔口亮、药饼的球面 shading。传了渐变就顶掉 style 的平色
+ * （modifier 同类型替换），所以调用方照旧在 style 里给平色兜底。
+ */
+export const nativeGradientBackground: NativeGradientBackground = ({
+  shape,
+  radius,
+  colors,
+  center,
+  startRadius,
+  endRadius,
+  start,
+  end,
+}) => {
+  if (colors.length < 2) return [];
+  // 包内 ShapeStyle 收可变 Color[]；theme 的色标是 as const 只读元组，拷一份
+  const stops = [...colors];
+  const style =
+    center !== undefined || startRadius !== undefined
+      ? {
+          type: "radialGradient" as const,
+          colors: stops,
+          center: center ?? { x: 0.5, y: 0.5 },
+          startRadius: startRadius ?? 0,
+          endRadius: endRadius ?? 1,
+        }
+      : {
+          type: "linearGradient" as const,
+          colors: stops,
+          startPoint: start ?? { x: 0, y: 0 },
+          endPoint: end ?? { x: 1, y: 1 },
+        };
+  const shapeConfig =
+    shape === "sheet"
+      ? shapes.roundedRectangle({
+          cornerRadius: radius ?? 0,
+          roundedCornerStyle: "continuous",
+        })
+      : shape === "capsule"
+        ? shapes.capsule()
+        : shapes.circle();
+  return [background(style, shapeConfig)];
+};
 
 function OnboardingPager({
   selection,

@@ -7,6 +7,7 @@ export default function MedicaLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="detail" />
         <Stack.Screen name="form" />
+        <Stack.Screen name="twin" />
       </Stack>
     </>
   );

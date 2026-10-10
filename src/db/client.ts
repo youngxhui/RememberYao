@@ -12,7 +12,7 @@ export const DATABASE_NAME = "rememberyao.db";
  * 代价是本地数据丢失，开发阶段换表结构本就要重来，比留着半张旧表崩在
  * `no such column` 上好。
  */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 /** 建表 SQL：与 `schema.ts` 一一对应，只在这份开发用的最新结构上执行 */
 const CREATE_TABLES = `
@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS medications (
   unit TEXT NOT NULL,
   total_quantity INTEGER NOT NULL,
   remaining_quantity INTEGER NOT NULL,
+  blister_rows INTEGER,
+  blister_cols INTEGER,
   expiry_date TEXT,
   prescription INTEGER NOT NULL DEFAULT 0,
   notes TEXT NOT NULL DEFAULT '',
@@ -73,8 +75,8 @@ CREATE INDEX IF NOT EXISTS reminders_plan_idx ON reminders (plan_id);
 CREATE UNIQUE INDEX IF NOT EXISTS reminders_dedup_idx ON reminders (plan_id, date, time);
 CREATE TABLE IF NOT EXISTS usages (
   id TEXT PRIMARY KEY NOT NULL,
-  reminder_id TEXT NOT NULL,
-  plan_id TEXT NOT NULL,
+  reminder_id TEXT,
+  plan_id TEXT,
   medication_id TEXT NOT NULL,
   person_id TEXT NOT NULL,
   person_name TEXT NOT NULL,
@@ -87,6 +89,27 @@ CREATE TABLE IF NOT EXISTS usages (
 );
 CREATE INDEX IF NOT EXISTS usages_taken_at_idx ON usages (taken_at);
 CREATE INDEX IF NOT EXISTS usages_reminder_idx ON usages (reminder_id);
+CREATE TABLE IF NOT EXISTS packs (
+  id TEXT PRIMARY KEY NOT NULL,
+  medication_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  rows INTEGER NOT NULL,
+  cols INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS packs_medication_idx ON packs (medication_id);
+CREATE UNIQUE INDEX IF NOT EXISTS packs_seq_idx ON packs (medication_id, seq);
+CREATE TABLE IF NOT EXISTS blister_slots (
+  id TEXT PRIMARY KEY NOT NULL,
+  pack_id TEXT NOT NULL,
+  slot_index INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  usage_id TEXT,
+  consumed_at TEXT,
+  consumed_by TEXT
+);
+CREATE INDEX IF NOT EXISTS blister_slots_pack_idx ON blister_slots (pack_id);
+CREATE UNIQUE INDEX IF NOT EXISTS blister_slots_index_idx ON blister_slots (pack_id, slot_index);
 CREATE TABLE IF NOT EXISTS settings (
   id TEXT PRIMARY KEY NOT NULL,
   notifications_enabled INTEGER NOT NULL DEFAULT 1,
@@ -105,6 +128,8 @@ const TABLES = [
   "plans",
   "reminders",
   "usages",
+  "packs",
+  "blister_slots",
   "settings",
 ] as const;
 

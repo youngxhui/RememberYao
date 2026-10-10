@@ -24,6 +24,11 @@ export const medications = sqliteTable("medications", {
   unit: text("unit").notNull(),
   totalQuantity: integer("total_quantity").notNull(),
   remainingQuantity: integer("remaining_quantity").notNull(),
+  /** 板装规格：每板行数。非板装药或未记录为 NULL。
+   *  补货新建板时用它决定板型；已有板各自存自己的 rows/cols，改这里不影响旧板 */
+  blisterRows: integer("blister_rows"),
+  /** 板装规格：每板列数（与 blisterRows 配对出现） */
+  blisterCols: integer("blister_cols"),
   /** 有效期 "YYYY-MM-DD"，null 表示未记录（不参与到期提醒） */
   expiryDate: text("expiry_date"),
   /** 是否处方药，只影响展示与将来可能的用药建议 */
@@ -98,8 +103,10 @@ export const usages = sqliteTable(
   "usages",
   {
     id: text("id").primaryKey(),
-    reminderId: text("reminder_id").notNull(),
-    planId: text("plan_id").notNull(),
+    /** 来源提醒。可空：孪生页手动点格子记的服用没有提醒 */
+    reminderId: text("reminder_id"),
+    /** 来源用药配置。可空：同上，手动记录不挂配置 */
+    planId: text("plan_id"),
     medicationId: text("medication_id").notNull(),
     personId: text("person_id").notNull(),
     /** 快照：用药人姓名。药品/用药人被删除后历史仍可读 */
@@ -116,6 +123,61 @@ export const usages = sqliteTable(
   (t) => [
     index("usages_taken_at_idx").on(t.takenAt),
     index("usages_reminder_idx").on(t.reminderId),
+  ],
+);
+
+/**
+ * 药板：一块实体泡罩（板装药的数字孪生单位）。
+ *
+ * 不存 status —— sealed / open / consumed 全部由槽位推导（store.ts 的
+ * `packStatus`），存了就要跟着每次消耗回写，两处事实必然漂移。
+ * `rows × cols` 存在板自己身上：补货新建板时读药品的 blister_rows/cols，
+ * 而老板的规格可能已被用户改过，历史板必须保持自己的几何。
+ */
+export const packs = sqliteTable(
+  "packs",
+  {
+    id: text("id").primaryKey(),
+    medicationId: text("medication_id").notNull(),
+    /** 盒内第几板，从 1 开始 */
+    seq: integer("seq").notNull(),
+    rows: integer("rows").notNull(),
+    cols: integer("cols").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    index("packs_medication_idx").on(t.medicationId),
+    uniqueIndex("packs_seq_idx").on(t.medicationId, t.seq),
+  ],
+);
+
+/**
+ * 槽位：泡罩里的一格，`index` 从 0 开始、从左到右从上到下。
+ *
+ * `usage_id` 指向消耗它的服用记录（usages 永久保留，所以这个引用不会悬空）；
+ * 可空——存量药品开启孪生时补的「历史消耗」格没有对应记录。
+ * `consumed_by` 是快照姓名而非 personId 引用，与 usages 的快照策略一致
+ * （硬规则 22）：删用药人不清历史。
+ */
+export const blisterSlots = sqliteTable(
+  "blister_slots",
+  {
+    id: text("id").primaryKey(),
+    packId: text("pack_id").notNull(),
+    /** 列名叫 slot_index：SQLite 的 INDEX 是关键字，裸用会语法错误。
+     *  实体属性仍叫 index（读起来自然），列名避让 */
+    index: integer("slot_index").notNull(),
+    /** full 有药 / empty 已服（含历史消耗）/ void 损坏遗失 */
+    status: text("status").notNull(),
+    usageId: text("usage_id"),
+    /** 消耗时刻 ISO */
+    consumedAt: text("consumed_at"),
+    /** 快照：消耗者姓名 */
+    consumedBy: text("consumed_by"),
+  },
+  (t) => [
+    index("blister_slots_pack_idx").on(t.packId),
+    uniqueIndex("blister_slots_index_idx").on(t.packId, t.index),
   ],
 );
 

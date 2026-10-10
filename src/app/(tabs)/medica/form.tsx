@@ -14,10 +14,19 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
 import { Chip } from "@/components/chip";
+import {
+  CARD_PADDING,
+  ChipField,
+  ErrorText,
+  Field,
+  FieldRow,
+  FormSection,
+  HintText,
+  Subtitle,
+} from "@/components/form";
 import { InputShell } from "@/components/input-shell";
 import { nativeButtonModifiers } from "@/components/native-layout";
-import { roundedBox } from "@/components/rounded-box";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useExpoUiContentWidth } from "@/hooks/use-expo-ui-content-width";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
@@ -35,16 +44,10 @@ import {
   updateMedication,
   useAppData,
   type MedicationCategory,
+  type MedicationInput,
   type MedicationType,
   type MedicationUnit,
 } from "@/lib/store";
-
-/** 卡片内边距，与 design 的 .form-card padding 16px 一致 */
-const CARD_PADDING = Spacing.three;
-
-/** 分区标题左侧强调竖条的宽高（design 的 border-left: 4px） */
-const TITLE_BAR_WIDTH = 4;
-const TITLE_BAR_HEIGHT = 16;
 
 /**
  * 添加 / 编辑药品。视觉基准 = design/add-medication.html。
@@ -71,7 +74,12 @@ export default function MedicationFormScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditing = Boolean(id);
-  const { medications, persons, loading } = useAppData();
+  const { medications, persons, packs, loading } = useAppData();
+  const existing = id ? medications.find((m) => m.id === id) : undefined;
+  /** 这台药已经建了泡罩孪生：包装形式锁死、规格只影响后续新板 */
+  const hasTwin = existing
+    ? packs.some((p) => p.medicationId === existing.id)
+    : false;
 
   // 两列字段的固定宽度：卡片内可用宽减去列间距再对半。universal style 没有
   // flex，等分只能按实测内容宽算（同 profile 的三等分统计卡）
@@ -99,12 +107,35 @@ export default function MedicationFormScreen() {
   const [prescription, setPrescription] = useState(false);
   const [nameError, setNameError] = useState(false);
   const [quantityError, setQuantityError] = useState(false);
+  const [specError, setSpecError] = useState(false);
+  // 规格输入的同步镜像：useNativeState 的写是异步排到 UI 线程的，
+  // 「每板 N 粒」预览读它会慢一拍；onChangeText 同步回一份 React state 专供预览
+  const [rowsText, setRowsText] = useState("3");
+  const [colsText, setColsText] = useState("10");
+  const [packsText, setPacksText] = useState("1");
 
   const name = useNativeState("");
   const specification = useNativeState("");
   const totalQuantity = useNativeState("");
   const remainingQuantity = useNativeState("");
   const notes = useNativeState("");
+  // 板装规格：行 × 列 × 板数。用 useNativeState 而不是 React state ——
+  // universal TextInput 的 value 只接受 ObservableState
+  const blisterRows = useNativeState("3");
+  const blisterCols = useNativeState("10");
+  const blisterPackCount = useNativeState("1");
+
+  const isBlister = type === "blister";
+  // 「每板 N 粒 · 共 M 粒」预览。解析不了按 0 显示，真正的拦截在 save() 的校验
+  const rowsValue = Number.parseInt(rowsText, 10);
+  const colsValue = Number.parseInt(colsText, 10);
+  const packsValue = Number.parseInt(packsText, 10);
+  const perPackPreview =
+    Number.isFinite(rowsValue) && Number.isFinite(colsValue)
+      ? Math.max(0, rowsValue * colsValue)
+      : 0;
+  const packCountPreview =
+    Number.isFinite(packsValue) && packsValue > 0 ? packsValue : 1;
 
   // 编辑模式下只填充一次：等数据加载完再填，避免把用户已输入的内容覆盖掉
   const filledRef = useRef(false);
@@ -112,18 +143,24 @@ export default function MedicationFormScreen() {
     if (!id) return;
     if (filledRef.current || loading) return;
     filledRef.current = true;
-    const existing = medications.find((m) => m.id === id);
-    if (existing) {
-      name.value = existing.name;
-      specification.value = existing.specification;
-      setType(existing.type);
-      setCategory(existing.category);
-      setUnit(existing.unit);
-      totalQuantity.value = String(existing.totalQuantity);
-      remainingQuantity.value = String(existing.remainingQuantity);
-      setExpiryDate(existing.expiryDate);
-      setPrescription(existing.prescription);
-      notes.value = existing.notes;
+    const current = medications.find((m) => m.id === id);
+    if (current) {
+      name.value = current.name;
+      specification.value = current.specification;
+      setType(current.type);
+      setCategory(current.category);
+      setUnit(current.unit);
+      totalQuantity.value = String(current.totalQuantity);
+      remainingQuantity.value = String(current.remainingQuantity);
+      setExpiryDate(current.expiryDate);
+      setPrescription(current.prescription);
+      notes.value = current.notes;
+      if (current.blisterRows && current.blisterCols) {
+        blisterRows.value = String(current.blisterRows);
+        blisterCols.value = String(current.blisterCols);
+        setRowsText(String(current.blisterRows));
+        setColsText(String(current.blisterCols));
+      }
     }
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,17 +171,52 @@ export default function MedicationFormScreen() {
       setNameError(true);
       return;
     }
-    const total = Number.parseInt(totalQuantity.value, 10);
-    if (!Number.isFinite(total) || total < 0) {
-      setQuantityError(true);
-      return;
+    // 板装药的库存由板推导：编辑时沿用原值（不让手改，改了就和格子打架），
+    // 新建时 addMedication 按板数重算
+    let total = existing?.totalQuantity ?? 0;
+    let remaining = existing?.remainingQuantity ?? 0;
+    if (!isBlister) {
+      total = Number.parseInt(totalQuantity.value, 10);
+      if (!Number.isFinite(total) || total < 0) {
+        setQuantityError(true);
+        return;
+      }
+      const remainingRaw = Number.parseInt(remainingQuantity.value, 10);
+      remaining = Number.isFinite(remainingRaw)
+        ? Math.min(Math.max(remainingRaw, 0), total)
+        : total;
     }
-    const remainingRaw = Number.parseInt(remainingQuantity.value, 10);
-    const remaining = Number.isFinite(remainingRaw)
-      ? Math.min(Math.max(remainingRaw, 0), total)
-      : total;
 
-    const input = {
+    let blister: MedicationInput["blister"];
+    let blisterRowsValue: number | null = null;
+    let blisterColsValue: number | null = null;
+    if (isBlister) {
+      const rows = Number.parseInt(blisterRows.value, 10);
+      const cols = Number.parseInt(blisterCols.value, 10);
+      if (
+        !Number.isFinite(rows) ||
+        !Number.isFinite(cols) ||
+        rows < 1 ||
+        cols < 1 ||
+        rows > 12 ||
+        cols > 12
+      ) {
+        setSpecError(true);
+        return;
+      }
+      blisterRowsValue = rows;
+      blisterColsValue = cols;
+      if (!isEditing) {
+        const packCount = Number.parseInt(blisterPackCount.value, 10);
+        if (!Number.isFinite(packCount) || packCount < 1 || packCount > 20) {
+          setSpecError(true);
+          return;
+        }
+        blister = { rows, cols, packCount };
+      }
+    }
+
+    const input: MedicationInput = {
       name: name.value.trim(),
       type,
       category,
@@ -152,9 +224,12 @@ export default function MedicationFormScreen() {
       unit,
       totalQuantity: total,
       remainingQuantity: remaining,
+      blisterRows: blisterRowsValue,
+      blisterCols: blisterColsValue,
       expiryDate,
       prescription,
       notes: notes.value.trim(),
+      ...(blister ? { blister } : null),
     };
     if (id) {
       await updateMedication(id, input);
@@ -232,6 +307,9 @@ export default function MedicationFormScreen() {
                 testID="medication-type"
                 value={type}
                 onChange={(value) => {
+                  // 已建孪生的板装药不能改包装形式：改了格子就对不上物理药板，
+                  // 库存不变式也会破。要换包装只能删药重录
+                  if (hasTwin && value !== "blister") return;
                   setType(value as MedicationType);
                 }}
                 options={MEDICATION_TYPES.map((tp) => ({
@@ -239,6 +317,9 @@ export default function MedicationFormScreen() {
                   label: medicationTypeLabel(tp, t),
                 }))}
               />
+              {hasTwin ? (
+                <HintText text={t("medication.typeLockedHint")} />
+              ) : null}
 
               <ChipField
                 label={t("medication.unit")}
@@ -268,34 +349,124 @@ export default function MedicationFormScreen() {
             </FormSection>
 
             <FormSection title={t("medication.sectionStockManage")}>
-              <FieldRow>
-                <Field label={t("medication.currentStock")} width={fieldWidth}>
-                  <InputShell>
-                    <TextInput
-                      testID="medication-remaining-input"
-                      placeholder={t("medication.currentStockPlaceholder")}
-                      keyboardType="number-pad"
-                      onChangeText={() => {
-                        setQuantityError(false);
-                      }}
-                      value={remainingQuantity}
-                    />
-                  </InputShell>
-                </Field>
-                <Field label={t("medication.totalStock")} width={fieldWidth}>
-                  <InputShell>
-                    <TextInput
-                      testID="medication-total-input"
-                      placeholder={t("medication.totalStockPlaceholder")}
-                      keyboardType="number-pad"
-                      value={totalQuantity}
-                    />
-                  </InputShell>
-                </Field>
-              </FieldRow>
-              {quantityError ? (
-                <ErrorText text={t("medication.quantityInvalid")} />
-              ) : null}
+              {isBlister ? (
+                /* 板装药的库存不手填：每板行 × 列 × 板数就是库存，
+                   数字孪生的格子是它的物理投影（见 docs/plans/medication-digital-twin.md） */
+                <Column spacing={Spacing.three}>
+                  <FieldRow>
+                    <Field
+                      label={t("medication.blisterRows")}
+                      width={fieldWidth}
+                    >
+                      <InputShell>
+                        <TextInput
+                          testID="medication-blister-rows-input"
+                          placeholder={t("medication.blisterRowsPlaceholder")}
+                          keyboardType="number-pad"
+                          onChangeText={(value) => {
+                            blisterRows.value = value;
+                            setRowsText(value);
+                            setSpecError(false);
+                          }}
+                          value={blisterRows}
+                        />
+                      </InputShell>
+                    </Field>
+                    <Field
+                      label={t("medication.blisterCols")}
+                      width={fieldWidth}
+                    >
+                      <InputShell>
+                        <TextInput
+                          testID="medication-blister-cols-input"
+                          placeholder={t("medication.blisterColsPlaceholder")}
+                          keyboardType="number-pad"
+                          onChangeText={(value) => {
+                            blisterCols.value = value;
+                            setColsText(value);
+                            setSpecError(false);
+                          }}
+                          value={blisterCols}
+                        />
+                      </InputShell>
+                    </Field>
+                  </FieldRow>
+                  {isEditing ? null : (
+                    <Field label={t("medication.blisterPackCount")}>
+                      <InputShell>
+                        <TextInput
+                          testID="medication-blister-packs-input"
+                          placeholder={t(
+                            "medication.blisterPackCountPlaceholder",
+                          )}
+                          keyboardType="number-pad"
+                          onChangeText={(value) => {
+                            blisterPackCount.value = value;
+                            setPacksText(value);
+                            setSpecError(false);
+                          }}
+                          value={blisterPackCount}
+                        />
+                      </InputShell>
+                    </Field>
+                  )}
+                  {specError ? (
+                    <ErrorText text={t("medication.blisterSpecInvalid")} />
+                  ) : null}
+                  <Text
+                    textStyle={{
+                      fontSize: 13,
+                      color: theme.textSecondary,
+                    }}
+                  >
+                    {isEditing
+                      ? hasTwin
+                        ? t("medication.blisterSpecHintExisting")
+                        : t("medication.blisterSpecHintNoTwin")
+                      : t("medication.blisterSpecHintNew", {
+                          perPack: perPackPreview,
+                          total: perPackPreview * packCountPreview,
+                        })}
+                  </Text>
+                </Column>
+              ) : (
+                <>
+                  <FieldRow>
+                    <Field
+                      label={t("medication.currentStock")}
+                      width={fieldWidth}
+                    >
+                      <InputShell>
+                        <TextInput
+                          testID="medication-remaining-input"
+                          placeholder={t("medication.currentStockPlaceholder")}
+                          keyboardType="number-pad"
+                          onChangeText={() => {
+                            setQuantityError(false);
+                          }}
+                          value={remainingQuantity}
+                        />
+                      </InputShell>
+                    </Field>
+                    <Field
+                      label={t("medication.totalStock")}
+                      width={fieldWidth}
+                    >
+                      <InputShell>
+                        <TextInput
+                          testID="medication-total-input"
+                          placeholder={t("medication.totalStockPlaceholder")}
+                          keyboardType="number-pad"
+                          value={totalQuantity}
+                        />
+                      </InputShell>
+                    </Field>
+                  </FieldRow>
+                  {quantityError ? (
+                    <ErrorText text={t("medication.quantityInvalid")} />
+                  ) : null}
+                </>
+              )}
 
               <Field label={t("medication.expiryDate")}>
                 <InputShell spacing={Spacing.rowGap}>
@@ -427,146 +598,5 @@ export default function MedicationFormScreen() {
         </ScrollView>
       </Host>
     </>
-  );
-}
-
-/** 两列字段行（design 的 .form-row：grid 1fr 1fr）。
- *  universal style 没有 flex，等宽只能靠外面算好的 `fieldWidth` 显式传下去。 */
-function FieldRow({ children }: { children: React.ReactNode }) {
-  return <Row spacing={Spacing.cardGap}>{children}</Row>;
-}
-
-/** 标题下方的副标题（design 的 .hero-subtitle） */
-function Subtitle({ text }: { text: string }) {
-  const theme = useTheme();
-  return (
-    <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>{text}</Text>
-  );
-}
-
-/** 表单分区：标题带左侧强调竖条（design 的 .form-section-title border-left） */
-function FormSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  const theme = useTheme();
-  const card = roundedBox({
-    color: theme.border,
-    background: theme.surface,
-    radius: Radius.card,
-    width: 1,
-  });
-  return (
-    <Column spacing={Spacing.three}>
-      <Row alignment="center" spacing={Spacing.three}>
-        <Row
-          style={{
-            width: TITLE_BAR_WIDTH,
-            height: TITLE_BAR_HEIGHT,
-            backgroundColor: theme.primary,
-          }}
-        >
-          <Spacer flexible />
-        </Row>
-        <Text textStyle={{ fontSize: 15, fontWeight: "700" }}>{title}</Text>
-      </Row>
-      <Column
-        spacing={Spacing.three}
-        style={{ ...card.style, padding: CARD_PADDING }}
-        // 撑满 + 连续曲线圆角描边。不用 nativeConcentricShape：
-        // ContainerRelativeShape 依赖「最近的容器提供形状」，而这张卡在
-        // ScrollView 里，解析不到屏幕圆角时会退化成直角（native-layout 里的
-        // 既有结论），圆角就废了
-        modifiers={card.modifiers}
-      >
-        {children}
-      </Column>
-    </Column>
-  );
-}
-
-/**
- * 字段：label 在上、控件在下（design 的 .form-field 是 column 布局）。
- *
- * 标签用 `textSecondary` 而不是 `text` —— 六个纯黑 600 标签会把整页压得很重，
- * 设计稿这里用的是中间调的 --fg-2。
- */
-function Field({
-  label,
-  width,
-  children,
-}: {
-  label: string;
-  /** 两列字段的等宽，由 `fieldWidth` 传入；通栏字段不传 */
-  width?: number;
-  children: React.ReactNode;
-}) {
-  const theme = useTheme();
-  return (
-    <Column spacing={Spacing.one} style={width ? { width } : undefined}>
-      <Text
-        textStyle={{
-          fontSize: 13,
-          fontWeight: "600",
-          color: theme.textSecondary,
-        }}
-      >
-        {label}
-      </Text>
-      {children}
-    </Column>
-  );
-}
-
-/**
- * 枚举字段：label + 一行 chip。
- *
- * 不用 universal `Picker`（详见文件头说明）：iOS 上它是原生 `Menu` 胶囊，不吃
- * `style`，套进输入框盒子就是「盒子里再嵌一颗绿胶囊」，窄列里中文选项还会被折行。
- * 三个枚举都只有 2~3 个取值，chip 一次点选即选即得，也和药品库的分类筛选、
- * 本页「是否处方药」共用同一套控件。
- */
-function ChipField({
-  label,
-  testID,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  /** chip 的 testID 前缀，实际 id 为 `<testID>-<选项值>` */
-  testID: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <Field label={label}>
-      <Row spacing={Spacing.two}>
-        {options.map((option) => (
-          <Chip
-            key={option.value}
-            testID={`${testID}-${option.value}`}
-            label={option.label}
-            active={option.value === value}
-            onPress={() => {
-              onChange(option.value);
-            }}
-          />
-        ))}
-      </Row>
-    </Field>
-  );
-}
-
-function ErrorText({ text }: { text: string }) {
-  const theme = useTheme();
-  return (
-    <Text textStyle={{ fontSize: 13, fontWeight: "500", color: theme.danger }}>
-      {text}
-    </Text>
   );
 }

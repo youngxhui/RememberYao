@@ -107,6 +107,8 @@
 
 升级 SDK 后要重新检查这一行为，不要把当前版本的实现细节当成永久 API。
 
+**固定尺寸的 RN 子树不要配「无 `matchContents` 的 `RNHostView` + 弹性 `Spacer` 居中」**：iOS 不转发 `style`，`matchContents` 又是 false，尺寸全靠父容器提议；两个弹性 `Spacer` 的 `.infinity` 理想宽会把外层 `Column` 带崩，表现为「头像贴左、后面的分区卡片整体右移并冲出屏幕右边缘」。两种正确写法：给 `RNHostView` 上 `matchContents`（内容有明确固有尺寸时，见 `src/components/avatar.tsx` 的 `AvatarMark`），或干脆改用纯 universal 组件（`src/components/avatar.tsx` 的 `MemberAvatar`，`style.width/height` 会真的变成 SwiftUI `frame`）。
+
 ## 4. 宽度测量：不要只信任一个来源
 
 不同尺寸来源的含义不同：

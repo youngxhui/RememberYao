@@ -1,25 +1,29 @@
 import {
   Button,
   Column,
-  FieldGroup,
   Host,
-  Icon,
-  Picker,
-  Row,
-  Spacer,
-  Text,
+  ScrollView,
   TextInput,
   useNativeState,
 } from "@expo/ui";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useState } from "react";
 
+import { MemberAvatar } from "@/components/avatar";
+import {
+  ChipField,
+  ErrorText,
+  Field,
+  FormSection,
+  HintText,
+  Subtitle,
+} from "@/components/form";
+import { InputShell } from "@/components/input-shell";
 import {
   nativeButtonModifiers,
-  nativeFieldModifiers,
   nativeLayout,
 } from "@/components/native-layout";
-import { Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import {
@@ -28,6 +32,10 @@ import {
   useAppData,
   type Gender,
 } from "@/lib/store";
+
+/** 年龄的合理区间：超出按填错处理，不进库（老人 100+ 也放得过，误敲的 0/999 拦掉） */
+const AGE_MIN = 1;
+const AGE_MAX = 150;
 
 /** 逗号 / 顿号 / 分号 / 换行都当分隔符：把一段自由文本切成标签数组 */
 function splitTags(raw: string): string[] {
@@ -38,14 +46,30 @@ function splitTags(raw: string): string[] {
 }
 
 /**
- * 添加家庭成员：整屏一个 `@expo/ui` `FieldGroup`（iOS = SwiftUI Form），
- * 只负责「新建」—— 成员列表在「我的」首页的家庭区，这里不重复展示。
- * 第一段「添加成员」收姓名 + 性别 + 年龄，第二段「健康信息」收过敏史 + 基础病，
- * 末段是提交按钮 —— 与同栈的 plan-form 同一套写法。
+ * 年龄选填：空 → `undefined`（不填），非 1~150 的整数 → `null`（填错，要报错）。
+ * 拆成三态而不是「解析不了就丢」—— 静默丢弃会让用户以为填上了，详情页却不显示。
+ */
+function parseAge(raw: string): number | null | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(parsed) || parsed < AGE_MIN || parsed > AGE_MAX) {
+    return null;
+  }
+  return parsed;
+}
+
+/**
+ * 添加家庭成员：只负责「新建」—— 成员列表在「我的」首页的家庭区，这里不重复展示。
  *
- * ⚠️ 不要把 `FieldGroup` / `List` 嵌进外层 `ScrollView`：它们在 iOS 上是
+ * 排版与添加药品（`src/app/(tabs)/medica/form.tsx`）共用 `@/components/form` 的
+ * 基元：`ScrollView` + 分区卡片（label 在上、控件收在圆角描边盒子里）。原来这里
+ * 用的是原生 `FieldGroup`（iOS = SwiftUI Form），满屏「左标签 + 整行分隔」的设置
+ * 风，和自家表单对不上；且 `Picker` 性别要从菜单里选两步，三个取值直接铺 chip。
+ *
+ * ⚠️ 不要再把 `FieldGroup` / `List` 嵌进外层 `ScrollView`：它们在 iOS 上是
  * SwiftUI Form / List，本身就是滚动容器，嵌进去会塌成零高（项目已记录的真机
- * bug）。所以这里让 `FieldGroup` 自己当滚动容器，页面不再套 ScrollView。
+ * bug）。
  */
 export default function PersonsScreen() {
   const router = useRouter();
@@ -53,11 +77,12 @@ export default function PersonsScreen() {
   const t = useTranslation();
   const { reload } = useAppData();
   const [nameError, setNameError] = useState(false);
+  const [ageError, setAgeError] = useState(false);
   // 头像预览用的 React 镜像：useNativeState 在原生端不触发 React 重渲染，
   // 输入实时预览要在 onChangeText 里单独存一份
   const [namePreview, setNamePreview] = useState("");
-  // 性别走 React state（Picker 选择的取值），其余输入走 native state
-  const [gender, setGender] = useState("");
+  // 性别走 React state（chip 选择的取值），其余输入走 native state
+  const [gender, setGender] = useState<Gender | "">("");
   const name = useNativeState("");
   const age = useNativeState("");
   const allergies = useNativeState("");
@@ -74,12 +99,15 @@ export default function PersonsScreen() {
       setNameError(true);
       return;
     }
-    const trimmedAge = age.value.trim();
-    const parsedAge = trimmedAge ? Number.parseInt(trimmedAge, 10) : Number.NaN;
+    const parsedAge = parseAge(age.value);
+    if (parsedAge === null) {
+      setAgeError(true);
+      return;
+    }
     const person = await addPerson({
       name: name.value,
-      gender: (gender || undefined) as Gender | undefined,
-      age: Number.isFinite(parsedAge) ? parsedAge : undefined,
+      gender: gender || undefined,
+      age: parsedAge,
       allergies: splitTags(allergies.value),
       underlyingConditions: splitTags(conditions.value),
     });
@@ -102,168 +130,122 @@ export default function PersonsScreen() {
 
   return (
     <>
-      <Stack.Title large>{t("person.listTitle")}</Stack.Title>
+      <Stack.Screen.BackButton displayMode="minimal" />
+      <Stack.Title large>{t("person.addMember")}</Stack.Title>
       <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <Column
-          modifiers={[nativeLayout({ fullWidth: true, fullHeight: true })]}
+        <ScrollView
+          showsIndicators={false}
+          style={{ backgroundColor: theme.canvas }}
         >
-          <FieldGroup>
-            <FieldGroup.Section title={t("person.add")}>
-              {/* 姓名：头像预览充当左侧锚点（不是文本标签），右侧输入填满剩余 */}
-              <Row alignment="center" spacing={Spacing.three}>
-                <NewMemberAvatar
-                  color={previewColor}
-                  name={namePreview}
-                  size={44}
-                />
-                <TextInput
-                  testID="person-name-input"
-                  placeholder={t("person.nameInputPlaceholder")}
-                  value={name}
-                  onChangeText={(text) => {
-                    setNamePreview(text);
-                    setNameError(false);
-                  }}
-                  modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                />
-              </Row>
-              {nameError ? (
-                <Text textStyle={{ color: theme.danger }}>
-                  {t("person.nameRequired")}
-                </Text>
-              ) : null}
-              <LabeledRow label={t("person.gender")}>
-                <Picker<string>
-                  testID="person-gender-picker"
-                  appearance="menu"
-                  selectedValue={gender}
-                  onValueChange={(value) => setGender(value)}
-                >
-                  <Picker.Item label={t("person.genderUnset")} value="" />
-                  <Picker.Item label={t("person.genderMale")} value="male" />
-                  <Picker.Item
-                    label={t("person.genderFemale")}
-                    value="female"
-                  />
-                  <Picker.Item label={t("person.genderOther")} value="other" />
-                </Picker>
-              </LabeledRow>
-              <LabeledRow label={t("person.age")}>
-                <TextInput
-                  testID="person-age-input"
-                  placeholder={t("person.agePlaceholder")}
-                  keyboardType="number-pad"
-                  value={age}
-                  modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                />
-              </LabeledRow>
-            </FieldGroup.Section>
-
-            <FieldGroup.Section title={t("person.healthInfo")}>
-              <LabeledRow label={t("person.allergies")}>
-                <TextInput
-                  testID="person-allergies-input"
-                  placeholder={t("person.allergiesPlaceholder")}
-                  value={allergies}
-                  modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                />
-              </LabeledRow>
-              <LabeledRow label={t("person.underlyingConditions")}>
-                <TextInput
-                  testID="person-conditions-input"
-                  placeholder={t("person.conditionsPlaceholder")}
-                  value={conditions}
-                  modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                />
-              </LabeledRow>
-            </FieldGroup.Section>
-
-            <FieldGroup.Section
-              modifiers={nativeFieldModifiers({ flush: true })}
-            >
-              <Button
-                testID="person-add-button"
-                label={t("person.addMemberButton")}
-                onPress={() => {
-                  add();
-                }}
-                modifiers={nativeButtonModifiers({ style: "glassProminent" })}
-              >
-                <Row modifiers={[nativeLayout({ fullWidth: true })]}>
-                  <Spacer />
-                  <Text>{t("person.addMemberButton")}</Text>
-                  <Spacer />
-                </Row>
-              </Button>
-            </FieldGroup.Section>
-          </FieldGroup>
-        </Column>
-      </Host>
-    </>
-  );
-}
-
-/**
- * 一行「左标签 + 右控件」：标签靠左，右侧控件紧随其后（文本输入用
- * `unconstrainedWidth` 从标签后起填满剩余），**不把控件推到行尾右对齐**。
- */
-function LabeledRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  const theme = useTheme();
-  return (
-    <Row alignment="center" spacing={Spacing.three}>
-      <Text textStyle={{ color: theme.text }}>{label}</Text>
-      {children}
-    </Row>
-  );
-}
-
-/** 添加行里的头像预览：没输入时是图标占位，输入后显示姓名首字 + 按姓名 hash 的头像底色 */
-function NewMemberAvatar({
-  color,
-  name,
-  size,
-}: {
-  color: string;
-  name: string;
-  size: number;
-}) {
-  const theme = useTheme();
-  const initial = name.trim().slice(0, 1);
-  return (
-    <Row
-      alignment="center"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: Radius.pill,
-        backgroundColor: initial ? color : theme.primarySoft,
-        borderWidth: initial ? 0 : 1,
-        borderColor: theme.border,
-      }}
-    >
-      {/* Row 只把内容压到纵轴中线，横轴中线靠这层 Column（同 RoundIconButton） */}
-      <Column alignment="center" style={{ width: size }}>
-        {initial ? (
-          <Text
-            textStyle={{
-              fontSize: size * 0.44,
-              fontWeight: "700",
-              color: theme.onPrimary,
-              textAlign: "center",
+          <Column
+            spacing={Spacing.four}
+            style={{
+              paddingHorizontal: Spacing.screen,
+              paddingVertical: Spacing.three,
+              // 表单在 (tabs) 组内，尾部必须让开原生 tab 栏的高度，
+              // 否则「添加家庭成员」会被压在 tab 栏底下点不到
+              paddingBottom: BottomTabInset + Spacing.four,
             }}
           >
-            {initial}
-          </Text>
-        ) : (
-          <Icon name="person" size={size * 0.5} color={theme.primary} />
-        )}
-      </Column>
-    </Row>
+            <Subtitle text={t("person.formSubtitle")} />
+
+            <FormSection title={t("person.basicInfo")}>
+              {/* 姓名是这一页的主字段：头像预览充当左侧锚点（不是文本标签），
+                  右侧输入填满剩余 */}
+              <Field label={t("person.name")}>
+                <InputShell spacing={Spacing.rowGap}>
+                  <MemberAvatar
+                    color={previewColor}
+                    name={namePreview}
+                    size={36}
+                  />
+                  <TextInput
+                    testID="person-name-input"
+                    placeholder={t("person.nameInputPlaceholder")}
+                    autoFocus
+                    value={name}
+                    onChangeText={(text) => {
+                      setNamePreview(text);
+                      setNameError(false);
+                    }}
+                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
+                  />
+                </InputShell>
+              </Field>
+              {nameError ? <ErrorText text={t("person.nameRequired")} /> : null}
+
+              <ChipField
+                label={t("person.gender")}
+                testID="person-gender"
+                value={gender}
+                onChange={(value) => {
+                  setGender(value as Gender);
+                }}
+                options={[
+                  { value: "male", label: t("person.genderMale") },
+                  { value: "female", label: t("person.genderFemale") },
+                  { value: "other", label: t("person.genderOther") },
+                ]}
+              />
+
+              <Field label={t("person.age")}>
+                <InputShell>
+                  <TextInput
+                    testID="person-age-input"
+                    placeholder={t("person.agePlaceholder")}
+                    keyboardType="number-pad"
+                    value={age}
+                    onChangeText={() => {
+                      setAgeError(false);
+                    }}
+                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
+                  />
+                </InputShell>
+              </Field>
+              {ageError ? <ErrorText text={t("person.ageInvalid")} /> : null}
+
+              <HintText text={t("person.optionalHint")} />
+            </FormSection>
+
+            <FormSection title={t("person.healthInfo")}>
+              <Field label={t("person.allergies")}>
+                <InputShell>
+                  <TextInput
+                    testID="person-allergies-input"
+                    placeholder={t("person.allergiesPlaceholder")}
+                    multiline
+                    numberOfLines={2}
+                    value={allergies}
+                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
+                  />
+                </InputShell>
+              </Field>
+              <Field label={t("person.underlyingConditions")}>
+                <InputShell>
+                  <TextInput
+                    testID="person-conditions-input"
+                    placeholder={t("person.conditionsPlaceholder")}
+                    multiline
+                    numberOfLines={2}
+                    value={conditions}
+                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
+                  />
+                </InputShell>
+              </Field>
+              <HintText text={t("person.multiValueHint")} />
+            </FormSection>
+
+            <Button
+              testID="person-add-button"
+              label={t("person.addMemberButton")}
+              onPress={() => {
+                void add();
+              }}
+              modifiers={nativeButtonModifiers({ fullWidth: true })}
+            />
+          </Column>
+        </ScrollView>
+      </Host>
+    </>
   );
 }

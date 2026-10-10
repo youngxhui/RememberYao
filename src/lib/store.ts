@@ -26,6 +26,11 @@ export type Medication = {
   totalQuantity: number;
   /** 当前剩余数量 */
   remainingQuantity: number;
+  /** 板装规格：每板行数。非板装药或未记录为 null。
+   *  只影响补货新建的板；老板各自存自己的 rows/cols */
+  blisterRows: number | null;
+  /** 板装规格：每板列数（与 blisterRows 配对出现） */
+  blisterCols: number | null;
   /** 有效期 "YYYY-MM-DD"，null 表示未记录 */
   expiryDate: string | null;
   /** 是否处方药 */
@@ -95,18 +100,21 @@ export type Reminder = {
 };
 
 /** 服用记录：点击“已服用”后产生。
- *  name / time 为创建时的快照，药品或用料人被删除后历史记录仍可读。 */
+ *  name / time 为创建时的快照，药品或用药人被删除后历史记录仍可读。
+ *  reminderId / planId 可空：孪生页手动点格子记的服用没有提醒来源。 */
 export type MedicationUsage = {
   id: string;
-  reminderId: string;
-  planId: string;
+  /** 来源提醒；手动记录为 null */
+  reminderId: string | null;
+  /** 来源用药配置；手动记录为 null */
+  planId: string | null;
   medicationId: string;
   personId: string;
   /** 快照：用药人姓名 */
   personName: string;
   /** 快照：药品名称 */
   medicationName: string;
-  /** 快照：计划中的服用时间 "HH:MM" */
+  /** 快照：计划中的服用时间 "HH:MM"；手动记录为操作时刻 */
   time: string;
   /** 实际服用的数量 */
   amount: number;
@@ -115,6 +123,39 @@ export type MedicationUsage = {
   /** 实际服用时间 ISO */
   takenAt: string;
   createdAt: string;
+};
+
+// ─── 泡罩孪生实体 ─────────────────────────────────────────
+
+/** 槽位状态：full 有药 / empty 已服（含迁移进来的历史消耗）/ void 损坏遗失 */
+export type BlisterSlotStatus = "full" | "empty" | "void";
+
+/** 药板：一块实体泡罩，板装药数字孪生的单位。
+ *  rows × cols 存在板自己身上：补货新建板时按药品规格来，而老板的规格
+ *  可能已被用户改过，历史板必须保持自己的几何，否则格子对不上物理药板。 */
+export type BlisterPack = {
+  id: string;
+  medicationId: string;
+  /** 盒内第几板，从 1 开始 */
+  seq: number;
+  rows: number;
+  cols: number;
+  createdAt: string;
+};
+
+/** 槽位：泡罩里的一格。index 从 0 开始，从左到右、从上到下 —— 消耗顺序
+ *  与真人嗑药片的顺序一致（nextFullSlots 依赖这个排序）。 */
+export type BlisterSlot = {
+  id: string;
+  packId: string;
+  index: number;
+  status: BlisterSlotStatus;
+  /** 消耗它的服用记录 id；手动记录 / 历史消耗为 null */
+  usageId: string | null;
+  /** 消耗时刻 ISO */
+  consumedAt: string | null;
+  /** 快照：消耗者姓名（与 usages 的快照策略一致，删用药人不清历史） */
+  consumedBy: string | null;
 };
 
 /**
@@ -172,6 +213,10 @@ export type AppData = {
   plans: MedicationPlan[];
   reminders: Reminder[];
   usages: MedicationUsage[];
+  /** 泡罩药板（板装药的数字孪生）。非板装药没有板 */
+  packs: BlisterPack[];
+  /** 泡罩槽位，跟着板走 */
+  blisterSlots: BlisterSlot[];
   /** 全局设置偏好，恒为一条 */
   settings: Settings;
 };
@@ -182,6 +227,8 @@ const EMPTY_DATA: AppData = {
   plans: [],
   reminders: [],
   usages: [],
+  packs: [],
+  blisterSlots: [],
   settings: DEFAULT_SETTINGS,
 };
 
@@ -237,6 +284,29 @@ export function pickAvatarColor(name: string): string {
   return PERSON_AVATAR_COLORS[
     hashName(name.trim()) % PERSON_AVATAR_COLORS.length
   ];
+}
+
+/** 药饼 / 胶囊配色：按药品 id 稳定取色（重录同药同色，改名不改色）。
+ *  `body` 是片身或胶囊体，`cap` 是胶囊帽，`score` 是药饼的压痕线。
+ *  取真实药片的常见配色：白片、糖衣片、双色胶囊 —— 数字孪生的泡罩里
+ *  装的是“这颗药”，不是抽象色块。 */
+export type PillTint = {
+  body: string;
+  cap: string;
+  score: string;
+};
+
+export const PILL_TINTS: PillTint[] = [
+  { body: "#FDFDFA", cap: "#F2DFB4", score: "#E5DEC9" },
+  { body: "#FFF6DE", cap: "#F2C94C", score: "#E8D49A" },
+  { body: "#FDEBEB", cap: "#E86A6A", score: "#EFC3C3" },
+  { body: "#FFF1D6", cap: "#F2994A", score: "#EBD2A6" },
+  { body: "#EAF2FD", cap: "#4A7FD4", score: "#C9D9F0" },
+  { body: "#EDF7EF", cap: "#5FA777", score: "#CDE6D5" },
+];
+
+export function pickPillTint(id: string): PillTint {
+  return PILL_TINTS[hashName(id) % PILL_TINTS.length];
 }
 
 /** 宽限期（分钟）：到点后这么久仍未处理才标记为漏服 */
@@ -384,6 +454,8 @@ function fromRows(rows: PersistedData): AppData {
         ? (m.category as MedicationCategory)
         : DEFAULT_MEDICATION_CATEGORY,
       unit: m.unit as MedicationUnit,
+      blisterRows: m.blisterRows ?? null,
+      blisterCols: m.blisterCols ?? null,
     })),
     // 新增强制列（allergies / underlying_conditions）是 JSON 字符串，
     // gender / age 可空；从库里还原成实体形状
@@ -404,7 +476,20 @@ function fromRows(rows: PersistedData): AppData {
       snoozedUntil: r.snoozedUntil ?? undefined,
       resolvedAt: r.resolvedAt ?? undefined,
     })),
-    usages: rows.usages,
+    usages: rows.usages.map((u) => ({
+      ...u,
+      reminderId: u.reminderId ?? null,
+      planId: u.planId ?? null,
+    })),
+    packs: rows.packs,
+    // 行对象的键是实体属性名（index），列名 slot_index 由 drizzle 自己映射
+    blisterSlots: rows.blisterSlots.map((s) => ({
+      ...s,
+      status: s.status as BlisterSlotStatus,
+      usageId: s.usageId ?? null,
+      consumedAt: s.consumedAt ?? null,
+      consumedBy: s.consumedBy ?? null,
+    })),
     // 单行表读不到行（新装 / 还没写过设置）就用默认值，不补一行空记录
     settings: fromSettingsRow(rows.settings[0]),
   };
@@ -472,6 +557,8 @@ function toRows(data: AppData): PersistedData {
       resolvedAt: r.resolvedAt ?? null,
     })),
     usages: data.usages.map((u) => ({ ...u, late: u.late ?? false })),
+    packs: data.packs,
+    blisterSlots: data.blisterSlots,
     // 设置恒为一行：空数组表示"还没写过"，repo 层会跳过删除、保持表为空
     settings:
       data.settings === DEFAULT_SETTINGS
@@ -694,37 +781,544 @@ export async function restockMedication(
   amount: number,
 ): Promise<void> {
   if (!Number.isFinite(amount) || amount <= 0) return;
-  await updateData((data) => ({
+  await updateData((data) => {
+    // 板装药已建孪生时按粒数补货会破坏「Σfull === remainingQuantity」不变式
+    // （补进来的药没有对应的槽位），这类药的补货必须走 appendBlisterPacks 按板补
+    if (data.packs.some((p) => p.medicationId === id)) return data;
+    return {
+      ...data,
+      medications: data.medications.map((m) =>
+        m.id === id
+          ? {
+              ...m,
+              totalQuantity: m.totalQuantity + amount,
+              remainingQuantity: m.remainingQuantity + amount,
+              updatedAt: nowIso(),
+            }
+          : m,
+      ),
+    };
+  });
+}
+
+// ─── 泡罩孪生 ─────────────────────────────────────────────
+
+/** 每板单边格数上限：防手滑填出 100×100 的「药板」把网格和账一起撑坏 */
+const MAX_PACK_SIDE = 12;
+
+/** 夹紧每板行列：板是物理实体，1~12 之间 */
+function clampSide(n: number): number {
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(Math.max(Math.round(n), 1), MAX_PACK_SIDE);
+}
+
+/** 板的展示状态：由槽位推导，不落库 —— 存了就要跟着每次消耗回写，必然漂移 */
+export type PackStatus = "sealed" | "open" | "consumed";
+
+export function packStatus(slots: BlisterSlot[]): PackStatus {
+  if (slots.length === 0) return "sealed";
+  if (!slots.some((s) => s.status === "full")) return "consumed";
+  return slots.some((s) => s.status !== "full") ? "open" : "sealed";
+}
+
+/** 某药品的孪生概览。`fullSlots` 必须等于 `medication.remainingQuantity`
+ *  （不变式见 docs/plans/medication-digital-twin.md 3.3） */
+export type BlisterSummary = {
+  /** 是否已建孪生 */
+  enabled: boolean;
+  packCount: number;
+  /** 每板格数（取第一板；同药各板规格一致，只有老板可能不同） */
+  slotsPerPack: number;
+  totalSlots: number;
+  fullSlots: number;
+  /** 下一块要开的板（还有药的板里序号最小）；null = 全部吃完 */
+  openPack: BlisterPack | null;
+};
+
+export function blisterSummary(
+  medication: Medication,
+  packs: BlisterPack[],
+  slots: BlisterSlot[],
+): BlisterSummary {
+  const own = packs.filter((p) => p.medicationId === medication.id);
+  // Hermes 没有 toSorted()；filter 产物是副本，原地排序不碰 store 数据
+  // oxlint-disable-next-line unicorn/no-array-sort
+  own.sort((a, b) => a.seq - b.seq);
+  const packIds = new Set(own.map((p) => p.id));
+  const ownSlots = slots.filter((s) => packIds.has(s.packId));
+  return {
+    enabled: own.length > 0,
+    packCount: own.length,
+    slotsPerPack: own[0] ? own[0].rows * own[0].cols : 0,
+    totalSlots: ownSlots.length,
+    fullSlots: ownSlots.filter((s) => s.status === "full").length,
+    openPack:
+      own.find((p) =>
+        ownSlots.some((s) => s.packId === p.id && s.status === "full"),
+      ) ?? null,
+  };
+}
+
+/** 按「板序 → 格序」取前 count 个 full 槽位 —— 泡罩从左到右、从上到下消耗，
+ *  与真人嗑药片的顺序一致 */
+export function nextFullSlots(
+  packs: BlisterPack[],
+  slots: BlisterSlot[],
+  count: number,
+): BlisterSlot[] {
+  if (count <= 0) return [];
+  const ordered = [...packs];
+  // oxlint-disable-next-line unicorn/no-array-sort
+  ordered.sort((a, b) => a.seq - b.seq);
+  const result: BlisterSlot[] = [];
+  for (const pack of ordered) {
+    const packSlots = slots.filter(
+      (s) => s.packId === pack.id && s.status === "full",
+    );
+    // oxlint-disable-next-line unicorn/no-array-sort
+    packSlots.sort((a, b) => a.index - b.index);
+    for (const slot of packSlots) {
+      if (result.length >= count) return result;
+      result.push(slot);
+    }
+  }
+  return result;
+}
+
+/**
+ * 消耗指定药品的前 count 个 full 槽位（takeReminder 用）。
+ *
+ * 槽位不足（没建孪生 / 数据对不上）时原样返回 —— 提醒闭环永不因孪生数据
+ * 不完整而阻断，库存照扣。
+ */
+function consumeSlotsIn(
+  data: AppData,
+  medicationId: string,
+  count: number,
+  ctx: { usageId: string; consumedAt: string; consumedBy: string },
+): AppData {
+  const ownPacks = data.packs.filter((p) => p.medicationId === medicationId);
+  if (ownPacks.length === 0) return data;
+  const ownPackIds = new Set(ownPacks.map((p) => p.id));
+  const targets = nextFullSlots(
+    ownPacks,
+    data.blisterSlots.filter((s) => ownPackIds.has(s.packId)),
+    count,
+  );
+  if (targets.length === 0) return data;
+  const hit = new Set(targets.map((s) => s.id));
+  return {
     ...data,
+    blisterSlots: data.blisterSlots.map((s) =>
+      hit.has(s.id)
+        ? {
+            ...s,
+            status: "empty" as const,
+            usageId: ctx.usageId,
+            consumedAt: ctx.consumedAt,
+            consumedBy: ctx.consumedBy,
+          }
+        : s,
+    ),
+  };
+}
+
+/**
+ * 开启数字孪生：为存量板装药建板，按当前剩余量把历史消耗补成 empty 格。
+ *
+ * 不变式：建板后 Σfull === remainingQuantity，Σ全部格 === 板数 × 每板粒数。
+ * 板数至少要装得下当前剩余；`totalQuantity` 重写为真实槽位数 ——
+ * 老数据「记了 25 但一板 30」这类账，以物理板为准修正。
+ */
+function openBlisterTwinIn(
+  data: AppData,
+  medicationId: string,
+  input: { rows: number; cols: number; packCount: number },
+): AppData {
+  const medication = data.medications.find((m) => m.id === medicationId);
+  if (!medication || medication.type !== "blister") return data;
+  const rows = clampSide(input.rows);
+  const cols = clampSide(input.cols);
+  const perPack = rows * cols;
+  const packCount = Math.max(
+    1,
+    Math.round(input.packCount) || 1,
+    Math.ceil(medication.remainingQuantity / perPack),
+  );
+  // 重复开启 = 重建：先清掉该药旧的板与格
+  const stalePackIds = new Set(
+    data.packs.filter((p) => p.medicationId === medicationId).map((p) => p.id),
+  );
+  const packs = data.packs.filter((p) => !stalePackIds.has(p.id));
+  const blisterSlots = data.blisterSlots.filter(
+    (s) => !stalePackIds.has(s.packId),
+  );
+  const now = nowIso();
+  // 总格数减剩余 = 已经被吃掉的历史格数，按板序格序从第一格开始标 empty
+  // （usageId 为 null，UI 显示「历史消耗 · 无服用记录」）
+  let history = packCount * perPack - medication.remainingQuantity;
+  for (let seq = 1; seq <= packCount; seq++) {
+    const pack: BlisterPack = {
+      id: genId(),
+      medicationId,
+      seq,
+      rows,
+      cols,
+      createdAt: now,
+    };
+    packs.push(pack);
+    for (let index = 0; index < perPack; index++) {
+      blisterSlots.push({
+        id: genId(),
+        packId: pack.id,
+        index,
+        status: history > 0 ? "empty" : "full",
+        usageId: null,
+        consumedAt: null,
+        consumedBy: null,
+      });
+      if (history > 0) history -= 1;
+    }
+  }
+  return {
+    ...data,
+    packs,
+    blisterSlots,
     medications: data.medications.map((m) =>
-      m.id === id
+      m.id === medicationId
         ? {
             ...m,
-            totalQuantity: m.totalQuantity + amount,
-            remainingQuantity: m.remainingQuantity + amount,
-            updatedAt: nowIso(),
+            blisterRows: rows,
+            blisterCols: cols,
+            totalQuantity: packCount * perPack,
+            updatedAt: now,
           }
         : m,
     ),
-  }));
+  };
+}
+
+/** 补货（按板）：追加 count 块满板。板装孪生专用，散装/瓶装走 restockMedication */
+function appendBlisterPacksIn(
+  data: AppData,
+  medicationId: string,
+  count: number,
+): AppData {
+  const medication = data.medications.find((m) => m.id === medicationId);
+  if (!medication) return data;
+  const rows = clampSide(medication.blisterRows ?? 1);
+  const cols = clampSide(medication.blisterCols ?? 1);
+  const perPack = rows * cols;
+  const own = data.packs.filter((p) => p.medicationId === medicationId);
+  let nextSeq = own.reduce((max, p) => Math.max(max, p.seq), 0) + 1;
+  const now = nowIso();
+  const packs = [...data.packs];
+  const blisterSlots = [...data.blisterSlots];
+  for (let i = 0; i < count; i++) {
+    const pack: BlisterPack = {
+      id: genId(),
+      medicationId,
+      seq: nextSeq,
+      rows,
+      cols,
+      createdAt: now,
+    };
+    nextSeq += 1;
+    packs.push(pack);
+    for (let index = 0; index < perPack; index++) {
+      blisterSlots.push({
+        id: genId(),
+        packId: pack.id,
+        index,
+        status: "full",
+        usageId: null,
+        consumedAt: null,
+        consumedBy: null,
+      });
+    }
+  }
+  return {
+    ...data,
+    packs,
+    blisterSlots,
+    medications: data.medications.map((m) =>
+      m.id === medicationId
+        ? {
+            ...m,
+            totalQuantity: m.totalQuantity + count * perPack,
+            remainingQuantity: m.remainingQuantity + count * perPack,
+            updatedAt: now,
+          }
+        : m,
+    ),
+  };
+}
+
+/**
+ * 手动记一次服用（孪生页点格子）：产生一条无提醒来源的 usage 并消耗**这一格**。
+ *
+ * 与 takeReminder 的按序消耗不同 —— 用户点了哪一格就消耗哪一格：泡罩可以
+ * 从任意位置抠开，孪生要镜像用户实际做的事，而不是替他决定。
+ */
+function consumeBlisterSlotIn(
+  data: AppData,
+  slotId: string,
+  personId: string,
+): AppData {
+  const slot = data.blisterSlots.find((s) => s.id === slotId);
+  if (!slot || slot.status !== "full") return data;
+  const pack = data.packs.find((p) => p.id === slot.packId);
+  if (!pack) return data;
+  const medication = data.medications.find((m) => m.id === pack.medicationId);
+  if (!medication) return data;
+  const person = data.persons.find((p) => p.id === personId);
+  if (!person) return data;
+  const now = nowIso();
+  const usage: MedicationUsage = {
+    id: genId(),
+    reminderId: null,
+    planId: null,
+    medicationId: medication.id,
+    personId: person.id,
+    personName: person.name,
+    medicationName: medication.name,
+    // 手动记录没有计划时间，记操作时刻
+    time: dateToTime(new Date()),
+    amount: 1,
+    late: false,
+    takenAt: now,
+    createdAt: now,
+  };
+  return {
+    ...data,
+    usages: [usage, ...data.usages],
+    blisterSlots: data.blisterSlots.map((s) =>
+      s.id === slotId
+        ? {
+            ...s,
+            status: "empty" as const,
+            usageId: usage.id,
+            consumedAt: now,
+            consumedBy: usage.personName,
+          }
+        : s,
+    ),
+    medications: data.medications.map((m) =>
+      m.id === medication.id
+        ? {
+            ...m,
+            remainingQuantity: Math.max(0, m.remainingQuantity - 1),
+            updatedAt: now,
+          }
+        : m,
+    ),
+  };
+}
+
+/** 标记槽位损坏 / 遗失：物理上没吃但格子里没药了。不产生服用记录，库存 −1 */
+function voidBlisterSlotIn(data: AppData, slotId: string): AppData {
+  const slot = data.blisterSlots.find((s) => s.id === slotId);
+  if (!slot || slot.status !== "full") return data;
+  const pack = data.packs.find((p) => p.id === slot.packId);
+  if (!pack) return data;
+  const now = nowIso();
+  return {
+    ...data,
+    blisterSlots: data.blisterSlots.map((s) =>
+      s.id === slotId
+        ? { ...s, status: "void" as const, usageId: null, consumedBy: null }
+        : s,
+    ),
+    medications: data.medications.map((m) =>
+      m.id === pack.medicationId
+        ? {
+            ...m,
+            remainingQuantity: Math.max(0, m.remainingQuantity - 1),
+            updatedAt: now,
+          }
+        : m,
+    ),
+  };
+}
+
+/**
+ * 恢复槽位为未服用：void 或历史 empty（无 usage）→ full，库存 +1。
+ * 有服用记录的格子必须走 undoUsage —— 那条路还要删 usage、回退提醒。
+ */
+function restoreBlisterSlotIn(data: AppData, slotId: string): AppData {
+  const slot = data.blisterSlots.find((s) => s.id === slotId);
+  if (!slot || slot.status === "full" || slot.usageId) return data;
+  const pack = data.packs.find((p) => p.id === slot.packId);
+  if (!pack) return data;
+  const now = nowIso();
+  return {
+    ...data,
+    blisterSlots: data.blisterSlots.map((s) =>
+      s.id === slotId
+        ? {
+            ...s,
+            status: "full" as const,
+            usageId: null,
+            consumedAt: null,
+            consumedBy: null,
+          }
+        : s,
+    ),
+    medications: data.medications.map((m) =>
+      m.id === pack.medicationId
+        ? {
+            ...m,
+            remainingQuantity: Math.min(
+              m.totalQuantity,
+              m.remainingQuantity + 1,
+            ),
+            updatedAt: now,
+          }
+        : m,
+    ),
+  };
+}
+
+/**
+ * 撤销一次服用：删 usage、回退提醒状态、恢复槽位、回补库存。
+ *
+ * 提醒回退到 pending 而非 taken —— 撤销后这次剂量重新进入待处理，
+ * 已过宽限期会被 syncRemindersIn 再次判为漏服（撤销补记不等于没漏过）。
+ */
+function undoUsageIn(data: AppData, usageId: string): AppData {
+  const usage = data.usages.find((u) => u.id === usageId);
+  if (!usage) return data;
+  const now = nowIso();
+  const reminders = data.reminders.map((r) =>
+    usage.reminderId && r.id === usage.reminderId && r.status !== "pending"
+      ? { ...r, status: "pending" as const, resolvedAt: undefined }
+      : r,
+  );
+  const hit = new Set(
+    data.blisterSlots.filter((s) => s.usageId === usageId).map((s) => s.id),
+  );
+  const blisterSlots = data.blisterSlots.map((s) =>
+    hit.has(s.id)
+      ? {
+          ...s,
+          status: "full" as const,
+          usageId: null,
+          consumedAt: null,
+          consumedBy: null,
+        }
+      : s,
+  );
+  const medications = data.medications.map((m) =>
+    m.id === usage.medicationId
+      ? {
+          ...m,
+          remainingQuantity: Math.min(
+            m.totalQuantity,
+            m.remainingQuantity + usage.amount,
+          ),
+          updatedAt: now,
+        }
+      : m,
+  );
+  return {
+    ...data,
+    reminders,
+    blisterSlots,
+    medications,
+    usages: data.usages.filter((u) => u.id !== usageId),
+  };
+}
+
+/** 为存量板装药开启数字孪生（孪生页承载引导表单） */
+export async function openBlisterTwin(
+  medicationId: string,
+  input: { rows: number; cols: number; packCount: number },
+): Promise<void> {
+  await updateData((data) => openBlisterTwinIn(data, medicationId, input));
+}
+
+/** 补货（按板）：追加 count 块满板 */
+export async function appendBlisterPacks(
+  medicationId: string,
+  count: number,
+): Promise<void> {
+  if (!Number.isFinite(count) || count <= 0) return;
+  await updateData((data) =>
+    appendBlisterPacksIn(data, medicationId, Math.round(count)),
+  );
+}
+
+/** 手动记一次服用：点孪生网格的某一格，记给指定用药人 */
+export async function consumeBlisterSlot(
+  slotId: string,
+  personId: string,
+): Promise<void> {
+  await updateData((data) => consumeBlisterSlotIn(data, slotId, personId));
+}
+
+/** 标记槽位损坏 / 遗失 */
+export async function voidBlisterSlot(slotId: string): Promise<void> {
+  await updateData((data) => voidBlisterSlotIn(data, slotId));
+}
+
+/** 恢复槽位为未服用（void / 历史消耗格） */
+export async function restoreBlisterSlot(slotId: string): Promise<void> {
+  await updateData((data) => restoreBlisterSlotIn(data, slotId));
+}
+
+/** 撤销一次服用：连带恢复槽位、回补库存、回退提醒 */
+export async function undoUsage(usageId: string): Promise<void> {
+  await updateData((data) => undoUsageIn(data, usageId));
 }
 
 // ─── 药品 CRUD ────────────────────────────────────────────
 
+/** 新建药品的输入。板装药可随药品一并建板（数字孪生），
+ *  此时 total / remaining 按板数重算，传入的库存值被忽略 */
+export type MedicationInput = Omit<
+  Medication,
+  "id" | "createdAt" | "updatedAt"
+> & {
+  blister?: { rows: number; cols: number; packCount: number };
+};
+
 export async function addMedication(
-  input: Omit<Medication, "id" | "createdAt" | "updatedAt">,
+  input: MedicationInput,
 ): Promise<Medication> {
+  const { blister, ...rest } = input;
   const now = nowIso();
+  // 新药没有历史消耗：板装时库存直接按「板数 × 每板粒数」给足，
+  // 建板逻辑按 remaining 反推历史格数，此时为 0，所有格子都是满的
+  const perPack = blister
+    ? clampSide(blister.rows) * clampSide(blister.cols)
+    : 0;
+  const packCount = blister
+    ? Math.max(1, Math.round(blister.packCount) || 1)
+    : 0;
   const medication: Medication = {
-    ...input,
+    ...rest,
     id: genId(),
     createdAt: now,
     updatedAt: now,
+    ...(blister
+      ? {
+          totalQuantity: perPack * packCount,
+          remainingQuantity: perPack * packCount,
+        }
+      : null),
   };
-  await updateData((data) => ({
-    ...data,
-    medications: [medication, ...data.medications],
-  }));
+  await updateData((data) => {
+    const next: AppData = {
+      ...data,
+      medications: [medication, ...data.medications],
+    };
+    if (!blister) return next;
+    return openBlisterTwinIn(next, medication.id, {
+      rows: blister.rows,
+      cols: blister.cols,
+      packCount,
+    });
+  });
   return medication;
 }
 
@@ -740,17 +1334,22 @@ export async function updateMedication(
   }));
 }
 
-/** 删除药品：级联删除配置和提醒；服用记录作为历史永久保留 */
+/** 删除药品：级联删除配置、提醒与泡罩孪生；服用记录作为历史永久保留 */
 export async function deleteMedication(id: string): Promise<void> {
   await updateData((data) => {
     const planIds = new Set(
       data.plans.filter((p) => p.medicationId === id).map((p) => p.id),
+    );
+    const packIds = new Set(
+      data.packs.filter((p) => p.medicationId === id).map((p) => p.id),
     );
     return {
       ...data,
       medications: data.medications.filter((m) => m.id !== id),
       plans: data.plans.filter((p) => p.medicationId !== id),
       reminders: data.reminders.filter((r) => !planIds.has(r.planId)),
+      packs: data.packs.filter((p) => p.medicationId !== id),
+      blisterSlots: data.blisterSlots.filter((s) => !packIds.has(s.packId)),
     };
   });
 }
@@ -914,27 +1513,34 @@ export async function takeReminder(id: string): Promise<void> {
       takenAt,
       createdAt: takenAt,
     };
-    return {
-      ...data,
-      reminders: data.reminders.map((r) =>
-        r.id === id
-          ? { ...r, status: "taken" as const, resolvedAt: takenAt }
-          : r,
-      ),
-      usages: [usage, ...data.usages],
-      medications: data.medications.map((m) =>
-        m.id === reminder.medicationId
-          ? {
-              ...m,
-              remainingQuantity: Math.max(
-                0,
-                m.remainingQuantity - reminder.doseAmount,
-              ),
-              updatedAt: takenAt,
-            }
-          : m,
-      ),
-    };
+    // 板装孪生：按泡罩顺序消耗槽位。槽位不足时 consumeSlotsIn 原样返回，
+    // 库存照扣 —— 服药闭环不因孪生数据不完整而阻断
+    return consumeSlotsIn(
+      {
+        ...data,
+        reminders: data.reminders.map((r) =>
+          r.id === id
+            ? { ...r, status: "taken" as const, resolvedAt: takenAt }
+            : r,
+        ),
+        usages: [usage, ...data.usages],
+        medications: data.medications.map((m) =>
+          m.id === reminder.medicationId
+            ? {
+                ...m,
+                remainingQuantity: Math.max(
+                  0,
+                  m.remainingQuantity - reminder.doseAmount,
+                ),
+                updatedAt: takenAt,
+              }
+            : m,
+        ),
+      },
+      reminder.medicationId,
+      reminder.doseAmount,
+      { usageId: usage.id, consumedAt: takenAt, consumedBy: usage.personName },
+    );
   });
 }
 

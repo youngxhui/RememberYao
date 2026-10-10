@@ -1,0 +1,200 @@
+appId: top.youngxhui.rememberyao.k3f9
+---
+# 药品数字孪生（泡罩药板）冒烟：引导页 → 建成员 → 建板装药（2×5=10 粒/板）→
+# 孪生页：点格服药 → 撤销 → 标记损坏 → 恢复 → 补充一板
+#
+# 沿用 medica.yaml / profile.yaml 的踩坑：@expo/ui 的 Text 不落 testID 只能按
+# 文案断言；切 tab 用 repeat 兜首次点击被吞；number pad 输入后用 pressKey: enter
+# 收键盘；药名/成员名用 ASCII（模拟器键盘打 CJK 不可靠）。
+- launchApp:
+    clearState: true
+
+# ── 引导页 ──
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-next-button"
+    timeout: 30000
+- tapOn:
+    id: "onboarding-next-button"
+- extendedWaitUntil:
+    visible: "跳过"
+    timeout: 10000
+- tapOn: "跳过"
+- extendedWaitUntil:
+    visible:
+      id: "home-tab"
+    timeout: 30000
+
+# ── 先建一个用药人：孪生页的手动服用要记在某人头上 ──
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: "profile-tab"
+      - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible: "本周概览"
+          timeout: 3000
+          optional: true
+- extendedWaitUntil:
+    visible: "本周概览"
+    timeout: 20000
+- swipe:
+    start: 90%, 55%
+    end: 90%, 20%
+    duration: 400
+- extendedWaitUntil:
+    visible: "还没有家庭成员，点右上角添加"
+    timeout: 10000
+- tapOn:
+    id: "profile-add-member-button"
+- extendedWaitUntil:
+    visible:
+      id: "person-name-input"
+    timeout: 20000
+- tapOn:
+    id: "person-name-input"
+- inputText: "Mom"
+- tapOn:
+    id: "person-add-button"
+- extendedWaitUntil:
+    visible: "还没有用药配置，点击下方按钮添加"
+    timeout: 20000
+
+# ── 回药品 tab，从 toolbar「添加」进表单 ──
+- tapOn: "家庭成员"
+- extendedWaitUntil:
+    visible: "Mom"
+    timeout: 20000
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: "medica-tab"
+      - waitForAnimationToEnd
+      - extendedWaitUntil:
+          visible:
+            id: "medica-filter-all"
+          timeout: 3000
+          optional: true
+- extendedWaitUntil:
+    visible:
+      id: "medica-filter-all"
+    timeout: 20000
+- tapOn: "添加"
+
+# ── 表单：板装药 2 行 × 5 列 = 10 粒/板，1 板 ──
+# 选「板装」后库存输入框换成规格三件套（行/列/板数），保存时自动建孪生
+- extendedWaitUntil:
+    visible:
+      id: "medication-name-input"
+    timeout: 20000
+- inputText: "Amoxil"
+- tapOn: "Return"
+- tapOn:
+    id: "medication-type-blister"
+- tapOn:
+    id: "medication-blister-rows-input"
+- inputText: "2"
+- pressKey: enter
+- tapOn:
+    id: "medication-blister-cols-input"
+- inputText: "5"
+- pressKey: enter
+- tapOn:
+    id: "medication-blister-packs-input"
+- inputText: "1"
+- pressKey: enter
+- scrollUntilVisible:
+    element:
+      id: "medication-save-button"
+    direction: DOWN
+- tapOn:
+    id: "medication-save-button"
+
+# ── 列表 → 详情：板装药多了「数字孪生」区块 ──
+- extendedWaitUntil:
+    visible:
+      id: "medica-filter-all"
+    timeout: 20000
+- tapOn: "Amoxil"
+- extendedWaitUntil:
+    visible: "板装 · 慢性病"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "medication-twin-entry"
+    direction: DOWN
+- assertVisible: "查看泡罩孪生"
+- assertVisible: "第 1 板服用中 · 剩 10/10"
+
+# ── 进孪生页：10 个格子全是未服用 ──
+- tapOn:
+    id: "medication-twin-entry"
+- extendedWaitUntil:
+    visible:
+      id: "twin-slot-1-0"
+    timeout: 20000
+- assertVisible: "整盒剩余 10 / 10 泡"
+- assertVisible: "已服 0 / 10"
+
+# ── 点第 1 格 → sheet → 标记已服（记给 Mom）→ 剩 9 ──
+- tapOn:
+    id: "twin-slot-1-0"
+- extendedWaitUntil:
+    visible: "第 1 板 · 第 1 格"
+    timeout: 10000
+- assertVisible: "这一泡还没有服用"
+- tapOn:
+    id: "twin-consume-button"
+- extendedWaitUntil:
+    visible: "整盒剩余 9 / 10 泡"
+    timeout: 10000
+- assertVisible: "已服 1 / 10"
+
+# ── 再点同一格 → 显示服用记录 → 撤销 → 回 10 ──
+- tapOn:
+    id: "twin-slot-1-0"
+- extendedWaitUntil:
+    visible: "Mom · "
+    timeout: 10000
+- tapOn:
+    id: "twin-undo-button"
+- extendedWaitUntil:
+    visible: "整盒剩余 10 / 10 泡"
+    timeout: 10000
+
+# ── 第 2 格标记损坏 → 剩 9（不产生服用记录）→ 恢复 → 回 10 ──
+- tapOn:
+    id: "twin-slot-1-1"
+- extendedWaitUntil:
+    visible: "第 1 板 · 第 2 格"
+    timeout: 10000
+- tapOn:
+    id: "twin-void-button"
+- extendedWaitUntil:
+    visible: "整盒剩余 9 / 10 泡"
+    timeout: 10000
+- tapOn:
+    id: "twin-slot-1-1"
+- extendedWaitUntil:
+    visible: "已标记为损坏 / 遗失"
+    timeout: 10000
+- tapOn:
+    id: "twin-restore-button"
+- extendedWaitUntil:
+    visible: "整盒剩余 10 / 10 泡"
+    timeout: 10000
+
+# ── 补充一板：出现第 2 板 chip，总量变 20 ──
+- tapOn:
+    id: "twin-add-pack-button"
+- extendedWaitUntil:
+    visible:
+      id: "twin-pack-2"
+    timeout: 10000
+- assertVisible: "整盒剩余 20 / 20 泡"
+- tapOn:
+    id: "twin-pack-2"
+- waitForAnimationToEnd
+- assertVisible: "已服 0 / 10"

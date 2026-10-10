@@ -2,7 +2,9 @@ import { notInArray, sql } from "drizzle-orm";
 
 import { getDb } from "./client";
 import {
+  blisterSlots,
   medications,
+  packs,
   persons,
   plans,
   reminders,
@@ -15,6 +17,8 @@ type PersonRow = typeof persons.$inferSelect;
 type PlanRow = typeof plans.$inferSelect;
 type ReminderRow = typeof reminders.$inferSelect;
 type UsageRow = typeof usages.$inferSelect;
+type PackRow = typeof packs.$inferSelect;
+type BlisterSlotRow = typeof blisterSlots.$inferSelect;
 type SettingsRow = typeof settings.$inferSelect;
 
 /** 仓储层出入参的形状：与 store.ts 的实体类型一一对应，列名用 snake_case。
@@ -25,18 +29,22 @@ export type PersistedData = {
   plans: PlanRow[];
   reminders: ReminderRow[];
   usages: UsageRow[];
+  packs: PackRow[];
+  blisterSlots: BlisterSlotRow[];
   settings: SettingsRow[];
 };
 
 /** 一次性读出全部表 */
 export async function selectAll(): Promise<PersistedData> {
   const db = await getDb();
-  const [m, p, pl, r, u, s] = await Promise.all([
+  const [m, p, pl, r, u, pk, bs, s] = await Promise.all([
     db.select().from(medications),
     db.select().from(persons),
     db.select().from(plans),
     db.select().from(reminders),
     db.select().from(usages),
+    db.select().from(packs),
+    db.select().from(blisterSlots),
     db.select().from(settings),
   ]);
   return {
@@ -45,6 +53,8 @@ export async function selectAll(): Promise<PersistedData> {
     plans: pl,
     reminders: r,
     usages: u,
+    packs: pk,
+    blisterSlots: bs,
     settings: s,
   };
 }
@@ -85,6 +95,8 @@ export async function replaceAll(data: PersistedData): Promise<void> {
             unit: sql`excluded.unit`,
             totalQuantity: sql`excluded.total_quantity`,
             remainingQuantity: sql`excluded.remaining_quantity`,
+            blisterRows: sql`excluded.blister_rows`,
+            blisterCols: sql`excluded.blister_cols`,
             expiryDate: sql`excluded.expiry_date`,
             prescription: sql`excluded.prescription`,
             notes: sql`excluded.notes`,
@@ -156,6 +168,10 @@ export async function replaceAll(data: PersistedData): Promise<void> {
         .onConflictDoUpdate({
           target: usages.id,
           set: {
+            reminderId: sql`excluded.reminder_id`,
+            planId: sql`excluded.plan_id`,
+            medicationId: sql`excluded.medication_id`,
+            personId: sql`excluded.person_id`,
             personName: sql`excluded.person_name`,
             medicationName: sql`excluded.medication_name`,
             time: sql`excluded.time`,
@@ -163,6 +179,37 @@ export async function replaceAll(data: PersistedData): Promise<void> {
             late: sql`excluded.late`,
             takenAt: sql`excluded.taken_at`,
             createdAt: sql`excluded.created_at`,
+          },
+        });
+    }
+    if (data.packs.length > 0) {
+      await tx
+        .insert(packs)
+        .values(data.packs)
+        .onConflictDoUpdate({
+          target: packs.id,
+          set: {
+            medicationId: sql`excluded.medication_id`,
+            seq: sql`excluded.seq`,
+            rows: sql`excluded.rows`,
+            cols: sql`excluded.cols`,
+            createdAt: sql`excluded.created_at`,
+          },
+        });
+    }
+    if (data.blisterSlots.length > 0) {
+      await tx
+        .insert(blisterSlots)
+        .values(data.blisterSlots)
+        .onConflictDoUpdate({
+          target: blisterSlots.id,
+          set: {
+            packId: sql`excluded.pack_id`,
+            index: sql`excluded.index`,
+            status: sql`excluded.status`,
+            usageId: sql`excluded.usage_id`,
+            consumedAt: sql`excluded.consumed_at`,
+            consumedBy: sql`excluded.consumed_by`,
           },
         });
     }
@@ -192,6 +239,11 @@ export async function replaceAll(data: PersistedData): Promise<void> {
     await tx
       .delete(medications)
       .where(stale(medications.id, ids(data.medications)));
+    // 槽位随板走、板随药品走：删除顺序反了会出现悬空引用（虽然本库没有外键约束）
+    await tx
+      .delete(blisterSlots)
+      .where(stale(blisterSlots.id, ids(data.blisterSlots)));
+    await tx.delete(packs).where(stale(packs.id, ids(data.packs)));
     // 设置表恒为单行：传空数组表示"用默认值"（首次读库时就是这样），
     // 此时必须跳过删除，否则会把唯一那行删掉、每次启动都重新落默认值
     if (data.settings.length > 0) {
