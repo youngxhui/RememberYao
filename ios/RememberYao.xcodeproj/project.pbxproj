@@ -101,7 +101,7 @@
 				EC0072F470768A4F3CA9A603 /* Assets.xcassets */,
 			);
 			path = RememberYao;
-			sourceTree = SOURCE_ROOT;
+			sourceTree = "<group>";
 		};
 		20886F8FD056F1E41104E100 /* Theme */ = {
 			isa = PBXGroup;
