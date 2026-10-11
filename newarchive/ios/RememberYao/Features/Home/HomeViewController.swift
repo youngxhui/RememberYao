@@ -1,0 +1,230 @@
+import UIKit
+
+enum HomeSection: Int, CaseIterable {
+  case reminders
+  case stock
+}
+
+enum HomeRow: Hashable {
+  case reminder(id: String, title: String, detail: String, statusKey: String)
+  case stock(id: String, title: String, detail: String, levelKey: String)
+}
+
+/// 首页（今日）：日期 + 成员筛选 + 提醒卡堆叠 + 今日全部提醒 + 库存速览。
+///
+/// 视觉基准 `design/today.html`，但控件一律用平台原生：`UITableView`
+/// （inset grouped）+ `UIListContentConfiguration` 单元格、`UIMenu` 筛选、
+/// `UIAlertController` 操作面板、原生侧滑操作。屏幕只负责读 `Store` 与派发
+/// 动作，所有业务判断（是否漏服、还能吃几天、低库存）都在 `Core/Domain` 里。
+final class HomeViewController: ListScreenViewController<HomeRow> {
+  private let store = AppEnvironment.shared.store
+
+  /// nil = 全部成员。
+  private var memberFilter: String?
+
+  /// 提醒卡堆叠：接下来的待处理提醒，纵向滑动换卡。
+  ///
+  /// 放在固定头部而不是表格里 —— 它的纵向拖动手势与表格滚动同向，嵌进
+  /// `UIScrollView` 会互相抢（Expo 版首页是原生 ScrollView + RN island，
+  /// 原生侧用「滚动区之外」达到同样效果）。没有待处理提醒时组件自降为 0 高。
+  private lazy var cardStack: ReminderCardStackView = {
+    let stack = ReminderCardStackView()
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    stack.onTake = { [weak self] _ in self?.reload() }
+    return stack
+  }()
+
+  override var fixedHeader: UIView? { cardStack }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    title = L10n.formatDate(Date(), style: .full)
+    navigationController?.navigationBar.prefersLargeTitles = true
+    navigationItem.largeTitleDisplayMode = .always
+    configureFilterMenu()
+    reload()
+  }
+
+  override func reload() {
+    guard !store.loading else { return }
+    title = L10n.formatDate(Date(), style: .full)
+    applySnapshot()
+  }
+
+  override func applySnapshot() {
+    super.applySnapshot()
+    // 牌堆只认 pending/missed，按成员筛选后的全集交给它自己取前三张
+    cardStack.configure(
+      reminders: store.data.reminders.filter { reminder in
+        guard let memberFilter else { return true }
+        return reminder.personId == memberFilter
+      },
+      medications: store.data.medications,
+      persons: store.data.persons,
+      plans: store.data.plans
+    )
+  }
+
+  // MARK: - 成员筛选
+
+  /// 筛选放导航栏右侧菜单：iOS 原生的「筛选项不多但每项有名字」的形态，
+  /// 比塞一排 chip 更贴平台，也不会和 tab 栏抢空间。
+  private func configureFilterMenu() {
+    var actions: [UIMenuElement] = [
+      UIAction(title: L10n.shared.t("medication.filterAll"), image: nil) { [weak self] _ in
+        self?.memberFilter = nil
+        self?.applySnapshot()
+      }
+    ]
+    for person in store.data.persons {
+      let isSelected = person.id == memberFilter
+      actions.append(
+        UIAction(
+          title: person.name,
+          state: isSelected ? .on : .off
+        ) { [weak self] _ in
+          self?.memberFilter = person.id
+          self?.applySnapshot()
+        })
+    }
+    let menu = UIMenu(title: L10n.shared.t("home.member"), children: actions)
+    navigationItem.rightBarButtonItem = UIBarButtonItem(
+      image: UIImage(systemName: "line.3.horizontal.decrease.circle"),
+      menu: menu
+    )
+    navigationItem.rightBarButtonItem?.accessibilityIdentifier = "home-filter-button"
+  }
+
+  // MARK: - 快照
+
+  override func buildSnapshot() -> [SectionKey: [HomeRow]] {
+    [
+      HomeSection.reminders.rawValue: reminderRows(),
+      HomeSection.stock.rawValue: stockRows(),
+    ]
+  }
+
+  private func reminderRows() -> [HomeRow] {
+    let today = DateKey.today()
+    return store.data.reminders
+      .filter { $0.date == today }
+      .filter { reminder in
+        guard let memberFilter else { return true }
+        return reminder.personId == memberFilter
+      }
+      .sorted { DateKey.compareTime($0.time, $1.time) == .orderedAscending }
+      .map { reminder in
+        let medication = store.data.medications.first { $0.id == reminder.medicationId }
+        let person = store.data.persons.first { $0.id == reminder.personId }
+        return HomeRow.reminder(
+          id: reminder.id,
+          title: medication?.name ?? Domain.deletedMedicationName,
+          detail:
+            "\(reminder.time) · \(person?.name ?? Domain.deletedPersonName) · \(L10n.shared.t("medication.amountWithUnit", ["amount": "\(reminder.doseAmount)", "unit": medication.map { L10n.unitLabel($0.unit) } ?? ""]))",
+          statusKey: reminder.status.rawValue
+        )
+      }
+  }
+
+  /// 库存速览：只列「按当前计划估算还能吃 ≤3 天」的药，其余不上屏。
+  private func stockRows() -> [HomeRow] {
+    store.data.medications
+      .filter { stockSummary($0, store.data.plans).low }
+      .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+      .map { medication in
+        let summary = stockSummary(medication, store.data.plans)
+        return HomeRow.stock(
+          id: medication.id,
+          title: medication.name,
+          detail: L10n.shared.t(
+            "home.daysLeft", ["count": "\(summary.daysLeft ?? 0)"]),
+          levelKey: medication.stockLevel.rawValue
+        )
+      }
+  }
+
+  override func configure(_ cell: UITableViewCell, for row: HomeRow, at indexPath: IndexPath) {
+    switch row {
+    case .reminder(_, let title, let detail, let statusKey):
+      var content = UIListContentConfiguration.subtitleCell()
+      content.text = title
+      content.secondaryText = detail
+      content.secondaryTextProperties.numberOfLines = 2
+      // 状态用文字标在右侧而不是靠颜色区分：色弱用户看不出红绿
+      let status = ReminderStatus(rawValue: statusKey) ?? .pending
+      content.textProperties.color = tint(for: status)
+      cell.contentConfiguration = content
+      cell.accessibilityIdentifier = "home-reminder-\(title)"
+      cell.accessoryType = status == .pending ? .disclosureIndicator : .none
+
+    case .stock(_, let title, let detail, let levelKey):
+      var content = UIListContentConfiguration.valueCell()
+      content.text = title
+      content.secondaryText = detail
+      content.secondaryTextProperties.color = tint(
+        for: StockLevel(rawValue: levelKey) ?? .ok)
+      content.image = UIImage(systemName: "exclamationmark.triangle.fill")
+      content.imageProperties.tintColor = Theme.Color.warning
+      cell.contentConfiguration = content
+      cell.accessibilityIdentifier = "home-stock-\(title)"
+    }
+  }
+
+  private func tint(for status: ReminderStatus) -> UIColor {
+    switch status {
+    case .pending: return Theme.Color.label
+    case .taken: return Theme.Color.success
+    case .skipped: return Theme.Color.labelSecondary
+    case .missed: return Theme.Color.danger
+    }
+  }
+
+  private func tint(for level: StockLevel) -> UIColor {
+    switch level {
+    case .ok: return Theme.Color.labelSecondary
+    case .low: return Theme.Color.warning
+    case .critical: return Theme.Color.danger
+    }
+  }
+
+  // MARK: - 操作
+
+  override func didSelect(_ row: HomeRow) {
+    switch row {
+    case .reminder(let id, _, _, _):
+      presentReminderActions(reminderId: id, sourceView: nil)
+
+    case .stock(let id, _, _, _):
+      let detail = MedicaDetailViewController(medicationId: id)
+      navigationController?.pushViewController(detail, animated: true)
+    }
+  }
+
+  /// 点一条待处理提醒：原生 actionSheet 给 已服用 / 稍后提醒 / 跳过。
+  func presentReminderActions(reminderId: String, sourceView: UIView?) {
+    let alert = UIAlertController(
+      title: L10n.shared.t("home.reminderActions"), message: nil,
+      preferredStyle: .actionSheet)
+    alert.addAction(
+      UIAlertAction(title: L10n.shared.t("reminder.markTaken"), style: .default) {
+        [weak self] _ in
+        Task { await self?.store.take(reminderId) }
+      })
+    alert.addAction(
+      UIAlertAction(title: L10n.shared.t("reminder.snooze"), style: .default) {
+        [weak self] _ in
+        Task {
+          await self?.store.snooze(
+            reminderId, minutes: self?.store.data.settings.snoozeMinutes ?? 10)
+        }
+      })
+    alert.addAction(
+      UIAlertAction(title: L10n.shared.t("reminder.skip"), style: .destructive) {
+        [weak self] _ in
+        Task { await self?.store.skip(reminderId) }
+      })
+    alert.addAction(
+      UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
+    present(alert, anchoredTo: sourceView ?? view, animated: true)
+  }
+}

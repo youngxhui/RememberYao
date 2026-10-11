@@ -1,0 +1,761 @@
+{
+  "groups": [
+    {
+      "id": "djcj478b",
+      "x": 0,
+      "y": 788,
+      "axis": "x",
+      "items": [
+        {
+          "id": "rumb3x4j",
+          "kind": "bottomNav",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "tabs": [
+            {
+              "icon": "home",
+              "label": "首页"
+            },
+            {
+              "icon": "medication",
+              "label": "药品"
+            },
+            {
+              "icon": "person",
+              "label": "我的"
+            }
+          ],
+          "radiusTop": 0,
+          "radiusBottom": 0,
+          "actions": {
+            "tab:1": {
+              "to": "c7gh8zik",
+              "transition": "slide"
+            },
+            "tab:2": {
+              "to": "4r5ula6v",
+              "transition": "slide"
+            }
+          },
+          "size": 412
+        }
+      ]
+    },
+    {
+      "id": "gc85tfcu",
+      "x": 0,
+      "y": 0,
+      "axis": "x",
+      "items": [
+        {
+          "id": "tcqwzxmr",
+          "kind": "topAppBar",
+          "label": "10月11日",
+          "icon": null,
+          "variant": "filled",
+          "icon2": null,
+          "size": 412,
+          "size2": 64,
+          "radiusTop": 0,
+          "radiusBottom": 0
+        }
+      ]
+    },
+    {
+      "id": "yj7ybqvi",
+      "x": 532,
+      "y": 788,
+      "axis": "x",
+      "items": [
+        {
+          "id": "yf0w1sdj",
+          "kind": "bottomNav",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "tabs": [
+            {
+              "icon": "home",
+              "label": "首页"
+            },
+            {
+              "icon": "medication",
+              "label": "药品"
+            },
+            {
+              "icon": "person",
+              "label": "我的"
+            }
+          ],
+          "radiusTop": 0,
+          "radiusBottom": 0,
+          "actions": {
+            "tab:0": {
+              "to": "seedF1",
+              "transition": "slideLeft"
+            },
+            "tab:2": {
+              "to": "4r5ula6v",
+              "transition": "slide"
+            }
+          },
+          "selected": 1,
+          "size": 412
+        }
+      ],
+      "locked": true
+    },
+    {
+      "id": "iwi445tt",
+      "x": 532,
+      "y": 0,
+      "axis": "x",
+      "items": [
+        {
+          "id": "lxfo4w7p",
+          "kind": "topAppBar",
+          "label": "药品",
+          "icon": null,
+          "variant": "filled",
+          "icon2": null,
+          "size": 412,
+          "size2": 64,
+          "radiusTop": 0,
+          "radiusBottom": 0
+        }
+      ],
+      "locked": true
+    },
+    {
+      "id": "tpj6e0te",
+      "x": 548,
+      "y": 168,
+      "axis": "x",
+      "items": [
+        {
+          "id": "coc2i2wz",
+          "kind": "chip",
+          "label": "慢性病",
+          "icon": null,
+          "variant": "outlined",
+          "checked": false,
+          "size2": 40
+        },
+        {
+          "id": "5a93ev71",
+          "kind": "chip",
+          "label": "保健品",
+          "icon": null,
+          "variant": "outlined",
+          "checked": false,
+          "size2": 40
+        },
+        {
+          "id": "pn7gprv2",
+          "kind": "chip",
+          "label": "库存不足",
+          "icon": null,
+          "variant": "outlined",
+          "checked": false,
+          "size2": 40
+        }
+      ]
+    },
+    {
+      "id": "kov35l0n",
+      "x": 824,
+      "y": 716,
+      "axis": "x",
+      "items": [
+        {
+          "id": "2b6m62k4",
+          "kind": "extendedFab",
+          "label": "添加",
+          "icon": "add",
+          "variant": "filled",
+          "size2": 56,
+          "action": {
+            "to": "b8qgiqkx",
+            "transition": "slideUp"
+          }
+        }
+      ]
+    },
+    {
+      "id": "um79xd7f",
+      "x": 16,
+      "y": 104,
+      "axis": "x",
+      "items": [
+        {
+          "id": "mdi7uqhh",
+          "kind": "text",
+          "label": "今日待处理",
+          "icon": null,
+          "variant": "filled",
+          "size": 22
+        }
+      ]
+    },
+    {
+      "id": "1lnwcuhi",
+      "x": 548,
+      "y": 104,
+      "axis": "x",
+      "items": [
+        {
+          "id": "a8guguck",
+          "kind": "searchBar",
+          "label": "搜索",
+          "icon": "search",
+          "variant": "filled",
+          "icon2": "mic",
+          "size": 380
+        }
+      ]
+    },
+    {
+      "id": "04ecvxn7",
+      "x": 548,
+      "y": 216,
+      "axis": "y",
+      "items": [
+        {
+          "id": "qbiua54d",
+          "kind": "listItem",
+          "label": "列表项",
+          "icon": "medication",
+          "variant": "filled",
+          "supporting": "慢性病",
+          "icon2": "chevron_right",
+          "size": 380,
+          "fill": "secondaryContainer",
+          "iconFill": "surface"
+        },
+        {
+          "id": "dayrh9yy",
+          "kind": "listItem",
+          "label": "维生素C",
+          "icon": "medication",
+          "variant": "filled",
+          "supporting": "保健品",
+          "icon2": "chevron_right",
+          "size": 380
+        },
+        {
+          "id": "j8qgxrje",
+          "kind": "listItem",
+          "label": "列表项",
+          "icon": "medication",
+          "variant": "filled",
+          "supporting": "辅助文本",
+          "icon2": "chevron_right",
+          "size": 380
+        },
+        {
+          "id": "y193o4ys",
+          "kind": "listItem",
+          "label": "列表项",
+          "icon": "medication",
+          "variant": "filled",
+          "supporting": "辅助文本",
+          "icon2": "chevron_right",
+          "size": 380
+        }
+      ]
+    },
+    {
+      "id": "vp0j478b",
+      "x": 16,
+      "y": 141,
+      "axis": "x",
+      "items": [
+        {
+          "id": "ql0u1cev",
+          "kind": "box",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "size": 380,
+          "size2": 446,
+          "radiusTop": 28,
+          "radiusBottom": 28,
+          "fill": "surfaceContainerHigh",
+          "note": "这里是要放 stack 组件"
+        }
+      ]
+    },
+    {
+      "id": "o5y0bwlv",
+      "x": 16,
+      "y": 603,
+      "axis": "x",
+      "items": [
+        {
+          "id": "d78hwiss",
+          "kind": "text",
+          "label": "药品库存",
+          "icon": null,
+          "variant": "filled",
+          "size": 22
+        }
+      ]
+    },
+    {
+      "id": "jmnqo9ha",
+      "x": 16,
+      "y": 642,
+      "axis": "x",
+      "items": [
+        {
+          "id": "qoz2skdw",
+          "kind": "text",
+          "label": "维生素C",
+          "icon": null,
+          "variant": "filled",
+          "size": 16
+        }
+      ]
+    },
+    {
+      "id": "llv51te8",
+      "x": 128,
+      "y": 640,
+      "axis": "x",
+      "items": [
+        {
+          "id": "3gi0218q",
+          "kind": "linearProgress",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "size": 268,
+          "value": 88,
+          "trackThickness": 8
+        }
+      ]
+    },
+    {
+      "id": "j1dw1tam",
+      "x": 1064,
+      "y": 788,
+      "axis": "x",
+      "items": [
+        {
+          "id": "ng1zadm8",
+          "kind": "bottomNav",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "tabs": [
+            {
+              "icon": "home",
+              "label": "首页"
+            },
+            {
+              "icon": "medication",
+              "label": "药品"
+            },
+            {
+              "icon": "person",
+              "label": "我的"
+            }
+          ],
+          "radiusTop": 0,
+          "radiusBottom": 0,
+          "actions": {
+            "tab:0": {
+              "to": "seedF1",
+              "transition": "slideLeft"
+            },
+            "tab:1": {
+              "to": "c7gh8zik",
+              "transition": "slideLeft"
+            }
+          },
+          "selected": 2,
+          "size": 412
+        }
+      ]
+    },
+    {
+      "id": "sfs9fmde",
+      "x": 1064,
+      "y": 0,
+      "axis": "x",
+      "items": [
+        {
+          "id": "buf72wy1",
+          "kind": "topAppBar",
+          "label": "我的",
+          "icon": null,
+          "variant": "filled",
+          "icon2": "settings",
+          "size": 412,
+          "size2": 64,
+          "radiusTop": 0,
+          "radiusBottom": 0,
+          "actions": {
+            "icon2": {
+              "to": "desymwrf",
+              "transition": "slide"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "trpdjx2r",
+      "x": 1080,
+      "y": 104,
+      "axis": "x",
+      "items": [
+        {
+          "id": "szvaek31",
+          "kind": "box",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "size": 380,
+          "size2": 220,
+          "radiusTop": 28,
+          "radiusBottom": 28,
+          "fill": "primary"
+        }
+      ]
+    },
+    {
+      "id": "vtdhhhey",
+      "x": 1080,
+      "y": 332,
+      "axis": "x",
+      "items": [
+        {
+          "id": "rzq06meu",
+          "kind": "text",
+          "label": "本周概览",
+          "icon": null,
+          "variant": "filled",
+          "size": 22
+        }
+      ]
+    },
+    {
+      "id": "qjpmh3hz",
+      "x": 1080,
+      "y": 382,
+      "axis": "x",
+      "items": [
+        {
+          "id": "g3s6xo2w",
+          "kind": "box",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "size": 132,
+          "size2": 100,
+          "radiusTop": 28,
+          "radiusBottom": 28,
+          "fill": "surfaceContainerHigh"
+        }
+      ]
+    },
+    {
+      "id": "2oc3zyaq",
+      "x": 1126,
+      "y": 396,
+      "axis": "x",
+      "items": [
+        {
+          "id": "r4tkl5h8",
+          "kind": "text",
+          "label": "0%",
+          "icon": null,
+          "variant": "filled",
+          "size": 28
+        }
+      ]
+    },
+    {
+      "id": "x00xaek1",
+      "x": 1112,
+      "y": 440,
+      "axis": "x",
+      "items": [
+        {
+          "id": "1tj2hy1p",
+          "kind": "text",
+          "label": "服药率",
+          "icon": null,
+          "variant": "filled",
+          "size": 22
+        }
+      ]
+    },
+    {
+      "id": "07qw76gv",
+      "x": 1080,
+      "y": 490,
+      "axis": "x",
+      "items": [
+        {
+          "id": "gip2skek",
+          "kind": "text",
+          "label": "家庭成员",
+          "icon": null,
+          "variant": "filled",
+          "size": 22
+        }
+      ]
+    },
+    {
+      "id": "lryif3sm",
+      "x": 1080,
+      "y": 527,
+      "axis": "y",
+      "items": [
+        {
+          "id": "zu6mpuka",
+          "kind": "listItem",
+          "label": "我",
+          "icon": "person",
+          "variant": "filled",
+          "supporting": "0配置",
+          "icon2": "chevron_right",
+          "size": 380
+        }
+      ]
+    },
+    {
+      "id": "to6bpgi8",
+      "x": 1371,
+      "y": 482,
+      "axis": "x",
+      "items": [
+        {
+          "id": "ac7165f2",
+          "kind": "button",
+          "label": "添加",
+          "icon": "add",
+          "variant": "filled",
+          "size2": 40
+        }
+      ]
+    },
+    {
+      "id": "iwbxyiq4",
+      "x": 539,
+      "y": 1785,
+      "axis": "x",
+      "items": [
+        {
+          "id": "albos01b",
+          "kind": "bottomNav",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "tabs": [
+            {
+              "icon": "home",
+              "label": "首页"
+            },
+            {
+              "icon": "medication",
+              "label": "药品"
+            },
+            {
+              "icon": "person",
+              "label": "我的"
+            }
+          ],
+          "radiusTop": 0,
+          "radiusBottom": 0,
+          "actions": {
+            "tab:0": {
+              "to": "seedF1",
+              "transition": "slideLeft"
+            },
+            "tab:2": {
+              "to": "4r5ula6v",
+              "transition": "slide"
+            }
+          },
+          "selected": 1,
+          "size": 412
+        }
+      ],
+      "locked": false
+    },
+    {
+      "id": "dpvlnek4",
+      "x": 539,
+      "y": 997,
+      "axis": "x",
+      "items": [
+        {
+          "id": "evaurhf0",
+          "kind": "topAppBar",
+          "label": "添加药品",
+          "icon": "arrow_back",
+          "variant": "filled",
+          "icon2": null,
+          "size": 412,
+          "size2": 64,
+          "radiusTop": 0,
+          "radiusBottom": 0,
+          "actions": {
+            "icon": {
+              "to": "back",
+              "transition": "slide"
+            }
+          }
+        }
+      ],
+      "locked": false
+    },
+    {
+      "id": "bori0eyi",
+      "x": 1596,
+      "y": 788,
+      "axis": "x",
+      "items": [
+        {
+          "id": "983el2ix",
+          "kind": "bottomNav",
+          "label": "",
+          "icon": null,
+          "variant": "filled",
+          "tabs": [
+            {
+              "icon": "home",
+              "label": "首页"
+            },
+            {
+              "icon": "medication",
+              "label": "药品"
+            },
+            {
+              "icon": "person",
+              "label": "我的"
+            }
+          ],
+          "radiusTop": 0,
+          "radiusBottom": 0,
+          "actions": {
+            "tab:0": {
+              "to": "seedF1",
+              "transition": "slideLeft"
+            },
+            "tab:1": {
+              "to": "c7gh8zik",
+              "transition": "slideLeft"
+            }
+          },
+          "selected": 2,
+          "size": 412
+        }
+      ]
+    },
+    {
+      "id": "uuk4aw1r",
+      "x": 1596,
+      "y": 0,
+      "axis": "x",
+      "items": [
+        {
+          "id": "c1n6ui3h",
+          "kind": "topAppBar",
+          "label": "设置",
+          "icon": "arrow_back",
+          "variant": "filled",
+          "icon2": null,
+          "size": 412,
+          "size2": 64,
+          "radiusTop": 0,
+          "radiusBottom": 0,
+          "actions": {
+            "icon": {
+              "to": "back",
+              "transition": "slide"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "0j1oxtnh",
+      "x": 1612,
+      "y": 104,
+      "axis": "y",
+      "items": [
+        {
+          "id": "ifephksi",
+          "kind": "listItem",
+          "label": "语言",
+          "icon": null,
+          "variant": "filled",
+          "supporting": "中文",
+          "icon2": "keyboard_arrow_down",
+          "size": 380
+        },
+        {
+          "id": "aozkybmn",
+          "kind": "listItem",
+          "label": "列表项",
+          "icon": "person",
+          "variant": "filled",
+          "supporting": "辅助文本",
+          "icon2": "chevron_right",
+          "size": 380
+        }
+      ]
+    }
+  ],
+  "frames": [
+    {
+      "id": "seedF1",
+      "name": "首页",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": "c7gh8zik",
+      "name": "药品",
+      "x": 532,
+      "y": 0
+    },
+    {
+      "id": "4r5ula6v",
+      "name": "我的",
+      "x": 1064,
+      "y": 0
+    },
+    {
+      "id": "b8qgiqkx",
+      "name": "药品添加",
+      "x": 539,
+      "y": 997
+    },
+    {
+      "id": "desymwrf",
+      "name": "设置",
+      "x": 1596,
+      "y": 0
+    }
+  ],
+  "paletteKey": "green",
+  "frame": "phone",
+  "title": "",
+  "brief": "",
+  "dynamicColor": true,
+  "theme": {
+    "dark": false,
+    "bothModes": true,
+    "contrast": "standard",
+    "shape": "rounded",
+    "font": "roboto",
+    "emphasized": true,
+    "motion": "expressive"
+  }
+}
