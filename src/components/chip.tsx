@@ -1,24 +1,21 @@
 import { Row, Text } from "@expo/ui";
 
-import { nativeChipModifiers } from "@/components/native-layout";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 /**
- * 胶囊标签（design/*.html 的 .chip），iOS 26 液态玻璃。
+ * 胶囊标签（design/*.html 的 .chip）的跨平台入口。
  *
- * 磨砂底、高光描边、选中态的着色全部由 `glassEffect(.regular, in: .capsule)`
- * 绘制，JS 侧只留内边距 —— 再叠 backgroundColor / borderWidth 会把玻璃糊成
- * 一片，只剩一个药丸轮廓。选中态给 `.tint(theme.primary)`，与未激活的透明玻璃
- * 分层；品牌色本身仍只做着色、不抢内容。
+ * 平台分工（同 `native-date-picker`：base 是兜底，两端各自覆盖）：
+ * - iOS：`chip.ios.tsx`，iOS 26 液态玻璃 `glassEffect(.regular, in: .capsule)`。
+ * - Android：`chip.android.tsx`，Material 3 官方 `FilterChip`（选中/按压动画、涟漪、
+ *   大字号都是原生的）。
+ * - web / 兜底（本文件）：universal `Row` + `style` 拼一颗静态药丸。
  *
- * 玻璃要靠背后的内容起雾，落在页面底色上最出彩；贴在实心卡片里也剩得下一圈
- * 高光棱线，不会糊没。文字色不随明暗模式翻面 —— 玻璃的明暗由背后的页面底色
- * 决定，选中态底偏深配白字、未选中态底偏亮配黑字，两端都是这一组
- * （`onGlassChipActive` / `onGlassChipInactive`）。
- *
- * Android 的 Compose 没有液态玻璃，`nativeChipModifiers` 在那里返回 null ——
- * 见 native-layout.android.tsx 的说明（当前 Android 上 chip 暂无底色）。
+ * 为什么两端都要覆盖：universal style 画不出液态玻璃，也拿不到 Compose chip 的
+ * 那套状态动画 —— 但 web 没有这两个原生材质，只能退到「看得见的一颗药丸」。
+ * 之前这里是「只剩文字」（无底色无描边），本文件补上 surface 底 + border 描边，
+ * 与 design 的 .chip 取色一致。
  */
 export function Chip({
   testID,
@@ -38,19 +35,20 @@ export function Chip({
     <Row
       testID={testID}
       onPress={onPress}
-      modifiers={
-        nativeChipModifiers({ active, tint: theme.primary }) ?? undefined
-      }
       style={{
         paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.two,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: active ? theme.primary : theme.border,
+        backgroundColor: active ? theme.primary : theme.surface,
       }}
     >
       <Text
         textStyle={{
           fontSize: 14,
           fontWeight: "600",
-          color: active ? theme.onGlassChipActive : theme.onGlassChipInactive,
+          color: active ? theme.onPrimary : theme.textSecondary,
         }}
       >
         {label}

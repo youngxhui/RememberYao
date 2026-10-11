@@ -17,7 +17,6 @@ import {
 
 import type {
   NativeButtonModifiers,
-  NativeChipModifiers,
   NativeContinuousShape,
   NativeConcentricShape,
   NativeFieldModifiers,
@@ -61,11 +60,6 @@ export const nativeContinuousShape: NativeContinuousShape = () => [];
 // Android 的 borderWidth + borderRadius 由 transformStyle.android.ts 的「分层背景」
 // 合成出圆角描边，本来就对；这里不加 modifier，继续走 style
 export const nativeStrokeBorder: NativeStrokeBorder = () => [];
-
-// Compose 没有 Liquid Glass：Android 上 chip 目前只剩文字，没有底色也没有描边。
-// 已知缺口，等 android/ 生成后按那边的实际能力补（Compose 的 background/border
-// 走 `modifiers` 逃生舱会落在 padding 内侧、盒子模型不对，得连同内边距一起搬过来）
-export const nativeChipModifiers: NativeChipModifiers = () => null;
 
 // Compose 的 modifiers 包只有 animation 系列，没有 background / 渐变 / 阴影：
 // 泡罩药板的光影在 Android 上暂时只能靠平色 + 同心圆分层近似（见 twin.tsx）
