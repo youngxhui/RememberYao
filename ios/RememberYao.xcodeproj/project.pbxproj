@@ -35,6 +35,7 @@
 		B29310F7585C128D8CFDFBC4 /* MiniArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB00716C0245F99B36DDDEB /* MiniArchiveView.swift */; };
 		C181DA069B4FC80B9F4AEB87 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2EB2FBD96743758AFB6A6C5 /* Store.swift */; };
 		C276E0FD760DAA368FC6783E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = D5367C97835DC2CCF3153581 /* Localizable.xcstrings */; };
+		C44461F933E79E170E8CE954 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EC0072F470768A4F3CA9A603 /* Assets.xcassets */; };
 		C9EE8B4403CAC44B816285F2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 076B910A76B27EC636EB8FD3 /* Theme.swift */; };
 		CB59E8C399684FB9EB03FA36 /* MedicaFormViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25F9A24C4D68567069EA7C0F /* MedicaFormViewController.swift */; };
 		D13B679ED084EA1E3FD28D0F /* ReminderCardStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6798357448CEEF1D15FABB4 /* ReminderCardStackView.swift */; };
@@ -83,6 +84,7 @@
 		D5367C97835DC2CCF3153581 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		E93B46DE92CA2D4918EB6B34 /* MedicaDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicaDetailViewController.swift; sourceTree = "<group>"; };
 		E9907C18498ED8E0F0302226 /* ListScreenViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListScreenViewController.swift; sourceTree = "<group>"; };
+		EC0072F470768A4F3CA9A603 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F6798357448CEEF1D15FABB4 /* ReminderCardStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderCardStackView.swift; sourceTree = "<group>"; };
 		F67DD6E43ABA60A73BA2C80E /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -96,9 +98,10 @@
 				CA6349E5345B21A9158B81C5 /* Features */,
 				9484710C5D81B92045CC3B33 /* Resources */,
 				E7C454F90FC390C1CD1D367A /* UI */,
+				EC0072F470768A4F3CA9A603 /* Assets.xcassets */,
 			);
 			path = RememberYao;
-			sourceTree = "<group>";
+			sourceTree = SOURCE_ROOT;
 		};
 		20886F8FD056F1E41104E100 /* Theme */ = {
 			isa = PBXGroup;
@@ -329,6 +332,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C44461F933E79E170E8CE954 /* Assets.xcassets in Resources */,
 				C276E0FD760DAA368FC6783E /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -410,6 +414,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -479,6 +485,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";

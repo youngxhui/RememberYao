@@ -432,7 +432,7 @@ API 26 起声音与震动由**渠道**决定，`Notification.Builder.setSound/se
 | 通知 | UserNotifications（UNUserNotificationCenter） | NotificationManager + AlarmManager |
 | 本地化 | String Catalog（`.xcstrings`） | `res/values/strings.xml` + `values-en` |
 | 依赖注入 | 手动构造 + Environment | Hilt |
-| 项目生成 | XcodeGen（`project.yml`） | Gradle KTS |
+| 项目生成 | Xcode 工程（`RememberYao.xcodeproj`，手工维护） | Gradle KTS |
 
 **禁止**：RxJava、Retrofit、任何跨端框架、任何日期库（用 `Calendar`/`LocalDateTime` 手写）。
 

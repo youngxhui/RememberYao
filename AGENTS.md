@@ -30,7 +30,7 @@
 ## 命令
 
 ```bash
-# iOS（改了源码目录结构后先 xcodegen generate）
+# iOS（新增 .swift 文件后必须加进 project.pbxproj 的 Sources 阶段，见 README）
 cd ios && xcodebuild -project RememberYao.xcodeproj -scheme RememberYao \
   -destination 'generic/platform=iOS Simulator' -configuration Debug build
 

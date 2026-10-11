@@ -11,6 +11,11 @@ public enum Theme {
 
   public enum Color {
     /// 品牌主色。
+    ///
+    /// 与 `Assets.xcassets/AccentColor.colorset` 的 Any / Dark 两档是同一个值，
+    /// 改这里必须同步改那边：全局 tint（导航栏按钮、tab 选中项、filled() 按钮等）
+    /// 由 `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` 从资产目录取，
+    /// 界面代码里的引用走这里。
     public static let primary = UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark ? #colorLiteral(red: 0.373, green: 0.847, blue: 0.776, alpha: 1) : #colorLiteral(red: 0.059, green: 0.463, blue: 0.431, alpha: 1) })
     /// 品牌色上的文字 / 图标。
     ///

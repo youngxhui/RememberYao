@@ -17,7 +17,7 @@
 | 通知 | UserNotifications | NotificationManager + AlarmManager |
 | 本地化 | String Catalog（`.xcstrings`，源语言 zh-Hans） | `res/values/strings.xml` + `values-en` |
 | 依赖注入 | 手动构造 + `Environment` | Hilt |
-| 项目生成 | XcodeGen（`project.yml`） | Gradle KTS |
+| 项目生成 | Xcode 工程（`RememberYao.xcodeproj`，手工维护） | Gradle KTS |
 
 Expo 版在 `expo/` 目录作为行为参照，**不再是交付物**。后续改动只应落在 `ios/` /
 `android/` 两端之一，并同步 `docs/domain-spec.md`。
@@ -34,9 +34,18 @@ xcodebuild -project RememberYao.xcodeproj -scheme RememberYao \
   -destination 'generic/platform=iOS Simulator' -configuration Debug build
 ```
 
-`RememberYao.xcodeproj` 由 XcodeGen 从 `project.yml` 生成；改了源码目录结构后重跑
-`xcodegen generate`。需要 development build：依赖 `UserNotifications` 与 SwiftData，
-Expo Go 概念在这里不存在。
+`RememberYao.xcodeproj` 是**手工维护的 Xcode 工程**——早期由 XcodeGen 从
+`project.yml` 生成，该中间层已移除（`project.yml` 删除，配置全量落在
+`project.pbxproj`；共享 scheme 在 `xcshareddata/xcschemes/`）。需要 development
+build：依赖 `UserNotifications` 与 SwiftData，Expo Go 概念在这里不存在。
+
+> **新增 / 重命名 .swift 文件后，必须把它加进 `project.pbxproj` 的 Sources
+> 构建阶段**，否则它不参与编译，调用处直接报 `Cannot find 'X' in scope`。
+> 在 Xcode 里把文件拖进工程最稳（会自动改 pbxproj）；纯命令行场景需手工编辑
+> `project.pbxproj`，`PBXBuildFile` / `PBXFileReference` / `PBXGroup` /
+> `PBXSourcesBuildPhase` 四处都要补。
+> 资源目录（`Assets.xcassets`）和 `Resources/` 是整目录引用，往里加文件不用改
+> pbxproj。
 
 ### Android
 
@@ -257,10 +266,16 @@ tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
 
 ## 已修的坑（改动这些区域前先看）
 
-- **`project.yml` 必须显式开 `INFOPLIST_KEY_UIApplicationSceneManifest_Generation`**。
+- **`INFOPLIST_KEY_UIApplicationSceneManifest_Generation` 必须保持开启**。
   漏了它，UIKit 不建 scene session，`SceneDelegate.scene(_:willConnectTo:)`
   （**唯一**创建 `UIWindow` 的地方）永不触发 → App 能装能"启动"但一整片空白。
-  改 `project.yml` 后必须重跑 `xcodegen generate` 再构建。
+  该键在 `project.pbxproj` 的工程级 Debug / Release 两个配置里（target 级靠
+  继承），动构建配置时别丢。同类的还有
+  `INFOPLIST_KEY_UILaunchScreen_Generation`（启动图）、
+  `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME`（全局强调色）。
+- **新增 .swift 文件必须手动加进 pbxproj 的 Sources 阶段**。工程已不用
+  XcodeGen，不会再自动扫目录；漏加的 file 不编译，报
+  `Cannot find 'X' in scope`。拖进 Xcode 最稳。
 - **iOS 引导页的按钮 / 页码点必须 `bringSubviewToFront()`**。
   `UIPageViewController.view` 是后加的、铺满全屏且不透明，z 序压在它们上面；
   且每次 `setViewControllers` 翻页都会重建内部视图层级，得重复置顶。
