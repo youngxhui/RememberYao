@@ -42,7 +42,7 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
     super.init(nibName: nil, bundle: nil)
   }
 
-  func viewModelDataChanged() {
+  override func viewModelDataChanged() {
     reload()
   }
 

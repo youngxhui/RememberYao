@@ -24,13 +24,6 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
 
   var cellReuseIdentifier: String { "Cell" }
 
-  /// 子类覆盖：固定在滚动区之外的头部，高度由自身约束决定。
-  ///
-  /// 给「不能嵌进 UIScrollView 的视图」用 —— 例如提醒卡堆叠的纵向拖动与
-  /// 表格滚动手势同向，嵌套会互相抢。水平滚动之类的视图（如 Mini Archive）
-  /// 与表格方向正交，直接走 `tableHeaderView`，不需要这个挂载点。
-  var fixedHeader: UIView? { nil }
-
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = Theme.Color.canvas
@@ -47,6 +40,16 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
     applySnapshot()
   }
 
+  /// 数据变更后刷新本屏。
+  ///
+  /// 列表屏的数据只来自 ViewModel：冷启动时首屏的 `viewWillAppear` 可能赶在
+  /// 首次 `refresh()` 完成之前（`loading` 还是 true，`reload()` 被守卫挡掉），
+  /// 观察回调是唯一能补上的时机 —— 没有它，冷启动的首页会一直空着，直到切一次
+  /// tab 再回来。写操作（标记服用等）后的刷新也一并走这里
+  func viewModelDataChanged() {
+    reload()
+  }
+
   private func configureTableView() {
     tableView = UITableView(frame: .zero, style: .insetGrouped)
     tableView.translatesAutoresizingMaskIntoConstraints = false
@@ -57,20 +60,11 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
     tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellReuseIdentifier)
     view.addSubview(tableView)
 
-    // 固定头部（可选）：贴在导航栏下方、滚动区之外
-    let header = fixedHeader
-    if let header {
-      header.translatesAutoresizingMaskIntoConstraints = false
-      view.addSubview(header)
-      NSLayoutConstraint.activate([
-        header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-        header.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-        header.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-      ])
-    }
-
+    // 表格铺满整屏、伸到导航栏下，由 contentInsetAdjustmentBehavior 把内容
+    // 推到安全区外。要放进滚动区的头部（提醒卡堆叠 / Mini Archive）由各屏
+    // 自己挂 `tableHeaderView`，随内容一起滚走
     NSLayoutConstraint.activate([
-      tableView.topAnchor.constraint(equalTo: header?.bottomAnchor ?? view.topAnchor),
+      tableView.topAnchor.constraint(equalTo: view.topAnchor),
       tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
       tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
       tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),

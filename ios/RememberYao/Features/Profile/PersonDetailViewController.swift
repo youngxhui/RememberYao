@@ -35,7 +35,7 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
     super.init(nibName: nil, bundle: nil)
   }
 
-  func viewModelDataChanged() {
+  override func viewModelDataChanged() {
     reload()
   }
 

@@ -31,17 +31,15 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
 
   /// 提醒卡堆叠：接下来的待处理提醒，纵向滑动换卡。
   ///
-  /// 放在固定头部而不是表格里 —— 它的纵向拖动手势与表格滚动同向，嵌进
-  /// `UIScrollView` 会互相抢（Expo 版首页是原生 ScrollView + RN island，
-  /// 原生侧用「滚动区之外」达到同样效果）。没有待处理提醒时组件自降为 0 高。
+  /// 挂进 `tableHeaderView` 随页面一起滚走（Expo 版在原生 ScrollView 里，
+  /// 同样是滚动内容的一部分）。纵向换卡手势与表格滚动手势同向，靠
+  /// `require(toFail:)` 协调：超过死区的纵向拖动由牌堆接管换卡，其余拖动
+  /// 照常滚页面。没有待处理提醒时组件自降为 0 高。
   private lazy var cardStack: ReminderCardStackView = {
     let stack = ReminderCardStackView()
-    stack.translatesAutoresizingMaskIntoConstraints = false
     stack.onTake = { [weak self] _ in self?.reload() }
     return stack
   }()
-
-  override var fixedHeader: UIView? { cardStack }
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -52,6 +50,7 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
     navigationController?.navigationBar.prefersLargeTitles = true
     navigationItem.largeTitleDisplayMode = .always
     configureFilterMenu()
+    installStackHeader()
     reload()
     registerViewModelObservation()
   }
@@ -77,6 +76,55 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
       persons: viewModel.persons,
       plans: viewModel.plans
     )
+    // 内容变了（标记服用后牌堆收缩、新提醒到达）牌堆高度跟着变
+    refreshStackHeader()
+  }
+
+  // MARK: - 牌堆头部
+
+  /// 牌堆挂进 `tableHeaderView`：随页面一起滚走（Expo 版在 ScrollView 里，
+  /// 同样是滚动内容的一部分）。
+  ///
+  /// 纵向换卡手势与表格滚动手势同向，必须协调：让表格的 pan 等牌堆的 pan
+  /// 失败后再开始 —— 超过死区的纵向拖动由牌堆接管换卡，其余拖动照常滚
+  /// 页面（与 Expo 版 RNGH Pan 在 ScrollView 里的抢占行为一致）。
+  private func installStackHeader() {
+    let header = UIView()
+    // 卡片投影溢出牌堆边界，壳不能裁剪
+    header.clipsToBounds = false
+    header.addSubview(cardStack)
+    // 只钉三边：牌堆高度由内容自撑（无待办时 0 高），底边留给它自己的
+    // 「卡片底 + 30pt 沉底补偿」约束 —— 四边全钉会变成两个 required
+    // 高度互相打架
+    cardStack.translatesAutoresizingMaskIntoConstraints = false
+    NSLayoutConstraint.activate([
+      cardStack.topAnchor.constraint(equalTo: header.topAnchor),
+      cardStack.leadingAnchor.constraint(equalTo: header.leadingAnchor),
+      cardStack.trailingAnchor.constraint(equalTo: header.trailingAnchor),
+    ])
+    tableView.tableHeaderView = header
+    refreshStackHeader()
+    tableView.panGestureRecognizer.require(toFail: cardStack.panGesture)
+  }
+
+  /// 重算牌堆头部的帧并重新赋值。`tableHeaderView` 按 frame 缓存：宽度跟
+  /// 表格（旋转 / 分屏），高度由牌堆内容撑（数据变化）—— 两者变了都要
+  /// 重算再赋值才会生效；没变就跳过（重新赋值会触发表格重新布局，无条件
+  /// 下会和 `viewDidLayoutSubviews` 互相触发成环）
+  private func refreshStackHeader() {
+    guard let header = tableView.tableHeaderView else { return }
+    cardStack.layoutIfNeeded()
+    guard header.frame.width != tableView.bounds.width
+      || header.frame.height != cardStack.frame.height
+    else { return }
+    header.frame.size.width = tableView.bounds.width
+    header.frame.size.height = cardStack.frame.height
+    tableView.tableHeaderView = header
+  }
+
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    refreshStackHeader()
   }
 
   // MARK: - 成员筛选
