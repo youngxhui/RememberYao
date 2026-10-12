@@ -82,10 +82,14 @@ fun ProfileScreen(
     onOpenPerson: (String) -> Unit,
     onOpenMedication: (String) -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val reminders by viewModel.reminders.collectAsStateWithLifecycle()
+    val persons by viewModel.persons.collectAsStateWithLifecycle()
+    val plans by viewModel.plans.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val loading by viewModel.loading.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
-    val snapshot = data
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
@@ -109,21 +113,21 @@ fun ProfileScreen(
             )
         }
     ) { innerPadding ->
-        if (snapshot == null) {
+        if (loading && reminders.isEmpty()) {
             Column(modifier = Modifier.fillMaxSize()) {}
             return@Scaffold
         }
 
         val today = DateKey.today()
         val weekStart = DateKey.weekStart(today)
-        val stats = weekStats(snapshot.reminders, weekStart, today)
-        val watched = missedStreaks(snapshot.reminders, snapshot.settings.missedAlertStreak)
-        val plansByPerson = snapshot.plans.groupBy { it.personId }
+        val stats = weekStats(reminders, weekStart, today)
+        val watched = missedStreaks(reminders, settings.missedAlertStreak)
+        val plansByPerson = plans.groupBy { it.personId }
 
         // 说明书条目在屏幕层拼好（含词条），组件只负责摆 —— 与 ReminderCard
         // 一族「派生数据在屏幕」的分工一致。只展示 store 里真实存在的字段。
         val context = LocalContext.current
-        val archiveEntries = snapshot.medications.map { medication ->
+        val archiveEntries = medications.map { medication ->
             val unit = L10n.unitLabel(context, medication.unit)
             val notes = medication.notes.trim()
             ArchiveEntry(
@@ -254,7 +258,7 @@ fun ProfileScreen(
                 }
             }
 
-            if (snapshot.persons.isEmpty()) {
+            if (persons.isEmpty()) {
                 item {
                     EmptyState(
                         text = stringResource(R.string.profile_emptyFamily),
@@ -264,14 +268,14 @@ fun ProfileScreen(
             }
 
             itemsIndexed(
-                snapshot.persons,
+                persons,
                 key = { _, person -> person.id }
             ) { index, person ->
                 PersonListItem(
                     person = person,
                     planCount = plansByPerson[person.id]?.size ?: 0,
                     watched = person.id in watched,
-                    shape = connectedListItemShape(index, snapshot.persons.size),
+                    shape = connectedListItemShape(index, persons.size),
                     onClick = { onOpenPerson(person.id) }
                 )
             }

@@ -21,8 +21,8 @@ enum MedicaFormRow: Hashable {
 ///
 /// 表单一律 `UITableView` inset grouped：系统自带分组圆角、发丝线、键盘避让。
 /// 板装药可随药品一并建数字孪生（`docs/domain-spec.md` 4.5）。
-final class MedicaFormViewController: FormScreenViewController<MedicaFormRow> {
-  private let store = AppEnvironment.shared.store
+final class MedicaFormViewController: FormScreenViewController<MedicaFormRow>, ViewModelHolder {
+  var viewModel: AppViewModel!
   private let medication: Medication?
   private let onSaved: () -> Void
 
@@ -41,10 +41,16 @@ final class MedicaFormViewController: FormScreenViewController<MedicaFormRow> {
   private var blisterCols = ""
   private var blisterPackCount = ""
 
-  init(medication: Medication?, onSaved: @escaping () -> Void) {
+  init(viewModel: AppViewModel, medication: Medication?, onSaved: @escaping () -> Void) {
     self.medication = medication
     self.onSaved = onSaved
+    self.viewModel = viewModel
+
     super.init(nibName: nil, bundle: nil)
+  }
+
+  func viewModelDataChanged() {
+    reloadRows()
   }
 
   @available(*, unavailable)
@@ -340,7 +346,7 @@ final class MedicaFormViewController: FormScreenViewController<MedicaFormRow> {
 
     Task {
       if let medication {
-        await store.updateMedication(id: medication.id) { updated in
+        await viewModel.updateMedication(id: medication.id) { updated in
           updated.name = input.name
           updated.type = input.type
           updated.category = input.category
@@ -355,15 +361,15 @@ final class MedicaFormViewController: FormScreenViewController<MedicaFormRow> {
           updated.notes = self.notes
         }
         // 编辑时补填了规格 → 开启孪生。要在 update 之后判断，此时
-        // store.data 里的药品已是新值
+        // viewModel.medications 里的药品已是新值
         if let blister,
-          let current = store.data.medications.first(where: { $0.id == medication.id }),
-          blisterSummary(current, store.data.packs, store.data.blisterSlots).enabled == false
+          let current = viewModel.medications.first(where: { $0.id == medication.id }),
+          blisterSummary(current, viewModel.packs, viewModel.blisterSlots).enabled == false
         {
-          await store.openBlisterTwin(current.id, spec: blister)
+          await viewModel.openBlisterTwin(current.id, spec: blister)
         }
       } else {
-        await store.addMedication(input)
+        await viewModel.addMedication(input)
       }
       onSaved()
       navigationController?.popViewController(animated: true)

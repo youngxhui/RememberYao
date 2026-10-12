@@ -245,20 +245,6 @@ data class Settings(
     }
 }
 
-/** 全量数据快照。领域层的一切运算都在这个值类型上进行。 */
-data class AppData(
-    val medications: List<Medication> = emptyList(),
-    val persons: List<Person> = emptyList(),
-    val plans: List<MedicationPlan> = emptyList(),
-    val reminders: List<Reminder> = emptyList(),
-    val usages: List<MedicationUsage> = emptyList(),
-    /** 泡罩药板（板装药的数字孪生）。非板装药没有板。 */
-    val packs: List<BlisterPack> = emptyList(),
-    /** 泡罩槽位，跟着板走。 */
-    val blisterSlots: List<BlisterSlot> = emptyList(),
-    val settings: Settings = Settings.DEFAULT
-)
-
 // MARK: - 基础设施：id / 时间戳 / 列表编解码
 
 /**

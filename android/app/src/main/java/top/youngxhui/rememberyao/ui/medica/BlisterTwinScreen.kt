@@ -70,28 +70,29 @@ fun BlisterTwinScreen(
     medicationId: String,
     onBack: () -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val packs by viewModel.packs.collectAsStateWithLifecycle()
+    val blisterSlots by viewModel.blisterSlots.collectAsStateWithLifecycle()
+    val persons by viewModel.persons.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
     var dialog by remember { mutableStateOf<TwinDialog>(TwinDialog.None) }
 
-    val snapshot = data
-    val medication = snapshot?.medications?.firstOrNull { it.id == medicationId }
+    val medication = medications.firstOrNull { it.id == medicationId }
     val summary = medication?.let {
-        blisterSummary(it, snapshot.packs, snapshot.blisterSlots)
+        blisterSummary(it, packs, blisterSlots)
     }
 
     // 按板序 → 格序排：泡罩从左到右、从上到下消耗，与真人嗑药片的顺序一致
-    val slots = snapshot?.packs
-        ?.filter { it.medicationId == medicationId }
-        ?.sortedBy { it.seq }
-        ?.flatMap { pack ->
-            snapshot.blisterSlots
+    val slots = packs
+        .filter { it.medicationId == medicationId }
+        .sortedBy { it.seq }
+        .flatMap { pack ->
+            blisterSlots
                 .filter { it.packId == pack.id }
                 .sortedBy { it.index }
                 .map { it to pack.seq }
         }
-        .orEmpty()
 
     ScreenScaffold(
         title = medication?.name ?: stringResource(R.string.twin_enableTitle),
@@ -105,7 +106,7 @@ fun BlisterTwinScreen(
             ) { Text(stringResource(R.string.twin_add_pack)) }
         }
     ) { innerPadding ->
-        if (snapshot == null || medication == null || summary == null || !summary.enabled) {
+        if (medication == null || summary == null || !summary.enabled) {
             EmptyState(
                 text = stringResource(R.string.twin_enableTitle),
                 hint = stringResource(R.string.twin_enableBody),
@@ -218,10 +219,10 @@ fun BlisterTwinScreen(
         // 手动记一次服用要知道是谁吃的：多名成员时先选人，一名时直接记
         is TwinDialog.Person -> {
             val slot = current.slot
-            val persons = snapshot?.persons.orEmpty()
-            if (persons.size <= 1) {
+            val members = persons
+            if (members.size <= 1) {
                 LaunchedEffect(slot.id) {
-                    persons.firstOrNull()?.let {
+                    members.firstOrNull()?.let {
                         viewModel.consumeBlisterSlot(slot.id, it.id)
                     }
                     dialog = TwinDialog.None
@@ -232,7 +233,7 @@ fun BlisterTwinScreen(
                     title = { Text(stringResource(R.string.twin_personHint)) },
                     text = {
                         Column {
-                            persons.forEach { person ->
+                            members.forEach { person ->
                                 Text(
                                     text = person.name,
                                     style = MaterialTheme.typography.bodyLarge,

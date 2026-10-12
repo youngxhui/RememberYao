@@ -16,8 +16,19 @@ struct MedicationRow: Hashable {
 /// actionSheet（分类筛选）、`UITableView` inset grouped（列表）、侧滑删除。
 /// 不用自造 chip 横滑 —— iOS 平台习惯是漏斗按钮 + 菜单，且分类超过 4 项时
 /// segmented control 也放不下。
-final class MedicaListViewController: ListScreenViewController<MedicationRow> {
-  private let store = AppEnvironment.shared.store
+final class MedicaListViewController: ListScreenViewController<MedicationRow>, ViewModelHolder {
+
+  init(viewModel: AppViewModel) {
+    self.viewModel = viewModel
+    super.init(nibName: nil, bundle: nil)
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+
+  var viewModel: AppViewModel!
   private let searchController = UISearchController(searchResultsController: nil)
 
   /// 筛选：nil = 全部。
@@ -32,6 +43,7 @@ final class MedicaListViewController: ListScreenViewController<MedicationRow> {
     navigationItem.title = L10n.shared.t("medication.listTitle")
     configureNavigation()
     configureSearch()
+    registerViewModelObservation()
   }
 
   override func viewWillAppear(_ animated: Bool) {
@@ -40,7 +52,7 @@ final class MedicaListViewController: ListScreenViewController<MedicationRow> {
   }
 
   override func reload() {
-    guard !store.loading else { return }
+    guard !viewModel.loading else { return }
     applySnapshot()
   }
 
@@ -81,7 +93,7 @@ final class MedicaListViewController: ListScreenViewController<MedicationRow> {
   }
 
   override func configure(_ cell: UITableViewCell, for row: MedicationRow, at indexPath: IndexPath) {
-    guard let medication = store.data.medications.first(where: { $0.id == row.id }) else {
+    guard let medication = viewModel.medications.first(where: { $0.id == row.id }) else {
       return
     }
     var content = UIListContentConfiguration.subtitleCell()
@@ -95,7 +107,7 @@ final class MedicaListViewController: ListScreenViewController<MedicationRow> {
   }
 
   private func filteredMedications() -> [Medication] {
-    store.data.medications
+    viewModel.medications
       .filter { medication in
         if let categoryFilter, medication.category != categoryFilter { return false }
         if lowStockOnly, medication.stockLevel == .ok { return false }
@@ -118,7 +130,7 @@ final class MedicaListViewController: ListScreenViewController<MedicationRow> {
   // MARK: - 交互
 
   override func didSelect(_ row: MedicationRow) {
-    let detail = MedicaDetailViewController(medicationId: row.id) { [weak self] in
+    let detail = MedicaDetailViewController(viewModel: viewModel, medicationId: row.id) { [weak self] in
       self?.reload()
     }
     navigationController?.pushViewController(detail, animated: true)
@@ -135,7 +147,7 @@ final class MedicaListViewController: ListScreenViewController<MedicationRow> {
       onConfirm: { [weak self] in
         guard let self else { return }
         Task {
-          await self.store.deleteMedication(id: row.id)
+          await self.viewModel.deleteMedication(id: row.id)
           self.reload()
         }
         completion(true)
@@ -145,7 +157,7 @@ final class MedicaListViewController: ListScreenViewController<MedicationRow> {
   }
 
   @objc private func addTapped() {
-    let form = MedicaFormViewController(medication: nil) { [weak self] in
+    let form = MedicaFormViewController(viewModel: viewModel, medication: nil) { [weak self] in
       self?.reload()
     }
     navigationController?.pushViewController(form, animated: true)
@@ -200,4 +212,5 @@ extension MedicaListViewController: UISearchResultsUpdating {
     query = searchController.searchBar.text ?? ""
     reload()
   }
+
 }

@@ -86,23 +86,23 @@ public final class NotificationScheduler {
   }
 
   private func performResync() async {
-    let data = AppEnvironment.shared.store.data
-    await rescheduleReminders(data)
-    await notifyMissedStreaks(data)
+    let input = await AppEnvironment.shared.store.scheduleInput()
+    await rescheduleReminders(input)
+    await notifyMissedStreaks(input)
   }
 
   /// 按当前数据重排全部未来的提醒通知。
-  private func rescheduleReminders(_ data: AppData) async {
+  private func rescheduleReminders(_ input: ScheduleInput) async {
     let center = UNUserNotificationCenter.current()
     center.removeAllPendingNotificationRequests()
     // 总开关关掉就到此为止：清空已排的，未来的也不再排。
     // 这里必须 return，否则会顺手把静音/免打扰的判断也跳过了
-    guard data.settings.notificationsEnabled else { return }
+    guard input.settings.notificationsEnabled else { return }
 
     let t = L10n.translator
     let now = Date()
-    let medications = Dictionary(uniqueKeysWithValues: data.medications.map { ($0.id, $0) })
-    let persons = Dictionary(uniqueKeysWithValues: data.persons.map { ($0.id, $0) })
+    let medications = Dictionary(uniqueKeysWithValues: input.medications.map { ($0.id, $0) })
+    let persons = Dictionary(uniqueKeysWithValues: input.persons.map { ($0.id, $0) })
 
     // 先算出每条提醒的真实触发时刻，按时间升序排，再只取最近的 N 条。
     //
@@ -112,7 +112,7 @@ public final class NotificationScheduler {
     // 只排最近的一段，剩下的靠 `sceneDidBecomeActive` 和每次写操作后的
     // resync 把窗口往前滚（用户点开 App 或点通知就会补上后面的）。
     var upcoming: [(at: Date, reminder: Reminder)] = []
-    for reminder in data.reminders where reminder.status == .pending {
+    for reminder in input.reminders where reminder.status == .pending {
       guard let due = reminder.dueDate, let miss = reminder.missDate else { continue }
       let snoozed = reminder.snoozedUntil.flatMap(ISO8601.parse) ?? Date.distantPast
       let base = due > now ? due : miss
@@ -129,7 +129,7 @@ public final class NotificationScheduler {
       let medication = medications[reminder.medicationId]
       let person = persons[reminder.personId]
       // 免打扰只压掉声音，不压掉通知本身
-      let silent = !data.settings.soundEnabled || inQuietHours(data.settings, Clock.time(at))
+      let silent = !input.settings.soundEnabled || inQuietHours(input.settings, Clock.time(at))
       let amount = "\(reminder.doseAmount)\(medication.map { L10n.unitLabel($0.unit) } ?? "")"
 
       let content = UNMutableNotificationContent()
@@ -159,8 +159,8 @@ public final class NotificationScheduler {
   /// 与常规提醒分开：它不挂在某个具体剂量上，而是在重排时发现成员的漏服连击
   /// 达到阈值就立刻发一次。用 `alertedStreaks` 记住已提醒的人，只有当连击
   /// 「重新攒起来」时才会再响，避免每次重排都刷屏。
-  private func notifyMissedStreaks(_ data: AppData) async {
-    let settings = data.settings
+  private func notifyMissedStreaks(_ input: ScheduleInput) async {
+    let settings = input.settings
     // 阈值关掉时清空记忆，用户重新打开后不会收到一串补发的提醒
     guard settings.missedAlertStreak > 0 else {
       alertedStreaks = []
@@ -168,7 +168,7 @@ public final class NotificationScheduler {
     }
     guard settings.notificationsEnabled else { return }
 
-    let streaks = missedStreaks(data.reminders, threshold: settings.missedAlertStreak)
+    let streaks = missedStreaks(input.reminders, threshold: settings.missedAlertStreak)
     // 本轮不再命中的成员（用户已经处理完了）从记忆里移除，
     // 这样下次重新攒够会正常再提醒
     alertedStreaks = alertedStreaks.intersection(streaks)
@@ -178,7 +178,7 @@ public final class NotificationScheduler {
     alertedStreaks = streaks
 
     let names = fresh.compactMap { id in
-      data.persons.first { $0.id == id }?.name
+      input.persons.first { $0.id == id }?.name
     }
     guard !names.isEmpty else { return }
 

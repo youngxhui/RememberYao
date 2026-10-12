@@ -18,19 +18,25 @@ enum PersonDetailRow: Hashable {
 ///
 /// 从成员详情进配置表单时，用药人是**定死**的，不再给选择器
 /// （`fa48631`：用药人由入口定死）。
-final class PersonDetailViewController: ListScreenViewController<PersonDetailRow> {
-  private let store = AppEnvironment.shared.store
+final class PersonDetailViewController: ListScreenViewController<PersonDetailRow>, ViewModelHolder {
+  var viewModel: AppViewModel!
   private let personId: String
   private let onChanged: () -> Void
 
   private var person: Person? {
-    store.data.persons.first { $0.id == personId }
+    viewModel.persons.first { $0.id == personId }
   }
 
-  init(personId: String, onChanged: @escaping () -> Void) {
+  init(viewModel: AppViewModel, personId: String, onChanged: @escaping () -> Void) {
     self.personId = personId
     self.onChanged = onChanged
+    self.viewModel = viewModel
+
     super.init(nibName: nil, bundle: nil)
+  }
+
+  func viewModelDataChanged() {
+    reload()
   }
 
   @available(*, unavailable)
@@ -39,10 +45,11 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
   override func viewDidLoad() {
     super.viewDidLoad()
     reload()
+    registerViewModelObservation()
   }
 
   override func reload() {
-    guard !store.loading else { return }
+    guard !viewModel.loading else { return }
     guard person != nil else {
       title = L10n.shared.t("person.notFound")
       return
@@ -74,10 +81,10 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
           ? L10n.shared.t("common.none")
           : person.underlyingConditions.joined(separator: "、")))
 
-    var plans: [PersonDetailRow] = store.data.plans
+    var plans: [PersonDetailRow] = viewModel.plans
       .filter { $0.personId == person.id }
       .map { plan in
-        let medication = store.data.medications.first { $0.id == plan.medicationId }
+        let medication = viewModel.medications.first { $0.id == plan.medicationId }
         let unit = medication.map { L10n.unitLabel($0.unit) } ?? ""
         return PersonDetailRow.plan(
           id: plan.id,
@@ -159,11 +166,11 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
     case .addPlan:
       // 从成员详情进来：用药人定死，不给选择器
       navigationController?.pushViewController(
-        PlanFormViewController(personId: personId, medicationId: nil), animated: true)
+        PlanFormViewController(viewModel: viewModel, personId: personId, medicationId: nil), animated: true)
 
     case .plan(let id, _, _):
       navigationController?.pushViewController(
-        PlanFormViewController(personId: personId, medicationId: nil, editingPlanId: id),
+        PlanFormViewController(viewModel: viewModel, personId: personId, medicationId: nil, editingPlanId: id),
         animated: true
       )
 
@@ -174,7 +181,7 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
       ) { [weak self] in
         guard let self else { return }
         Task {
-          await self.store.deletePerson(id: self.personId)
+          await self.viewModel.deletePerson(id: self.personId)
           self.onChanged()
           self.navigationController?.popViewController(animated: true)
         }

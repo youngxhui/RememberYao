@@ -5,7 +5,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import top.youngxhui.rememberyao.core.model.AppData
 import top.youngxhui.rememberyao.core.model.BlisterPack
 import top.youngxhui.rememberyao.core.model.BlisterSlot
 import top.youngxhui.rememberyao.core.model.BlisterSlotStatus
@@ -448,9 +447,3 @@ fun Map<String, Person>.nameOf(id: String): String =
 /** 向上取整的板数：装得下 [remaining] 至少需要几块每板 [perPack] 格的板。 */
 fun packsNeeded(remaining: Int, perPack: Int): Int =
     if (perPack <= 0) 1 else ceil(remaining.toDouble() / perPack.toDouble()).toInt().coerceAtLeast(1)
-
-/** 便于测试 / 调试：把 AppData 打平成可读摘要。 */
-fun AppData.describe(): String =
-    "medications=${medications.size} persons=${persons.size} plans=${plans.size} " +
-        "reminders=${reminders.size} usages=${usages.size} packs=${packs.size} " +
-        "slots=${blisterSlots.size}"

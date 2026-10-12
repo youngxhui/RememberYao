@@ -299,107 +299,146 @@ inQuietHours(settings, "HH:MM"):
 
 ## 4. 状态机与写操作
 
-### 4.1 提醒同步（幂等，无变更返回原值）
+写操作分两层：
+
+- **决策**：`decideXxx`（`Decisions.kt` / `Decisions.swift`，两端同名同构）——
+  实体级纯函数，只接收它用到的实体，返回这些实体的新状态（decision）。
+  返回 `nil` / 空 decision 表示「按规则不执行」。不碰任何 IO。
+- **执行**：`Store` —— 按 decision 增量落库（一个事务包住跨表一致性），
+  然后重排通知。全量快照投影已移除：每次写只动涉及的实体。
+
+### 4.1 提醒同步（幂等）
 
 ```
-syncReminders(data):
-  1. 为每个 plan 生成 today ~ today+6 天的提醒，按 (planId,date,time) 去重
-  2. status == pending 且 reminderMissDate(r) < now -> missed（resolvedAt = now）
-  3. 清理 date < today - 90 天的提醒（保留已处理历史中的服用记录）
+decideReminderSync(plans, existing, today, now) -> ReminderSync:
+  toInsert  为每个生效中的配置生成 today ~ today+6 天的提醒，
+            按 (planId, date, time) 去重
+  toUpdate  status == pending 且 reminderMissDate(r) < now
+              -> missed（resolvedAt = now）
+  toDelete  date < today - 90 天的提醒（已处理历史中的服用记录永久保留）
 ```
 
 ### 4.2 takeReminder(id)
 
 ```
-r = reminders[id]
-if r == nil || (r.status != pending && r.status != missed): 原样返回
-usage = MedicationUsage(
-  reminderId = r.id, planId = r.planId,
-  medicationId = r.medicationId, personId = r.personId,
-  personName     = person?.name     ?? "已删除的用药人",
-  medicationName = medication?.name ?? "已删除的药品",
-  time = r.time, amount = r.doseAmount,
-  late = (r.status == missed), takenAt = now, createdAt = now)
-r.status = taken, r.resolvedAt = now
-medication.remainingQuantity = max(0, remaining - r.doseAmount)
-按 nextFullSlots 消耗 doseAmount 个槽位 -> empty（usageId = usage.id）
+decideTake(reminder, medication, person, ownPacks, ownSlots) -> TakeDecision?
+  r.status 不是 pending / missed              -> nil（不执行）
+  usage = MedicationUsage(
+    reminderId = r.id, planId = r.planId,
+    medicationId = r.medicationId, personId = r.personId,
+    personName     = person?.name     ?? "已删除的用药人",
+    medicationName = medication?.name ?? "已删除的药品",
+    time = r.time, amount = r.doseAmount,
+    late = (r.status == missed), takenAt = now, createdAt = now)
+  r.status = taken, r.resolvedAt = now
+  medication.remainingQuantity = max(0, remaining - r.doseAmount)
+  按 nextFullSlots 消耗 doseAmount 个槽位 -> empty（usageId = usage.id）
 ```
 
-> 槽位不足时 `consumeSlots` 原样返回 —— **提醒闭环永不因孪生数据不完整而阻断，库存照扣。**
+> 槽位不足时 `consumedSlots` 为空 —— 提醒闭环永不因孪生数据不完整而阻断，
+> 库存照扣。
 
 ### 4.3 snoozeReminder(id, minutes?)
 
 ```
-delay = minutes ?? settings.snoozeMinutes
-r.snoozedUntil = now + delay 分钟     // 仅 pending / missed 可设置
+decideSnooze(reminder, minutes) -> Reminder?
+  minutes 由调用方从 settings.snoozeMinutes 取（省略值的语义在调用侧）
+  仅 pending / missed 可设置；r.snoozedUntil = now + minutes
 ```
 
 ### 4.4 skipReminder(id)
 
 ```
-r.status = skipped, r.resolvedAt = now   // 不扣库存；pending / missed 可跳过
+decideSkip(reminder) -> Reminder?
+  仅 pending / missed；r.status = skipped, r.resolvedAt = now（不扣库存）
 ```
 
 ### 4.5 药品 CRUD
 
-- `addMedication(input)`：板装且带 `blister{rows,cols,packCount}` 时，
-  `total = remaining = perPack * packCount`，并调用 `openBlisterTwinIn` 建板。
-- `updateMedication(id, patch)`：只覆盖传入字段，`updatedAt = now`。
-- `deleteMedication(id)`：级联删除 plans / reminders / packs / blisterSlots；
-  **usages 作为历史永久保留**。
+- `decideAddMedication(input)`：板装且带 `blister{rows,cols,packCount}` 时，
+  `total = remaining = perPack * packCount`，并随药品建板（`decideOpenTwin`）。
+- `decideUpdateMedication(m, patch)`：只覆盖 patch 改动的字段，`updatedAt = now`。
+- `decideRestock(m, amount)`：`amount <= 0` 返回 nil；板装药已建孪生时
+  Store 直接拒绝（按粒数补货会破坏 §3.6 不变式，必须走 `appendBlisterPacks`）。
+- `deleteMedication(id)`（Store 级联）：删 plans / reminders / packs /
+  blisterSlots；**usages 作为历史永久保留**。
 
 ### 4.6 用药人 CRUD
 
-- `addPerson(input)`：`avatarColor = pickAvatarColor(name)`，`name` 去空格。
-- `updatePerson(id, patch)`：只覆盖传入字段。
-- `deletePerson(id)`：级联删除 plans / reminders；**usages 永久保留**。
+- `decideAddPerson(input)`：`avatarColor = pickAvatarColor(name)`，`name` 去空格。
+- `decideUpdatePerson(p, name?, gender?, age?, allergies?, conditions?)`：
+  只覆盖传入字段，`nil` = 不改。
+- `deletePerson(id)`（Store 级联）：删 plans / reminders；**usages 永久保留**。
 
 ### 4.7 配置 CRUD
 
-- `addPlan(input)` → `syncRemindersIn`
-- `updatePlan(id, patch)`：作废该配置**未处理**的提醒，再重新生成（已 taken/skipped/missed 作为历史保留）
-- `deletePlan(id)`：删除配置及其全部提醒
-- `applyPlanChanges({add, update, remove})`：**一次写库 + 一次 syncReminders + 一次通知重排**。
-  逐笔调用会导致选四种药闪四次通知重排。
+```
+decideApplyPlanChanges(plans, reminders, changes, today, now) -> PlanApply
+```
+
+统一处理 add / update / remove（`addPlan` / `updatePlan` / `deletePlan`
+都是它的特例）：
+
+- plansToUpsert：新建的 + 保留下来的（被 remove 的剔除，被 update 的打 patch）
+- planIdsToDelete：被 remove 的
+- remindersToDelete：被删配置的全部提醒 + 被改配置**未处理**的提醒
+  （已 taken/skipped/missed 作为历史保留）+ 同步清理的过期提醒
+- remindersToInsert / toUpdate：`decideReminderSync` 的产出
+
+一次写库 + 一次重排通知。逐笔调用会导致选四种药闪四次重排。
 
 ### 4.8 孪生写操作
 
-| 操作 | 语义 |
-| --- | --- |
-| `openBlisterTwin(id, {rows, cols, packCount})` | 重建：先清旧板格。`packCount ≥ max(1, round(input), ceil(remaining/perPack))`。总格数 − 剩余 = 历史消耗，按板序格序从第一格标 `empty`（usageId = null）。`totalQuantity` 重写为真实槽位数 |
-| `appendBlisterPacks(id, count)` | 追加 count 块满板，`seq` 续号；`total`/`remaining` 各加 `count * perPack` |
-| `consumeBlisterSlot(slotId, personId)` | 点哪格耗哪格，产生 usage（reminderId/planId = null，amount = 1，time = 操作时刻） |
-| `voidBlisterSlot(slotId)` | 标损坏，不产生 usage，库存 −1 |
-| `restoreBlisterSlot(slotId)` | void / 历史 empty（无 usage）→ full，库存 +1（≤ totalQuantity） |
-| `undoUsage(usageId)` | 删 usage、提醒回退 `pending`（**非 taken**）、恢复槽位、回补库存 |
+| 操作 | 决策 | 执行 |
+| --- | --- | --- |
+| `openBlisterTwin(id, {rows, cols, packCount})` | `decideOpenTwin`：`packCount ≥ max(1, round(input), ceil(remaining/perPack))`；总格数 − 剩余 = 历史消耗，按板序格序从第一格标 `empty`（usageId = null）；`totalQuantity` 重写为真实槽位数 | 先删该药旧板旧格，再插新板新格 |
+| `appendBlisterPacks(id, count)` | `decideAppendPacks`：追加 count 块满板，`seq` 续号 | 直接插板与格 |
+| `consumeBlisterSlot(slotId, personId)` | `decideConsumeSlot`：点哪格耗哪格，产生 usage（reminderId/planId = null，amount = 1，time = 操作时刻） | 改 1 格 + 插 1 条 usage + 改库存 |
+| `voidBlisterSlot(slotId)` | `decideVoidSlot`：标损坏，不产生 usage，库存 −1 | 改 1 格 + 改库存 |
+| `restoreBlisterSlot(slotId)` | `decideRestoreSlot`：void / 历史 empty（无 usage）→ full，库存 +1（≤ totalQuantity） | 改 1 格 + 改库存 |
+| `undoUsage(usageId)` | `decideUndoUsage`：删 usage、提醒回退 `pending`（**非 taken**）、恢复槽位、回补库存 | 删 usage + 改提醒 / 格 / 库存 |
 
 ### 4.9 设置
 
-`updateSettings(patch)`：免打扰**成对出现**，只改一端等于禁用，统一补齐为 null。
-
----
+`decideSettings(current, patch)`：免打扰**成对出现**，只改一端等于禁用，
+统一补齐为 null。
 
 ## 5. 通知调度
 
+重排的输入是 `ScheduleInput`（只读投影：reminders + settings + medications +
+persons）—— 通知调度是唯一还需要跨集合一致视图的地方，但它只读、不参与
+写路径。写操作落库后由 Store 触发一次重排。
+
 ```
-rescheduleReminders(data):
-  1. cancelAllScheduled
-  2. if !settings.notificationsEnabled: return
-  3. for r in reminders where status == pending:
-       due    = reminderDueDate(r)
-       snooze = r.snoozedUntil ?? 0
-       at     = max(due > now ? due : reminderMissDate(r), snooze > now ? snooze : 0)
-       if at <= now: continue
-       overdue = due <= now
-       silent  = !settings.soundEnabled || inQuietHours(settings, dateToTime(at))
-       title   = overdue ? "该吃药了（已超时）" : "该吃药了"
-       body    = "{person} · {medication} {amount}{unit}"
-       schedule(at, identifier = r.id, silent)
+rescheduleReminders(input):
+  1. 算出「应该是什么样的」：每条 pending 提醒的触发时刻 / 静音 / 文案
+  2. 取消不再需要的、触发条件变了的
+  3. 排新的 / 变化了的
+```
+
+单条提醒的触发规则不变：
+
+```
+for r in input.reminders where status == pending:
+  due    = reminderDueDate(r)
+  snooze = r.snoozedUntil ?? 0
+  at     = max(due > now ? due : reminderMissDate(r), snooze > now ? snooze : 0)
+  if at <= now: continue
+  overdue = due <= now
+  silent  = !settings.soundEnabled || inQuietHours(settings, dateToTime(at))
+  title   = overdue ? "该吃药了（已超时）" : "该吃药了"
+  body    = "{person} · {medication} {amount}{unit}"
+  schedule(at, identifier = r.id, silent)
 ```
 
 **要点：**
 - 免打扰**只压声音，不压通知本身** —— 漏服是安全相关的事。
 - Android 优先精确闹钟（`AlarmClock`），不可用时退回普通调度。
+- Android 用**签名 diff** 重排：记住每条已排提醒的
+  `(触发时刻, silent, title, body)`，只对签名变化 / 不再待处理的
+  cancel + 重排 —— 一次「已服用」只动它自己那一条闹钟。
+- iOS 没有精确闹钟的增量取消原语，仍是「取消全部待触发 → 按最近
+  `MAX_PENDING_NOTIFICATIONS` 条重排」；64 条上限的窗口滚动逻辑不变。
 - `missedStreaks` 命中的成员补发一条即时通知；`alertedStreaks` 记住已提醒的人，只有连击**重新攒起来**才再响。
 
 通知操作按钮：`已服用` / `跳过`（点击后直接落库并重排）。
@@ -442,8 +481,8 @@ API 26 起声音与震动由**渠道**决定，`Notification.Builder.setSound/se
 
 | | 状态 |
 | --- | --- |
-| Android | `./gradlew assembleDebug` / `assembleRelease` 通过，0 error 0 warning（仅 `@ApplicationContext` 的 Kotlin 未来兼容提示 2 条：改成 `@field:` 会让 Hilt 找不到注入，故保持原样）。12 条路由全部接通，无占位屏。**未在真机 / 模拟器上运行过** |
-| iOS | `xcodebuild ... build` 通过。**引导页在模拟器上跑通不崩溃**；主 tab 与推入的各屏未做运行时验证 |
+| Android | 去快照重构完成（Decisions / Store 增量落库 / 通知签名 diff / 屏幕按集合订阅）；领域层单测覆盖的纯函数全部保留。**本次重构后尚未构建验证**（环境缺 Gradle 9.4.1 守护进程需要的 JDK 25 工具链，且工具链下载网络不可达），也未在真机 / 模拟器上运行过 |
+| iOS | 去快照重构完成（Decisions / Store 增量落库 / AppViewModel 按集合 / pbxproj 已同步），`xcodebuild ... build` 通过（0 error；`FormScreenViewController.swift` 有若干既有的 actor 隔离提示，非本次引入）。**主界面未做运行时验证** |
 
 > 迁移来源是 Expo 版（`expo/src/`）。Expo 版仍保留作为行为参照，
 > 但不再是交付物；后续改动只应落在 `ios/` / `android/` 两端之一，并同步本规格。

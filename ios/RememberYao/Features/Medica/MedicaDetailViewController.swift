@@ -25,19 +25,25 @@ enum MedicaDetailRow: Hashable {
 /// 药品详情：库存概览 + 基础信息 + 数字孪生入口 + 用药配置 + 补货 + 编辑 / 删除。
 ///
 /// 全部原生控件：`UITableView` inset grouped、侧滑删除、`UIAlertController`。
-final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow> {
-  private let store = AppEnvironment.shared.store
+final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow>, ViewModelHolder {
+  var viewModel: AppViewModel!
   private let medicationId: String
   private let onChanged: () -> Void
 
   private var medication: Medication? {
-    store.data.medications.first { $0.id == medicationId }
+    viewModel.medications.first { $0.id == medicationId }
   }
 
-  init(medicationId: String, onChanged: @escaping () -> Void = {}) {
+  init(viewModel: AppViewModel, medicationId: String, onChanged: @escaping () -> Void = {}) {
     self.medicationId = medicationId
     self.onChanged = onChanged
+    self.viewModel = viewModel
+
     super.init(nibName: nil, bundle: nil)
+  }
+
+  func viewModelDataChanged() {
+    reload()
   }
 
   @available(*, unavailable)
@@ -47,10 +53,11 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
     super.viewDidLoad()
     title = medication?.name ?? L10n.shared.t("medication.listTitle")
     reload()
+    registerViewModelObservation()
   }
 
   override func reload() {
-    guard !store.loading else { return }
+    guard !viewModel.loading else { return }
     guard let medication else {
       // 药品已被删（可能在别处删的）：展示 notFound 而不是空白
       title = L10n.shared.t("medication.notFound")
@@ -62,8 +69,8 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
 
   override func buildSnapshot() -> [SectionKey: [MedicaDetailRow]] {
     guard let medication else { return [:] }
-    let summary = stockSummary(medication, store.data.plans)
-    let twin = blisterSummary(medication, store.data.packs, store.data.blisterSlots)
+    let summary = stockSummary(medication, viewModel.plans)
+    let twin = blisterSummary(medication, viewModel.packs, viewModel.blisterSlots)
 
     var summaryRows: [MedicaDetailRow] = [
       .stock(
@@ -112,10 +119,10 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
       basicRows.append(.info(id: "notes", labelKey: "medication.notes", value: medication.notes))
     }
 
-    var planRows: [MedicaDetailRow] = store.data.plans
+    var planRows: [MedicaDetailRow] = viewModel.plans
       .filter { $0.medicationId == medication.id }
       .map { plan in
-        let person = store.data.persons.first { $0.id == plan.personId }
+        let person = viewModel.persons.first { $0.id == plan.personId }
         return MedicaDetailRow.plan(
           id: plan.id,
           title: person?.name ?? Domain.deletedPersonName,
@@ -239,10 +246,10 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
     switch row {
     case .twin:
       guard let medication else { return }
-      let twin = blisterSummary(medication, store.data.packs, store.data.blisterSlots)
+      let twin = blisterSummary(medication, viewModel.packs, viewModel.blisterSlots)
       if twin.enabled {
         navigationController?.pushViewController(
-          BlisterTwinViewController(medicationId: medication.id), animated: true)
+          BlisterTwinViewController(viewModel: viewModel, medicationId: medication.id), animated: true)
       } else {
         // 未开启：用原生 alert 收集行列板数（三字段）
         presentTwinEnableSheet(for: medication)
@@ -251,7 +258,7 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
     case .addPlan:
       guard let medication else { return }
       navigationController?.pushViewController(
-        PlanFormViewController(personId: nil, medicationId: medication.id),
+        PlanFormViewController(viewModel: viewModel, personId: nil, medicationId: medication.id),
         animated: true
       )
 
@@ -264,7 +271,7 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
     case .edit:
       guard let medication else { return }
       navigationController?.pushViewController(
-        MedicaFormViewController(medication: medication) { [weak self] in
+        MedicaFormViewController(viewModel: viewModel, medication: medication) { [weak self] in
           self?.reload()
           self?.onChanged()
         },
@@ -278,7 +285,7 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
       ) { [weak self] in
         guard let self else { return }
         Task {
-          await self.store.deleteMedication(id: self.medicationId)
+          await self.viewModel.deleteMedication(id: self.medicationId)
           self.onChanged()
           self.navigationController?.popViewController(animated: true)
         }
@@ -306,7 +313,7 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
           let amount = Int(alert.textFields?.first?.text ?? ""),
           amount > 0
         else { return }
-        Task { await self.store.restockMedication(id: self.medicationId, amount: amount) }
+        Task { await self.viewModel.restockMedication(id: self.medicationId, amount: amount) }
       })
     alert.addAction(
       UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
@@ -336,7 +343,7 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
           count > 0
         else { return }
         Task {
-          await self.store.appendBlisterPacks(self.medicationId, count: count)
+          await self.viewModel.appendBlisterPacks(self.medicationId, count: count)
         }
       })
     alert.addAction(
@@ -381,7 +388,7 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
           (1...Domain.maxPackCount).contains(packs)
         else { return }
         Task {
-          await self.store.openBlisterTwin(
+          await self.viewModel.openBlisterTwin(
             self.medicationId, spec: BlisterSpec(rows: rows, cols: cols, packCount: packs))
           self.reload()
         }

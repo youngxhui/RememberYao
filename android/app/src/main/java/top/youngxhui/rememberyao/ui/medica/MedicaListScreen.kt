@@ -91,7 +91,8 @@ fun MedicaListScreen(
     onOpenMedication: (String) -> Unit,
     onAddMedication: () -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val plans by viewModel.plans.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
@@ -116,7 +117,6 @@ fun MedicaListScreen(
         }
     }
 
-    val snapshot = data
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
@@ -138,12 +138,12 @@ fun MedicaListScreen(
             )
         }
     ) { innerPadding ->
-        if (snapshot == null || (loading && snapshot.medications.isEmpty())) {
+        if (loading && medications.isEmpty()) {
             Column(modifier = Modifier.fillMaxSize()) {}
             return@Scaffold
         }
 
-        val visible = snapshot.medications
+        val visible = medications
             .filter { medication ->
                 val matchesQuery = query.isBlank() ||
                     medication.name.contains(query, ignoreCase = true)
@@ -152,7 +152,7 @@ fun MedicaListScreen(
                     MedicaFilter.CHRONIC -> medication.category == MedicationCategory.CHRONIC
                     MedicaFilter.SUPPLEMENT -> medication.category == MedicationCategory.SUPPLEMENT
                     MedicaFilter.LOW ->
-                        stockSummary(medication, snapshot.plans).low ||
+                        stockSummary(medication, plans).low ||
                             medication.stockLevel != StockLevel.OK
                 }
                 matchesQuery && matchesFilter
@@ -203,13 +203,13 @@ fun MedicaListScreen(
                 item {
                     EmptyState(
                         text = stringResource(
-                            if (snapshot.medications.isEmpty()) {
+                            if (medications.isEmpty()) {
                                 R.string.medication_emptyTitle
                             } else {
                                 R.string.medication_emptySearch
                             }
                         ),
-                        hint = if (snapshot.medications.isEmpty()) {
+                        hint = if (medications.isEmpty()) {
                             stringResource(R.string.medication_empty)
                         } else {
                             null

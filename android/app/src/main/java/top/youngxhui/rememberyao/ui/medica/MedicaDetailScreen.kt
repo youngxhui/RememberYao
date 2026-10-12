@@ -70,21 +70,24 @@ fun MedicaDetailScreen(
     onOpenTwin: (String) -> Unit,
     onAddPlan: (String) -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val persons by viewModel.persons.collectAsStateWithLifecycle()
+    val plans by viewModel.plans.collectAsStateWithLifecycle()
+    val packs by viewModel.packs.collectAsStateWithLifecycle()
+    val blisterSlots by viewModel.blisterSlots.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
     val context = LocalContext.current
     var dialog by remember { mutableStateOf<DetailDialog>(DetailDialog.None) }
 
-    val snapshot = data
-    val medication = snapshot?.medications?.firstOrNull { it.id == medicationId }
+    val medication = medications.firstOrNull { it.id == medicationId }
 
     ScreenScaffold(
         title = medication?.name ?: stringResource(R.string.medication_listTitle),
         onBack = onBack,
         backTestId = "medication-detail-back"
     ) { innerPadding ->
-        if (snapshot == null || medication == null) {
+        if (medication == null) {
             EmptyState(
                 text = stringResource(R.string.medication_notFound),
                 modifier = Modifier.padding(innerPadding)
@@ -92,9 +95,9 @@ fun MedicaDetailScreen(
             return@ScreenScaffold
         }
 
-        val summary = stockSummary(medication, snapshot.plans)
-        val twin = blisterSummary(medication, snapshot.packs, snapshot.blisterSlots)
-        val plans = snapshot.plans.filter { it.medicationId == medication.id }
+        val summary = stockSummary(medication, plans)
+        val twin = blisterSummary(medication, packs, blisterSlots)
+        val medicationPlans = plans.filter { it.medicationId == medication.id }
         val tint = when (medication.stockLevel) {
             StockLevel.OK -> StatusTint.Success
             StockLevel.LOW -> StatusTint.Warning
@@ -204,13 +207,13 @@ fun MedicaDetailScreen(
             // MARK: 用药配置
             item {
                 SectionCard(title = stringResource(R.string.medication_takers)) {
-                    if (plans.isEmpty()) {
+                    if (medicationPlans.isEmpty()) {
                         EmptyState(text = stringResource(R.string.medication_noPlans))
                     }
                 }
             }
-            items(plans, key = { it.id }) { plan ->
-                val person = snapshot.persons.firstOrNull { it.id == plan.personId }
+            items(medicationPlans, key = { it.id }) { plan ->
+                val person = persons.firstOrNull { it.id == plan.personId }
                 InfoRow(
                     label = person?.name ?: stringResource(R.string.home_unknownPerson),
                     value = stringResource(R.string.plan_perDay, plan.times.size) +

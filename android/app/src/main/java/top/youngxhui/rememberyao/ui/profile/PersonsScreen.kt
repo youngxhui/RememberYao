@@ -48,10 +48,11 @@ fun PersonsScreen(
     onBack: () -> Unit,
     onOpenPerson: (String) -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val persons by viewModel.persons.collectAsStateWithLifecycle()
+    val plans by viewModel.plans.collectAsStateWithLifecycle()
+    val loading by viewModel.loading.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
-    val snapshot = data
     var showForm by remember { mutableStateOf(false) }
 
     ScreenScaffold(
@@ -67,7 +68,7 @@ fun PersonsScreen(
             )
         }
     ) { innerPadding ->
-        if (snapshot == null) {
+        if (loading && persons.isEmpty()) {
             Column(modifier = Modifier.fillMaxSize()) {}
             return@ScreenScaffold
         }
@@ -77,7 +78,7 @@ fun PersonsScreen(
             contentPadding = innerPadding,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (snapshot.persons.isEmpty()) {
+            if (persons.isEmpty()) {
                 item {
                     EmptyState(
                         text = stringResource(R.string.profile_emptyFamily),
@@ -85,8 +86,8 @@ fun PersonsScreen(
                     )
                 }
             }
-            items(snapshot.persons, key = { it.id }) { person ->
-                val planCount = snapshot.plans.count { it.personId == person.id }
+            items(persons, key = { it.id }) { person ->
+                val planCount = plans.count { it.personId == person.id }
                 PersonRow(
                     person = person,
                     planCount = planCount,

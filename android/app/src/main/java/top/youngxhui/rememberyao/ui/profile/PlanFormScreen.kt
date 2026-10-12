@@ -69,11 +69,13 @@ fun PlanFormScreen(
     medicationId: String?,
     onBack: () -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val plans by viewModel.plans.collectAsStateWithLifecycle()
+    val persons by viewModel.persons.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val loading by viewModel.loading.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
-    val snapshot = data
-    val existing = planId?.let { id -> snapshot?.plans?.firstOrNull { it.id == id } }
+    val existing = planId?.let { id -> plans.firstOrNull { it.id == id } }
 
     var selectedPerson by remember { mutableStateOf(personId ?: existing?.personId) }
     var selectedMedications by remember {
@@ -108,13 +110,11 @@ fun PlanFormScreen(
         onBack = onBack,
         backTestId = "plan-back"
     ) { innerPadding ->
-        if (snapshot == null) {
+        if (loading && plans.isEmpty()) {
             Column(modifier = Modifier.fillMaxSize()) {}
             return@ScreenScaffold
         }
 
-        val persons = snapshot.persons
-        val medications = snapshot.medications.sortedBy { it.name }
         val personName = persons.firstOrNull { it.id == selectedPerson }?.name
 
         // 校验：人、药、剂量、时间、起止日期都必须成立

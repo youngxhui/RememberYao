@@ -279,6 +279,12 @@ public func clampSide(_ n: Int) -> Int {
   min(max(n, 1), Domain.maxPackSide)
 }
 
+/// 向上取整的板数：装得下 remaining 至少需要几块每板 perPack 格的板。
+public func packsNeeded(_ remaining: Int, perPack: Int) -> Int {
+  guard perPack > 0 else { return 1 }
+  return max(1, Int((Double(remaining) / Double(perPack)).rounded(.up)))
+}
+
 extension Array where Element == BlisterSlot {
   /// 板的展示状态：由槽位推导，不落库。
   public func packStatus() -> PackStatus {

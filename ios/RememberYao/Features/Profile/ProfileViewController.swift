@@ -22,8 +22,15 @@ enum ProfileRow: Hashable {
 /// 全部原生控件：`UITableView` inset grouped + `UIListContentConfiguration`。
 /// 本周统计走 `Core/Domain` 的 `weekStats`，屏幕只负责摆。顶部通栏是
 /// Mini Archive 收藏夹（`tableHeaderView`，水平滚动与表格垂直滚动方向正交）。
-final class ProfileViewController: ListScreenViewController<ProfileRow> {
-  private let store = AppEnvironment.shared.store
+final class ProfileViewController: ListScreenViewController<ProfileRow>, ViewModelHolder {
+
+  init(viewModel: AppViewModel) {
+    self.viewModel = viewModel
+    super.init(nibName: nil, bundle: nil)
+  }
+
+
+  var viewModel: AppViewModel!
 
   /// Mini Archive 收藏夹：通栏横排（不跟着其它区块内缩），水平滚动与表格的
   /// 垂直滚动方向正交，可以直接走 `tableHeaderView`。
@@ -37,16 +44,18 @@ final class ProfileViewController: ListScreenViewController<ProfileRow> {
     add.accessibilityIdentifier = "profile-add-person-button"
     navigationItem.rightBarButtonItem = add
     configureArchiveHeader()
+    registerViewModelObservation()
   }
 
   override func reload() {
-    guard !store.loading else { return }
+    guard !viewModel.loading else { return }
     applySnapshot()
     miniArchive.configure(
-      entries: store.data.medications.map { ArchiveEntry.from($0) },
+      entries: viewModel.medications.map { ArchiveEntry.from($0) },
       onSelect: { [weak self] entry in
-        let detail = MedicaDetailViewController(medicationId: entry.id)
-        self?.navigationController?.pushViewController(detail, animated: true)
+        guard let self else { return }
+        let detail = MedicaDetailViewController(viewModel: viewModel, medicationId: entry.id)
+        self.navigationController?.pushViewController(detail, animated: true)
       })
   }
 
@@ -82,11 +91,11 @@ final class ProfileViewController: ListScreenViewController<ProfileRow> {
 
   override func buildSnapshot() -> [SectionKey: [ProfileRow]] {
     let stats = weekStats(
-      store.data.reminders,
+      viewModel.reminders,
       from: DateKey.weekStart(),
       to: DateKey.today()
     )
-    let persons = store.data.persons.map { person in
+    let persons = viewModel.persons.map { person in
       ProfileRow.person(id: person.id, name: person.name, badge: badge(for: person))
     }
     return [
@@ -156,7 +165,7 @@ final class ProfileViewController: ListScreenViewController<ProfileRow> {
   override func didSelect(_ row: ProfileRow) {
     switch row {
     case .person(let id, _, _):
-      let detail = PersonDetailViewController(personId: id) { [weak self] in
+      let detail = PersonDetailViewController(viewModel: viewModel, personId: id) { [weak self] in
         self?.reload()
       }
       navigationController?.pushViewController(detail, animated: true)
@@ -165,10 +174,10 @@ final class ProfileViewController: ListScreenViewController<ProfileRow> {
       addPersonTapped()
 
     case .settings:
-      navigationController?.pushViewController(SettingsViewController(), animated: true)
+      navigationController?.pushViewController(SettingsViewController(viewModel: viewModel), animated: true)
 
     case .records:
-      navigationController?.pushViewController(RecordsViewController(), animated: true)
+      navigationController?.pushViewController(RecordsViewController(viewModel: viewModel), animated: true)
 
     default:
       break
@@ -177,11 +186,11 @@ final class ProfileViewController: ListScreenViewController<ProfileRow> {
 
   /// 成员徽章：正常 / 待关注（连续漏服）/ 未配置。
   private func badge(for person: Person) -> String {
-    guard store.data.plans.contains(where: { $0.personId == person.id }) else {
+    guard viewModel.plans.contains(where: { $0.personId == person.id }) else {
       return L10n.shared.t("profile.badgeNoPlan")
     }
     let streaks = missedStreaks(
-      store.data.reminders, threshold: store.data.settings.missedAlertStreak)
+      viewModel.reminders, threshold: viewModel.settings.missedAlertStreak)
     return streaks.contains(person.id)
       ? L10n.shared.t("profile.badgeWatch") : L10n.shared.t("profile.badgeOk")
   }
@@ -214,9 +223,13 @@ final class ProfileViewController: ListScreenViewController<ProfileRow> {
   }
 
   @objc private func addPersonTapped() {
-    let form = PersonsViewController { [weak self] in
+    let form = PersonsViewController(viewModel: viewModel) { [weak self] in
       self?.reload()
     }
     navigationController?.pushViewController(form, animated: true)
   }
+
+    required init?(coder: NSCoder) {
+      fatalError("init(coder:) has not been implemented")
+    }
 }

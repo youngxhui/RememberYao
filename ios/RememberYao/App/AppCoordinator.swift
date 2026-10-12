@@ -8,7 +8,8 @@ import UIKit
 @MainActor
 final class AppCoordinator: NSObject {
   private let window: UIWindow
-  private let store = AppEnvironment.shared.store
+  private let repository = AppEnvironment.shared.store
+  private lazy var viewModel = AppViewModel(repository: repository)
   private var tabBarController: UITabBarController?
 
   /// 引导页是否已看过。
@@ -52,9 +53,9 @@ final class AppCoordinator: NSObject {
   }
 
   private func showMain() {
-    let home = HomeViewController()
-    let medica = MedicaListViewController()
-    let profile = ProfileViewController()
+    let home = HomeViewController(viewModel: viewModel)
+    let medica = MedicaListViewController(viewModel: viewModel)
+    let profile = ProfileViewController(viewModel: viewModel)
 
     let tabs = makeTabBarController(
       tabs: [
@@ -66,6 +67,8 @@ final class AppCoordinator: NSObject {
     setRoot(tabs, animated: false)
     // 通知权限到这儿才要：引导页走完了，弹窗不会盖住 onboarding
     AppEnvironment.shared.requestNotificationPermissionIfNeeded()
+    // ViewModel 同步 Repository 当前数据（bootstrap 已完成 load）
+    viewModel.syncFromRepository()
   }
 
   private func makeTabBarController(

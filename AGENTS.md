@@ -43,9 +43,9 @@ cd android && ./gradlew :app:testDebugUnitTest
 
 ### 数据层
 
-1. **屏幕永远不直接碰持久化**。所有状态集中在 `Store`（iOS）/ `Store.kt`（Android），屏幕只读快照并调它的方法。
-2. 写操作一律走「套纯函数 → 更新内存态 → 落盘 → 重排通知」流水线，**不允许绕过通知重排**。
-3. 领域层是**纯函数**：`AppData` 是不可变快照，新逻辑保持这个形态。
+1. **屏幕永远不直接碰持久化**。所有状态集中在 `Store`（iOS）/ `Store.kt`（Android）：读按集合拉取（Android 是 Room DAO 的 `Flow`，iOS 是 `fetchXxx()`），屏幕只读自己关心的集合并调它的方法。
+2. 写操作一律走「实体级纯函数决策 → 增量落库（一个事务）→ 重排通知」流水线，**不允许绕过通知重排**。
+3. 领域层是**纯函数**：`Decisions`（`Decisions.kt` / `Decisions.swift`）里的 `decideXxx` 只接收它用到的实体、返回这些实体的新状态（decision），不碰任何 IO；`Store` 只负责执行 decision。新增业务逻辑一律先在这里落成 decision —— 两端同名同构，规则逐条对齐。
 4. **日期 / 时间一律用字符串**：日期 `YYYY-MM-DD`，时间 `HH:MM`，时间戳 ISO8601。比较用字符串 `localeCompare` / `<`，**不引入任何日期库**。
 5. `MedicationUsage` 的 `personName` / `medicationName` / `time` 是**快照**，删除药品或用药人不清除历史。
 6. 提醒状态机 `pending → taken / skipped / missed`；超过 **1 小时宽限期**未处理才判 `missed`，漏服可补服（`late = true`）。
@@ -87,13 +87,13 @@ cd android && ./gradlew :app:testDebugUnitTest
 ```
 ios/RememberYao/
   App/        AppCoordinator（根导航 / tab）+ AppDelegate
-  Core/       Domain（纯函数）+ Mutations（写操作）+ Data（Store/SwiftData/AppEnvironment）
+  Core/       Domain（常量 + 纯派生）+ Decisions（写操作：实体级纯函数）+ Data（Store/SwiftData/AppEnvironment）
               + Model（实体）+ Notification（调度）+ Localization（L10n）
   Features/   每屏一个 ViewController（Home / Medica / Profile / Onboarding）
   UI/         共享基元与 Theme；MiniArchiveView、ReminderCardStackView 两个动画展示组件
   Resources/   Localizable.xcstrings
 android/app/src/main/java/top/youngxhui/rememberyao/
-  core/       domain（纯函数 + Mutations + Store）+ model + notification + l10n
+  core/       domain（纯函数 + Decisions + Repository 接口）+ data/repository（Store）+ model + notification + l10n
   data/       local（Room）+ di（Hilt）
   ui/         theme + components + home/medica/profile/records/onboarding 各屏
               + RememberYaoApp（NavHost）+ AppViewModel
@@ -107,4 +107,4 @@ expo/                 旧 Expo 版（JS），行为参照，不要在此提交�
 - **iOS 只验证了引导页**（冷启动、两页、进主界面后的 tab 栏与首页大标题，无崩溃）；主界面各屏未做运行时验证。注意本环境 `simctl io tap` / `swipe` 不送达事件。
 - `expo-widgets` 的桌面 Widget 尚未实现。
 - Maestro 流未从 Expo 版（`expo/maestro/`）移植。
-- 最该继续覆盖的测试层：`Mutations` / `Mutations.kt` 的提醒生成、库存扣减、`applyPlanChanges`、`openBlisterTwin`。
+- 最该继续覆盖的测试层：`Decisions` / `Decisions.kt` 的提醒生成、库存扣减、`decideApplyPlanChanges`、`decideOpenTwin`。

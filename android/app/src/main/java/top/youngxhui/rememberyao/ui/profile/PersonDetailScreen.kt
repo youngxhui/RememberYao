@@ -53,22 +53,23 @@ fun PersonDetailScreen(
     onEditPlan: (String) -> Unit,
     onAddPlan: () -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val persons by viewModel.persons.collectAsStateWithLifecycle()
+    val plans by viewModel.plans.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
     val context = LocalContext.current
     var showForm by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
 
-    val snapshot = data
-    val person = snapshot?.persons?.firstOrNull { it.id == personId }
+    val person = persons.firstOrNull { it.id == personId }
 
     ScreenScaffold(
         title = person?.name ?: stringResource(R.string.person_listTitle),
         onBack = onBack,
         backTestId = "person-detail-back"
     ) { innerPadding ->
-        if (snapshot == null || person == null) {
+        if (person == null) {
             EmptyState(
                 text = stringResource(R.string.person_notFound),
                 modifier = Modifier.padding(innerPadding)
@@ -76,7 +77,7 @@ fun PersonDetailScreen(
             return@ScreenScaffold
         }
 
-        val plans = snapshot.plans.filter { it.personId == person.id }
+        val personPlans = plans.filter { it.personId == person.id }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -96,7 +97,7 @@ fun PersonDetailScreen(
                         Column {
                             Text(person.name, style = MaterialTheme.typography.titleLarge)
                             Text(
-                                text = stringResource(R.string.person_planCount, plans.size),
+                                text = stringResource(R.string.person_planCount, personPlans.size),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -129,18 +130,18 @@ fun PersonDetailScreen(
 
             item {
                 SectionCard(title = stringResource(R.string.person_plans)) {
-                    if (plans.isEmpty()) {
+                    if (personPlans.isEmpty()) {
                         EmptyState(text = stringResource(R.string.medication_noPlans))
                     }
                 }
             }
-            items(plans, key = { it.id }) { plan ->
+            items(personPlans, key = { it.id }) { plan ->
                 PlanRow(
                     plan = plan,
-                    medicationName = snapshot.medications
+                    medicationName = medications
                         .firstOrNull { it.id == plan.medicationId }?.name
                         ?: stringResource(R.string.home_unknownMedication),
-                    unitLabel = snapshot.medications
+                    unitLabel = medications
                         .firstOrNull { it.id == plan.medicationId }
                         ?.let { L10n.unitLabel(context, it.unit) }
                         .orEmpty(),

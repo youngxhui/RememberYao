@@ -88,7 +88,10 @@ fun HomeScreen(
     viewModel: AppViewModel,
     onOpenMedication: (String) -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val reminders by viewModel.reminders.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val persons by viewModel.persons.collectAsStateWithLifecycle()
+    val plans by viewModel.plans.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
 
     // 屏幕回到前台时把别处的变更拉回来（对应 Expo 版 useFocusEffect(reload)）
@@ -97,7 +100,6 @@ fun HomeScreen(
     var memberFilter by remember { mutableStateOf<String?>(null) }
     var actionReminder by remember { mutableStateOf<Reminder?>(null) }
 
-    val snapshot = data
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
@@ -112,29 +114,29 @@ fun HomeScreen(
         }
     ) { innerPadding ->
         // 首屏加载没结束时不显示 empty 态：刚打开 App 看到一片空白会被当成坏了
-        if (snapshot == null || (loading && snapshot.medications.isEmpty())) {
+        if (loading && medications.isEmpty()) {
             Column(modifier = Modifier.fillMaxSize()) {}
             return@Scaffold
         }
 
-        val reminders = snapshot.reminders
+        val todayReminders = reminders
             .filter { it.date == DateKey.today() }
             .filter { memberFilter == null || it.personId == memberFilter }
             .sortedBy { it.time }
 
         // 牌堆只认 pending/missed，按成员筛选后的全集取前三张
-        val stackReminders = remember(snapshot, memberFilter) {
+        val stackReminders = remember(reminders, memberFilter) {
             takeEarliest(
-                snapshot.reminders.filter { memberFilter == null || it.personId == memberFilter },
+                reminders.filter { memberFilter == null || it.personId == memberFilter },
                 3
             )
         }
         // 派生数据（含词条）在屏幕层拼好，组件只负责摆 —— 与 ReminderCard 一族分工一致
         val stackItems = stackReminders.map { reminder ->
-            val medication = snapshot.medications.firstOrNull { it.id == reminder.medicationId }
-            val person = snapshot.persons.firstOrNull { it.id == reminder.personId }
-            val plan = snapshot.plans.firstOrNull { it.id == reminder.planId }
-            val summary = medication?.let { stockSummary(it, snapshot.plans) }
+            val medication = medications.firstOrNull { it.id == reminder.medicationId }
+            val person = persons.firstOrNull { it.id == reminder.personId }
+            val plan = plans.firstOrNull { it.id == reminder.planId }
+            val summary = medication?.let { stockSummary(it, plans) }
             val unit = medication?.let { L10n.unitLabel(context, it.unit) }
                 ?: stringResource(R.string.medication_unitTablet)
             val notes = medication?.notes?.trim().orEmpty()
@@ -211,10 +213,10 @@ fun HomeScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (snapshot.persons.isNotEmpty()) {
+            if (persons.isNotEmpty()) {
                 item {
                     MemberFilterRow(
-                        persons = snapshot.persons.map { it.id to it.name },
+                        persons = persons.map { it.id to it.name },
                         selected = memberFilter,
                         onSelect = { memberFilter = it }
                     )
@@ -251,7 +253,7 @@ fun HomeScreen(
             item {
                 SectionHeading(stringResource(R.string.home_todaySchedule))
             }
-            if (reminders.isEmpty()) {
+            if (todayReminders.isEmpty()) {
                 item {
                     EmptyState(
                         text = stringResource(R.string.home_noSchedule),
@@ -259,9 +261,9 @@ fun HomeScreen(
                     )
                 }
             }
-            items(reminders, key = { it.id }) { reminder ->
-                val medication = snapshot.medications.firstOrNull { it.id == reminder.medicationId }
-                val person = snapshot.persons.firstOrNull { it.id == reminder.personId }
+            items(todayReminders, key = { it.id }) { reminder ->
+                val medication = medications.firstOrNull { it.id == reminder.medicationId }
+                val person = persons.firstOrNull { it.id == reminder.personId }
                 ReminderCard(
                     reminder = reminder,
                     medicationName = medication?.name
@@ -276,7 +278,7 @@ fun HomeScreen(
             item {
                 SectionHeading(stringResource(R.string.home_stockListTitle))
             }
-            if (snapshot.medications.isEmpty()) {
+            if (medications.isEmpty()) {
                 item {
                     EmptyState(
                         text = stringResource(R.string.home_stockListEmpty),
@@ -285,7 +287,7 @@ fun HomeScreen(
                 }
             }
             itemsIndexed(
-                snapshot.medications.sortedBy { it.name },
+                medications.sortedBy { it.name },
                 key = { _, medication -> medication.id }
             ) { _, medication ->
                 StockProgressRow(

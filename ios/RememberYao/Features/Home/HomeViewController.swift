@@ -16,8 +16,15 @@ enum HomeRow: Hashable {
 /// （inset grouped）+ `UIListContentConfiguration` 单元格、`UIMenu` 筛选、
 /// `UIAlertController` 操作面板、原生侧滑操作。屏幕只负责读 `Store` 与派发
 /// 动作，所有业务判断（是否漏服、还能吃几天、低库存）都在 `Core/Domain` 里。
-final class HomeViewController: ListScreenViewController<HomeRow> {
-  private let store = AppEnvironment.shared.store
+final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHolder {
+
+  init(viewModel: AppViewModel) {
+    self.viewModel = viewModel
+    super.init(nibName: nil, bundle: nil)
+  }
+
+
+  var viewModel: AppViewModel!
 
   /// nil = 全部成员。
   private var memberFilter: String?
@@ -46,10 +53,11 @@ final class HomeViewController: ListScreenViewController<HomeRow> {
     navigationItem.largeTitleDisplayMode = .always
     configureFilterMenu()
     reload()
+    registerViewModelObservation()
   }
 
   override func reload() {
-    guard !store.loading else { return }
+    guard !viewModel.loading else { return }
     // 用 navigationItem.title 而不是 title：VC 的 title 会被 UIKit 实时同步进
     // 所在 UINavigationController 的 tabBarItem.title（lldb 实测：一设就覆盖
     // AppCoordinator 里显式设置的「首页」），大标题只认 navigationItem.title
@@ -61,13 +69,13 @@ final class HomeViewController: ListScreenViewController<HomeRow> {
     super.applySnapshot()
     // 牌堆只认 pending/missed，按成员筛选后的全集交给它自己取前三张
     cardStack.configure(
-      reminders: store.data.reminders.filter { reminder in
+      reminders: viewModel.reminders.filter { reminder in
         guard let memberFilter else { return true }
         return reminder.personId == memberFilter
       },
-      medications: store.data.medications,
-      persons: store.data.persons,
-      plans: store.data.plans
+      medications: viewModel.medications,
+      persons: viewModel.persons,
+      plans: viewModel.plans
     )
   }
 
@@ -82,7 +90,7 @@ final class HomeViewController: ListScreenViewController<HomeRow> {
         self?.applySnapshot()
       }
     ]
-    for person in store.data.persons {
+    for person in viewModel.persons {
       let isSelected = person.id == memberFilter
       actions.append(
         UIAction(
@@ -112,7 +120,7 @@ final class HomeViewController: ListScreenViewController<HomeRow> {
 
   private func reminderRows() -> [HomeRow] {
     let today = DateKey.today()
-    return store.data.reminders
+    return viewModel.reminders
       .filter { $0.date == today }
       .filter { reminder in
         guard let memberFilter else { return true }
@@ -120,8 +128,8 @@ final class HomeViewController: ListScreenViewController<HomeRow> {
       }
       .sorted { DateKey.compareTime($0.time, $1.time) == .orderedAscending }
       .map { reminder in
-        let medication = store.data.medications.first { $0.id == reminder.medicationId }
-        let person = store.data.persons.first { $0.id == reminder.personId }
+        let medication = viewModel.medications.first { $0.id == reminder.medicationId }
+        let person = viewModel.persons.first { $0.id == reminder.personId }
         return HomeRow.reminder(
           id: reminder.id,
           title: medication?.name ?? Domain.deletedMedicationName,
@@ -134,11 +142,11 @@ final class HomeViewController: ListScreenViewController<HomeRow> {
 
   /// 库存速览：只列「按当前计划估算还能吃 ≤3 天」的药，其余不上屏。
   private func stockRows() -> [HomeRow] {
-    store.data.medications
-      .filter { stockSummary($0, store.data.plans).low }
+    viewModel.medications
+      .filter { stockSummary($0, viewModel.plans).low }
       .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
       .map { medication in
-        let summary = stockSummary(medication, store.data.plans)
+        let summary = stockSummary(medication, viewModel.plans)
         return HomeRow.stock(
           id: medication.id,
           title: medication.name,
@@ -201,7 +209,7 @@ final class HomeViewController: ListScreenViewController<HomeRow> {
       presentReminderActions(reminderId: id, sourceView: nil)
 
     case .stock(let id, _, _, _):
-      let detail = MedicaDetailViewController(medicationId: id)
+      let detail = MedicaDetailViewController(viewModel: viewModel, medicationId: id)
       navigationController?.pushViewController(detail, animated: true)
     }
   }
@@ -214,23 +222,27 @@ final class HomeViewController: ListScreenViewController<HomeRow> {
     alert.addAction(
       UIAlertAction(title: L10n.shared.t("reminder.markTaken"), style: .default) {
         [weak self] _ in
-        Task { await self?.store.take(reminderId) }
+        Task { await self?.viewModel.take(reminderId) }
       })
     alert.addAction(
       UIAlertAction(title: L10n.shared.t("reminder.snooze"), style: .default) {
         [weak self] _ in
         Task {
-          await self?.store.snooze(
-            reminderId, minutes: self?.store.data.settings.snoozeMinutes ?? 10)
+          await self?.viewModel.snooze(
+            reminderId, minutes: self?.viewModel.settings.snoozeMinutes ?? 10)
         }
       })
     alert.addAction(
       UIAlertAction(title: L10n.shared.t("reminder.skip"), style: .destructive) {
         [weak self] _ in
-        Task { await self?.store.skip(reminderId) }
+        Task { await self?.viewModel.skip(reminderId) }
       })
     alert.addAction(
       UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
     present(alert, anchoredTo: sourceView ?? view, animated: true)
   }
+
+    required init?(coder: NSCoder) {
+      fatalError("init(coder:) has not been implemented")
+    }
 }

@@ -16,8 +16,15 @@ enum RecordRow: Hashable {
   case empty
 }
 
-final class RecordsViewController: ListScreenViewController<RecordRow> {
-  private let store = AppEnvironment.shared.store
+final class RecordsViewController: ListScreenViewController<RecordRow>, ViewModelHolder {
+
+  init(viewModel: AppViewModel) {
+    self.viewModel = viewModel
+    super.init(nibName: nil, bundle: nil)
+  }
+
+
+  var viewModel: AppViewModel!
 
   /// 当前查看的日期（`YYYY-MM-DD`）。
   private var day = DateKey.today()
@@ -28,10 +35,11 @@ final class RecordsViewController: ListScreenViewController<RecordRow> {
     navigationController?.navigationBar.prefersLargeTitles = false
     configureDateNavigation()
     reload()
+    registerViewModelObservation()
   }
 
   override func reload() {
-    guard !store.loading else { return }
+    guard !viewModel.loading else { return }
     title = Self.displayDate(day)
     applySnapshot()
   }
@@ -118,8 +126,8 @@ final class RecordsViewController: ListScreenViewController<RecordRow> {
   // MARK: - 快照
 
   override func buildSnapshot() -> [SectionKey: [RecordRow]] {
-    let reminders = store.data.reminders.filter { $0.date == day }
-    let stats = weekStats(store.data.reminders, from: day, to: day)
+    let reminders = viewModel.reminders.filter { $0.date == day }
+    let stats = weekStats(viewModel.reminders, from: day, to: day)
 
     var summary: [RecordRow] = [.adherence(percent: stats.adherence)]
     // 摘要文案与 Expo 版 / Android 版同一条词条：计划 / 已服 / 漏服 / 跳过
@@ -136,8 +144,8 @@ final class RecordsViewController: ListScreenViewController<RecordRow> {
     var detail: [RecordRow] = reminders
       .sorted { DateKey.compareTime($0.time, $1.time) == .orderedAscending }
       .map { reminder in
-        let medication = store.data.medications.first { $0.id == reminder.medicationId }
-        let person = store.data.persons.first { $0.id == reminder.personId }
+        let medication = viewModel.medications.first { $0.id == reminder.medicationId }
+        let person = viewModel.persons.first { $0.id == reminder.personId }
         return RecordRow.usage(
           id: reminder.id,
           title: medication?.name ?? Domain.deletedMedicationName,
@@ -210,4 +218,8 @@ final class RecordsViewController: ListScreenViewController<RecordRow> {
     case .missed: return Theme.Color.danger
     }
   }
+
+    required init?(coder: NSCoder) {
+      fatalError("init(coder:) has not been implemented")
+    }
 }

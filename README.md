@@ -75,8 +75,10 @@ cd android
 ```
 App/        AppCoordinator（根导航 / tab）+ AppDelegate
 Core/
-  Domain/   Domain.swift（纯函数）+ Mutations.swift（写操作，全部返回新快照）
-  Data/     Store（唯一数据出入口）+ SwiftData 模型 + AppEnvironment
+  Domain/   Domain.swift（常量 + 纯派生函数）+ Decisions.swift（写操作：
+              实体级纯函数，返回 decision）
+  Data/     Store（唯一数据出入口，增量落库）+ SwiftData 模型 + AppEnvironment
+              + AppViewModel（按集合的 @Observable 状态）+ Repository 协议
   Model/    实体值类型 + Utilities（ISO8601 / id / 列表编解码）
   Notification/  UNUserNotificationCenter 调度
   Localization/  L10n（词条查询、语言偏好）
@@ -92,12 +94,15 @@ Resources/   Localizable.xcstrings
 
 ```
 core/
-  domain/    Domain.kt（纯函数）+ Mutations.kt + Store.kt（唯一数据出入口）
+  domain/    Domain.kt（常量 + 纯派生函数）+ Decisions.kt（写操作：实体级纯函数，
+             返回 decision）+ Repository.kt（接口 + ScheduleInput 只读投影）
   model/     实体值类型（snake_case 列名在 data/local/Entities.kt 映射）
   notification/  NotificationScheduler + 三个 BroadcastReceiver
   l10n/       L10n（词条查询）、LanguageStore、LocaleManager、Prefs
 data/
-  local/     Room：Entities / Daos / toDomain / toEntity（全量快照，先插后删）
+  local/     Room：Entities / Daos（读走 Flow，写走增量 upsert）/ toDomain /
+             toEntity
+  repository/ Store.kt（唯一数据出入口：增量落库 + 事务 + 重排通知）
   di/        AppModule（Hilt）
 ui/
   theme/      M3 Expressive 主题：动态取色（Android 12+ 壁纸配色，不支持时退回
@@ -111,7 +116,8 @@ ui/
              含 takeEarliest / parseHexColor 等共用纯函数
   home/ medica/ profile/ records/ onboarding/   每屏一个 @Composable
   RememberYaoApp.kt   NavHost + 底部 NavigationBar + Routes + 屏幕过渡
-  AppViewModel.kt     Activity 作用域，三个 tab 与推入的详情页共享一份快照
+  AppViewModel.kt     Activity 作用域，按集合的 StateFlow，三个 tab 与推入的
+                      详情页共享同一份数据
 tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
 ```
 
@@ -127,7 +133,7 @@ tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
    屏幕只读快照并调它的方法。
 2. 写操作一律走「套纯函数 → 更新内存态 → 落盘 → 重排通知」流水线，
    **不允许绕过通知重排**。
-3. 领域层是**纯函数**：`AppData` 是不可变快照，新逻辑保持这个形态。
+3. 领域层是**纯函数**：`Decisions` 里的 `decideXxx` 只接收涉及的实体、返回实体新状态（decision），不碰 IO；`Store` 只负责执行 decision，新逻辑保持这个形态。
 4. **日期 / 时间一律用字符串**：日期 `YYYY-MM-DD`，时间 `HH:MM`，时间戳 ISO8601。
    比较时间用字符串 `localeCompare` / `<`，**不引入任何日期库**。
 5. `MedicationUsage` 的 `personName` / `medicationName` / `time` 是**快照**，
@@ -238,8 +244,8 @@ tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
   跨零点区间。跑：`./gradlew :app:testDebugUnitTest`。iOS 端没有测试源集，
   `stableHash` 的对齐由 Android 这组固定向量反向锁死。
 - Maestro 流仍在 Expo 版里（`expo/maestro/*.yaml`），尚未移植。
-- 最该继续覆盖的一层：`Mutations` / `Mutations.kt` 的提醒生成、库存扣减、
-  `applyPlanChanges`、`openBlisterTwin`。
+- 最该继续覆盖的一层：`Decisions` / `Decisions.kt` 的提醒生成、库存扣减、
+  `decideApplyPlanChanges`、`decideOpenTwin`。
 
 ## 已知未验证项
 

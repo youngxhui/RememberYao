@@ -6,8 +6,8 @@ import UIKit
 /// 的等分网格方案，自带复用、自适应字号与无障碍，不需要自己算 frame。
 /// 药板视觉（铝箔底 + 泡罩 + 药饼配色）由 `SlotCell` 用 `CALayer` 画 —— 格子
 /// 状态会变，实时画比预渲染一批 `UIImage` 简单。
-final class BlisterTwinViewController: UIViewController {
-  private let store = AppEnvironment.shared.store
+final class BlisterTwinViewController: UIViewController, ViewModelHolder {
+  var viewModel: AppViewModel!
   private let medicationId: String
 
   /// 单元格标识。diffable data source 要求 `Hashable`，槽位自带 id，
@@ -21,12 +21,18 @@ final class BlisterTwinViewController: UIViewController {
   private var dataSource: UICollectionViewDiffableDataSource<Int, SlotItem>!
 
   private var medication: Medication? {
-    store.data.medications.first { $0.id == medicationId }
+    viewModel.medications.first { $0.id == medicationId }
   }
 
-  init(medicationId: String) {
+  init(viewModel: AppViewModel, medicationId: String) {
     self.medicationId = medicationId
+    self.viewModel = viewModel
+
     super.init(nibName: nil, bundle: nil)
+  }
+
+  func viewModelDataChanged() {
+    applySnapshot()
   }
 
   @available(*, unavailable)
@@ -39,6 +45,7 @@ final class BlisterTwinViewController: UIViewController {
     navigationController?.navigationBar.prefersLargeTitles = false
     configureCollectionView()
     applySnapshot()
+    registerViewModelObservation()
   }
 
   override func viewWillAppear(_ animated: Bool) {
@@ -110,7 +117,7 @@ final class BlisterTwinViewController: UIViewController {
       title = L10n.shared.t("twin.notEnabled")
       return
     }
-    let summary = blisterSummary(medication, store.data.packs, store.data.blisterSlots)
+    let summary = blisterSummary(medication, viewModel.packs, viewModel.blisterSlots)
     guard summary.enabled else {
       title = L10n.shared.t("twin.notEnabled")
       var snapshot = NSDiffableDataSourceSnapshot<Int, SlotItem>()
@@ -120,11 +127,11 @@ final class BlisterTwinViewController: UIViewController {
     }
 
     // 按板序 → 格序排，与真人嗑药片的顺序一致
-    let items = store.data.packs
+    let items = viewModel.packs
       .filter { $0.medicationId == medication.id }
       .sorted { $0.seq < $1.seq }
       .flatMap { pack -> [SlotItem] in
-        store.data.blisterSlots
+        viewModel.blisterSlots
           .filter { $0.packId == pack.id }
           .sorted { $0.index < $1.index }
           .map { SlotItem(slot: $0, packSeq: pack.seq) }
@@ -164,7 +171,7 @@ final class BlisterTwinViewController: UIViewController {
       alert.addAction(
         UIAlertAction(title: L10n.shared.t("twin.actionVoid"), style: .destructive) {
           [weak self] _ in
-          Task { await self?.store.voidBlisterSlot(item.slot.id) }
+          Task { await self?.viewModel.voidBlisterSlot(item.slot.id) }
         })
 
     case .empty:
@@ -175,7 +182,7 @@ final class BlisterTwinViewController: UIViewController {
             [weak self] _ in
             Task {
               if let usageId = item.slot.usageId {
-                await self?.store.undoUsage(usageId)
+                await self?.viewModel.undoUsage(usageId)
               }
             }
           })
@@ -183,14 +190,14 @@ final class BlisterTwinViewController: UIViewController {
       alert.addAction(
         UIAlertAction(title: L10n.shared.t("twin.actionRestore"), style: .default) {
           [weak self] _ in
-          Task { await self?.store.restoreBlisterSlot(item.slot.id) }
+          Task { await self?.viewModel.restoreBlisterSlot(item.slot.id) }
         })
 
     case .void:
       alert.addAction(
         UIAlertAction(title: L10n.shared.t("twin.actionRestore"), style: .default) {
           [weak self] _ in
-          Task { await self?.store.restoreBlisterSlot(item.slot.id) }
+          Task { await self?.viewModel.restoreBlisterSlot(item.slot.id) }
         })
     }
 
@@ -201,10 +208,10 @@ final class BlisterTwinViewController: UIViewController {
 
   /// 手动记一次服用要知道是谁吃的：多名成员时先选人，一名时直接记。
   private func presentPersonChooser(for item: SlotItem) {
-    let persons = store.data.persons
+    let persons = viewModel.persons
     guard !persons.isEmpty else { return }
     guard persons.count > 1 else {
-      Task { await store.consumeBlisterSlot(item.slot.id, personId: persons[0].id) }
+      Task { await viewModel.consumeBlisterSlot(item.slot.id, personId: persons[0].id) }
       return
     }
     presentSingleChoice(
@@ -213,7 +220,7 @@ final class BlisterTwinViewController: UIViewController {
       selectedKey: nil,
       sourceView: view
     ) { [weak self] personId in
-      Task { await self?.store.consumeBlisterSlot(item.slot.id, personId: personId) }
+      Task { await self?.viewModel.consumeBlisterSlot(item.slot.id, personId: personId) }
     }
   }
 }

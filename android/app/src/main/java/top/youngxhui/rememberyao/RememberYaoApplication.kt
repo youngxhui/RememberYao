@@ -7,7 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import top.youngxhui.rememberyao.core.domain.Store
+import top.youngxhui.rememberyao.core.domain.Repository
 import top.youngxhui.rememberyao.core.notification.NotificationScheduler
 
 /**
@@ -20,7 +20,7 @@ import top.youngxhui.rememberyao.core.notification.NotificationScheduler
 class RememberYaoApplication : Application() {
 
     @Inject
-    lateinit var store: Store
+    lateinit var store: Repository
 
     @Inject
     lateinit var scheduler: NotificationScheduler

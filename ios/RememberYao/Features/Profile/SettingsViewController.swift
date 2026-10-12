@@ -22,19 +22,27 @@ enum SettingsRow: Hashable {
 /// 全部原生控件：`UITableView` inset grouped + 单元格右侧 `UISwitch`、
 /// `UIAlertController` 单选。分组列表就是 iOS 设置页的标准形态，
 /// 不需要自造任何东西。
-final class SettingsViewController: ListScreenViewController<SettingsRow> {
-  private let store = AppEnvironment.shared.store
+final class SettingsViewController: ListScreenViewController<SettingsRow>, ViewModelHolder {
 
-  private var settings: Settings { store.data.settings }
+  init(viewModel: AppViewModel) {
+    self.viewModel = viewModel
+    super.init(nibName: nil, bundle: nil)
+  }
+
+
+  var viewModel: AppViewModel!
+
+  private var settings: Settings { viewModel.settings }
 
   override func viewDidLoad() {
     super.viewDidLoad()
     title = L10n.shared.t("settings.title")
     reload()
+    registerViewModelObservation()
   }
 
   override func reload() {
-    guard !store.loading else { return }
+    guard !viewModel.loading else { return }
     applySnapshot()
   }
 
@@ -130,7 +138,7 @@ final class SettingsViewController: ListScreenViewController<SettingsRow> {
   }
 
   private func update(_ patch: @escaping (inout Settings) -> Void) {
-    Task { await store.updateSettings(patch: patch) }
+    Task { await viewModel.updateSettings(patch: patch) }
   }
 
   override func didSelect(_ row: SettingsRow) {
@@ -277,4 +285,8 @@ final class SettingsViewController: ListScreenViewController<SettingsRow> {
       UIAlertAction(title: L10n.shared.t("common.done"), style: .default))
     present(alert, animated: true)
   }
+
+    required init?(coder: NSCoder) {
+      fatalError("init(coder:) has not been implemented")
+    }
 }

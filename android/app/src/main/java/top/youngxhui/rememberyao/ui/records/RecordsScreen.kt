@@ -67,10 +67,12 @@ fun RecordsScreen(
     viewModel: AppViewModel,
     onBack: () -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val reminders by viewModel.reminders.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val persons by viewModel.persons.collectAsStateWithLifecycle()
+    val loading by viewModel.loading.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
-    val snapshot = data
     val context = LocalContext.current
     val today = DateKey.today()
     var date by remember { mutableStateOf(today) }
@@ -123,12 +125,12 @@ fun RecordsScreen(
             )
         }
     ) { innerPadding ->
-        if (snapshot == null) {
+        if (loading && reminders.isEmpty()) {
             Column(modifier = Modifier.fillMaxSize()) {}
             return@Scaffold
         }
 
-        val dayReminders = snapshot.reminders.filter { it.date == date }.sortedBy { it.time }
+        val dayReminders = reminders.filter { it.date == date }.sortedBy { it.time }
         val taken = dayReminders.count { it.status == ReminderStatus.TAKEN }
         val missed = dayReminders.count { it.status == ReminderStatus.MISSED }
         val skipped = dayReminders.count { it.status == ReminderStatus.SKIPPED }
@@ -180,9 +182,9 @@ fun RecordsScreen(
                 }
 
                 items(dayReminders, key = { it.id }) { reminder ->
-                    val medication = snapshot.medications
+                    val medication = medications
                         .firstOrNull { it.id == reminder.medicationId }
-                    val person = snapshot.persons.firstOrNull { it.id == reminder.personId }
+                    val person = persons.firstOrNull { it.id == reminder.personId }
                     RecordRow(
                         reminder = reminder,
                         medicationName = medication?.name

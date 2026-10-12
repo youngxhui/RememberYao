@@ -412,38 +412,3 @@ public struct Settings: Codable, Sendable, Equatable {
     self.missedAlertStreak = missedAlertStreak
   }
 }
-
-/// 全量数据快照。领域层的一切运算都在这个值类型上进行。
-public struct AppData: Sendable, Equatable {
-  public var medications: [Medication]
-  public var persons: [Person]
-  public var plans: [MedicationPlan]
-  public var reminders: [Reminder]
-  public var usages: [MedicationUsage]
-  /// 泡罩药板（板装药的数字孪生）。非板装药没有板。
-  public var packs: [BlisterPack]
-  /// 泡罩槽位，跟着板走。
-  public var blisterSlots: [BlisterSlot]
-  /// 全局设置偏好，恒为一条。
-  public var settings: Settings
-
-  public init(
-    medications: [Medication] = [],
-    persons: [Person] = [],
-    plans: [MedicationPlan] = [],
-    reminders: [Reminder] = [],
-    usages: [MedicationUsage] = [],
-    packs: [BlisterPack] = [],
-    blisterSlots: [BlisterSlot] = [],
-    settings: Settings = .defaultValue
-  ) {
-    self.medications = medications
-    self.persons = persons
-    self.plans = plans
-    self.reminders = reminders
-    self.usages = usages
-    self.packs = packs
-    self.blisterSlots = blisterSlots
-    self.settings = settings
-  }
-}

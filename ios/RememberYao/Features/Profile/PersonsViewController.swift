@@ -13,8 +13,8 @@ enum PersonsRow: Hashable {
 /// 原生表单：`UITableView` inset grouped + `UITextField` + `UISwitch` /
 /// `UISegmentedControl`。多项用逗号分隔的字段（过敏史、基础病）仍是单行输入，
 /// 与 Expo 版一致 —— 做成标签输入器会显著增加复杂度，收益不大。
-final class PersonsViewController: FormScreenViewController<PersonsRow> {
-  private let store = AppEnvironment.shared.store
+final class PersonsViewController: FormScreenViewController<PersonsRow>, ViewModelHolder {
+  var viewModel: AppViewModel!
   private let onSaved: () -> Void
 
   private var name = ""
@@ -23,9 +23,15 @@ final class PersonsViewController: FormScreenViewController<PersonsRow> {
   private var allergies = ""
   private var conditions = ""
 
-  init(onSaved: @escaping () -> Void) {
+  init(viewModel: AppViewModel, onSaved: @escaping () -> Void) {
     self.onSaved = onSaved
+    self.viewModel = viewModel
+
     super.init(nibName: nil, bundle: nil)
+  }
+
+  func viewModelDataChanged() {
+    reloadRows()
   }
 
   @available(*, unavailable)
@@ -35,6 +41,7 @@ final class PersonsViewController: FormScreenViewController<PersonsRow> {
     super.viewDidLoad()
     title = L10n.shared.t("person.addMember")
     applyRows()
+    registerViewModelObservation()
   }
 
   override var primaryTitleKey: String { "person.addMemberButton" }
@@ -110,7 +117,7 @@ final class PersonsViewController: FormScreenViewController<PersonsRow> {
       underlyingConditions: Self.splitTags(conditions)
     )
     Task {
-      await store.addPerson(input)
+      await viewModel.addPerson(input)
       onSaved()
       navigationController?.popViewController(animated: true)
     }

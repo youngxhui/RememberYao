@@ -14,8 +14,8 @@ enum PlanFormRow: Hashable {
 ///
 /// 保存走 `applyPlanChanges` 一次落多笔，只重排一次通知（`docs/domain-spec.md` 4.7）。
 /// 逐笔调 addPlan / updatePlan 的话，每笔都会触发一次全量通知重排，选四种药就闪四次。
-final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
-  private let store = AppEnvironment.shared.store
+final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewModelHolder {
+  var viewModel: AppViewModel!
 
   /// 入口定死的用药人。从药品详情进来时为 nil，需要选。
   private let fixedPersonId: String?
@@ -35,11 +35,17 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
   /// 编辑态原有的勾选集合：保存时对比它决定 remove 哪些。
   private var originallySelected: Set<String> = []
 
-  init(personId: String?, medicationId: String?, editingPlanId: String? = nil) {
+  init(viewModel: AppViewModel, personId: String?, medicationId: String?, editingPlanId: String? = nil) {
     self.fixedPersonId = personId
     self.fixedMedicationId = medicationId
     self.editingPlanId = editingPlanId
+    self.viewModel = viewModel
+
     super.init(nibName: nil, bundle: nil)
+  }
+
+  func viewModelDataChanged() {
+    reloadRows()
   }
 
   @available(*, unavailable)
@@ -55,7 +61,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
 
   private func fillFromExisting() {
     guard let editingPlanId,
-      let plan = store.data.plans.first(where: { $0.id == editingPlanId })
+      let plan = viewModel.plans.first(where: { $0.id == editingPlanId })
     else {
       // 新建：入口可能已经定死了用药人 / 药品
       personId = fixedPersonId
@@ -104,7 +110,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
   }
 
   private func orderedSelectedMedicationIds() -> [String] {
-    store.data.medications
+    viewModel.medications
       .filter { doses.keys.contains($0.id) }
       .map(\.id)
   }
@@ -113,7 +119,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
     switch row {
     case .person:
       let name = personId.flatMap { id in
-        store.data.persons.first { $0.id == id }?.name
+        viewModel.persons.first { $0.id == id }?.name
       }
       return FieldCell.Field(
         id: "person", labelKey: "plan.person",
@@ -121,7 +127,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
         readOnly: true, showsCheckmark: personId != nil)
 
     case .dose(let medicationId):
-      let medication = store.data.medications.first { $0.id == medicationId }
+      let medication = viewModel.medications.first { $0.id == medicationId }
       return FieldCell.Field(
         id: "dose-\(medicationId)",
         labelKey: "plan.doseForMedication",
@@ -218,7 +224,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
   private func choosePerson(sourceCell: UITableViewCell?) {
     presentSingleChoice(
       titleKey: "plan.person",
-      options: store.data.persons.map {
+      options: viewModel.persons.map {
         (key: $0.id, label: $0.name)
       },
       selectedKey: personId,
@@ -235,7 +241,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
     let alert = UIAlertController(
       title: L10n.shared.t("plan.medicationsLabel"), message: nil,
       preferredStyle: .actionSheet)
-    for medication in store.data.medications {
+    for medication in viewModel.medications {
       let isSelected = doses[medication.id] != nil
       alert.addAction(
         UIAlertAction(
@@ -382,7 +388,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
         }
         updatePatches = selected.intersection(originallySelected).map { medicationId in
           // 编辑态一次只改一笔：取该用药人 + 该药的原配置
-          let existing = store.data.plans.first {
+          let existing = viewModel.plans.first {
             $0.personId == personId && $0.medicationId == medicationId
           }
           let dose = Int(doses[medicationId] ?? "") ?? 1
@@ -395,7 +401,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
           })
         }
         removeIds = originallySelected.subtracting(selected).compactMap { medicationId in
-          store.data.plans.first {
+          viewModel.plans.first {
             $0.personId == personId && $0.medicationId == medicationId
           }?.id
         }
@@ -412,7 +418,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow> {
     }
 
     Task {
-      await store.applyPlanChanges(
+      await viewModel.applyPlanChanges(
         PlanChanges(add: addInputs, update: updatePatches, remove: removeIds))
       navigationController?.popViewController(animated: true)
     }

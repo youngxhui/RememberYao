@@ -44,7 +44,8 @@ import top.youngxhui.rememberyao.core.domain.DateKey
 import top.youngxhui.rememberyao.core.l10n.AppLanguage
 import top.youngxhui.rememberyao.core.l10n.L10n
 import top.youngxhui.rememberyao.core.l10n.LanguageStore
-import top.youngxhui.rememberyao.core.model.AppData
+import top.youngxhui.rememberyao.core.model.Medication
+import top.youngxhui.rememberyao.core.model.MedicationUsage
 import top.youngxhui.rememberyao.core.model.Settings
 import top.youngxhui.rememberyao.ui.AppViewModel
 import top.youngxhui.rememberyao.ui.components.ConnectedListItem
@@ -74,11 +75,13 @@ fun SettingsScreen(
     viewModel: AppViewModel,
     onBack: () -> Unit
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val usages by viewModel.usages.collectAsStateWithLifecycle()
+    val loading by viewModel.loading.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
     val context = LocalContext.current
-    val snapshot = data
 
     var permissionGranted by remember { mutableStateOf(notificationPermissionGranted(context)) }
     var languageMenuOpen by remember { mutableStateOf(false) }
@@ -86,7 +89,6 @@ fun SettingsScreen(
     var showQuiet by remember { mutableStateOf(false) }
     var showPrivacy by remember { mutableStateOf(false) }
 
-    val settings = snapshot?.settings ?: Settings.DEFAULT
     val quietOn = settings.quietStart != null && settings.quietEnd != null
     val language = remember { LanguageStore(context) }.language
 
@@ -98,7 +100,7 @@ fun SettingsScreen(
         onBack = onBack,
         backTestId = "settings-back"
     ) { innerPadding ->
-        if (snapshot == null) {
+        if (loading) {
             Column(modifier = Modifier.fillMaxSize()) {}
             return@ScreenScaffold
         }
@@ -233,7 +235,7 @@ fun SettingsScreen(
             SettingsRow(
                 headline = stringResource(R.string.settings_exportTitle),
                 supporting = stringResource(R.string.settings_exportSubtitle),
-                onClick = { shareReport(context, snapshot) },
+                onClick = { shareReport(context, medications, usages) },
                 testId = "settings-export-row"
             )
         )
@@ -530,11 +532,15 @@ private fun QuietHoursDialog(
  *
  * 不引第三方依赖：用户可自行存文件、发邮件或发给自己。
  */
-private fun shareReport(context: Context, snapshot: AppData) {
-    val medLines = snapshot.medications.joinToString("\n") {
+private fun shareReport(
+    context: Context,
+    medications: List<Medication>,
+    usages: List<MedicationUsage>
+) {
+    val medLines = medications.joinToString("\n") {
         "· ${it.name}  ${it.remainingQuantity}/${it.totalQuantity}"
     }
-    val recentLines = snapshot.usages.takeLast(20).joinToString("\n") {
+    val recentLines = usages.takeLast(20).joinToString("\n") {
         "· ${it.takenAt.take(16).replace('T', ' ')}  ${it.personName}  ${it.medicationName}"
     }
     val header = L10n.get(context, "settings.exportHeader")

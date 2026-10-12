@@ -66,10 +66,10 @@ fun MedicaFormScreen(
     onBack: () -> Unit,
     onSavedWithPlan: (String) -> Unit = {}
 ) {
-    val data by viewModel.data.collectAsStateWithLifecycle()
+    val medications by viewModel.medications.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
-    val existing = medicationId?.let { id -> data?.medications?.firstOrNull { it.id == id } }
+    val existing = medicationId?.let { id -> medications.firstOrNull { it.id == id } }
     val isEdit = existing != null
 
     var name by remember { mutableStateOf("") }

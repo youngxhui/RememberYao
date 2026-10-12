@@ -4,7 +4,7 @@ import SwiftData
 /// SwiftData 持久化实体。
 ///
 /// 与 `Core/Model/Entities.swift` 里的领域结构体**刻意分开**：领域层要的是值
-/// 语义（改一个字段拿到一个新 `AppData`，纯函数好测），SwiftData 要的是引用
+/// 语义（每个 decision 拿到一组新实体值，纯函数好测），SwiftData 要的是引用
 /// 语义 + 托管对象上下文。两层之间只做机械映射，不放任何业务规则。
 ///
 /// 枚举统一存 String rawValue：SwiftData 对非标准类型的编解码要走 `Codable`，
