@@ -7,7 +7,9 @@ enum HomeSection: Int, CaseIterable {
 
 enum HomeRow: Hashable {
   case reminder(id: String, title: String, detail: String, statusKey: String)
-  case stock(id: String, title: String, detail: String, levelKey: String)
+  /// 库存行：`fraction` = 剩余 / 总量（进度条），`levelKey` 定充裕度配色
+  case stock(
+    id: String, title: String, detail: String, levelKey: String, fraction: Double)
 }
 
 /// 首页（今日）：日期 + 成员筛选 + 提醒卡堆叠 + 今日全部提醒 + 库存速览。
@@ -51,8 +53,35 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
     navigationItem.largeTitleDisplayMode = .always
     configureFilterMenu()
     installStackHeader()
+    tableView.register(
+      StockProgressCell.self, forCellReuseIdentifier: StockProgressCell.reuseID)
     reload()
     registerViewModelObservation()
+  }
+
+  /// 库存行走进度条 cell，提醒行走基类的普通单元格。
+  override func cell(
+    for row: HomeRow, in tableView: UITableView, at indexPath: IndexPath
+  ) -> UITableViewCell {
+    switch row {
+    case .stock(let id, let title, let detail, let levelKey, let fraction):
+      guard
+        let cell = tableView.dequeueReusableCell(
+          withIdentifier: StockProgressCell.reuseID, for: indexPath)
+          as? StockProgressCell
+      else { return super.cell(for: row, in: tableView, at: indexPath) }
+      cell.configure(
+        name: title,
+        days: detail,
+        fraction: fraction,
+        level: StockLevel(rawValue: levelKey) ?? .ok
+      )
+      cell.accessibilityIdentifier = "home-stock-\(id)"
+      return cell
+
+    case .reminder:
+      return super.cell(for: row, in: tableView, at: indexPath)
+    }
   }
 
   override func reload() {
@@ -160,10 +189,28 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
   // MARK: - 快照
 
   override func buildSnapshot() -> [SectionKey: [HomeRow]] {
-    [
-      HomeSection.reminders.rawValue: reminderRows(),
-      HomeSection.stock.rawValue: stockRows(),
-    ]
+    // 空分区不进快照：否则分区标题会孤零零挂一个空壳
+    var snapshot: [SectionKey: [HomeRow]] = [:]
+    let reminders = reminderRows()
+    if !reminders.isEmpty {
+      snapshot[HomeSection.reminders.rawValue] = reminders
+    }
+    let stock = stockRows()
+    if !stock.isEmpty {
+      snapshot[HomeSection.stock.rawValue] = stock
+    }
+    return snapshot
+  }
+
+  override func sectionTitle(for section: SectionKey) -> String? {
+    switch section {
+    case HomeSection.reminders.rawValue:
+      return L10n.shared.t("home.todaySchedule")
+    case HomeSection.stock.rawValue:
+      return L10n.shared.t("home.stockListTitle")
+    default:
+      return nil
+    }
   }
 
   private func reminderRows() -> [HomeRow] {
@@ -188,19 +235,30 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
       }
   }
 
-  /// 库存速览：只列「按当前计划估算还能吃 ≤3 天」的药，其余不上屏。
+  /// 库存速览：全部药品各一行（药名 + 库存进度条 + 剩余天数），与 Android 首页
+  /// 的药品库存区同口径。之前只列低库存的药 —— 没有低库存药时整区消失，和另
+  /// 一端对不上（用户看到的「iOS 牌堆下只有列表」就是这么来的）。
   private func stockRows() -> [HomeRow] {
     viewModel.medications
-      .filter { stockSummary($0, viewModel.plans).low }
       .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
       .map { medication in
         let summary = stockSummary(medication, viewModel.plans)
+        // 没有生效配置就不消耗，剩余天数无从谈起：与卡堆内的库存行同一套推导
+        let detail: String
+        if let daysLeft = summary.daysLeft {
+          detail = L10n.shared.t("home.daysLeft", ["days": "\(daysLeft)"])
+        } else {
+          detail = L10n.shared.t("plan.endDateUnlimited")
+        }
+        let fraction = medication.totalQuantity > 0
+          ? Double(medication.remainingQuantity) / Double(medication.totalQuantity)
+          : 0
         return HomeRow.stock(
           id: medication.id,
           title: medication.name,
-          detail: L10n.shared.t(
-            "home.daysLeft", ["count": "\(summary.daysLeft ?? 0)"]),
-          levelKey: medication.stockLevel.rawValue
+          detail: detail,
+          levelKey: medication.stockLevel.rawValue,
+          fraction: fraction
         )
       }
   }
@@ -219,16 +277,10 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
       cell.accessibilityIdentifier = "home-reminder-\(title)"
       cell.accessoryType = status == .pending ? .disclosureIndicator : .none
 
-    case .stock(_, let title, let detail, let levelKey):
-      var content = UIListContentConfiguration.valueCell()
-      content.text = title
-      content.secondaryText = detail
-      content.secondaryTextProperties.color = tint(
-        for: StockLevel(rawValue: levelKey) ?? .ok)
-      content.image = UIImage(systemName: "exclamationmark.triangle.fill")
-      content.imageProperties.tintColor = Theme.Color.warning
-      cell.contentConfiguration = content
-      cell.accessibilityIdentifier = "home-stock-\(title)"
+    case .stock:
+      // 库存行统一走 StockProgressCell（见 cell(for:in:at:) 覆写）；这里只为
+      // 让 switch 穷尽，最简配置防止子类漏覆写时出现复用残留
+      cell.contentConfiguration = UIListContentConfiguration.valueCell()
     }
   }
 
@@ -241,14 +293,6 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
     }
   }
 
-  private func tint(for level: StockLevel) -> UIColor {
-    switch level {
-    case .ok: return Theme.Color.labelSecondary
-    case .low: return Theme.Color.warning
-    case .critical: return Theme.Color.danger
-    }
-  }
-
   // MARK: - 操作
 
   override func didSelect(_ row: HomeRow) {
@@ -256,7 +300,7 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
     case .reminder(let id, _, _, _):
       presentReminderActions(reminderId: id, sourceView: nil)
 
-    case .stock(let id, _, _, _):
+    case .stock(let id, _, _, _, _):
       let detail = MedicaDetailViewController(viewModel: viewModel, medicationId: id)
       navigationController?.pushViewController(detail, animated: true)
     }
@@ -293,4 +337,70 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
     required init?(coder: NSCoder) {
       fatalError("init(coder:) has not been implemented")
     }
+}
+
+// MARK: - 库存进度条行
+
+/// 首页库存行：药名 + 库存进度条 + 剩余天数。
+///
+/// 与 Android 首页的 `StockProgressRow`（药名 + `LinearProgressIndicator`）同口径：
+/// 进度 = 剩余 / 总量；充裕度三档（ok / low / critical）走项目语义色，进度条与
+/// 天数同色 —— 告急档一眼可见。整行可点进药品详情。
+final class StockProgressCell: UITableViewCell {
+  static let reuseID = "StockProgressCell"
+
+  private let nameLabel = UILabel()
+  private let progressView = UIProgressView()
+  private let daysLabel = UILabel()
+
+  override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+    super.init(style: style, reuseIdentifier: reuseIdentifier)
+    nameLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+    nameLabel.numberOfLines = 1
+    nameLabel.lineBreakMode = .byTruncatingTail
+    // 等宽数字 + 右对齐：多行的天数成列，不随数值跳动
+    daysLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+    daysLabel.textAlignment = .right
+    for view in [nameLabel, progressView, daysLabel] {
+      view.translatesAutoresizingMaskIntoConstraints = false
+      contentView.addSubview(view)
+    }
+    NSLayoutConstraint.activate([
+      nameLabel.leadingAnchor.constraint(
+        equalTo: contentView.layoutMarginsGuide.leadingAnchor),
+      nameLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+      nameLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: progressView.leadingAnchor, constant: -12),
+      progressView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+      progressView.widthAnchor.constraint(equalToConstant: 72),
+      daysLabel.leadingAnchor.constraint(
+        equalTo: progressView.trailingAnchor, constant: 12),
+      daysLabel.trailingAnchor.constraint(
+        equalTo: contentView.layoutMarginsGuide.trailingAnchor),
+      daysLabel.widthAnchor.constraint(equalToConstant: 72),
+      daysLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+      contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
+    ])
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError() }
+
+  func configure(name: String, days: String, fraction: Double, level: StockLevel) {
+    nameLabel.text = name
+    daysLabel.text = days
+    progressView.progress = Float(min(max(fraction, 0), 1))
+    let color: UIColor
+    switch level {
+    case .ok: color = Theme.Color.success
+    case .low: color = Theme.Color.warning
+    case .critical: color = Theme.Color.danger
+    }
+    progressView.tintColor = color
+    daysLabel.textColor = level == .ok ? Theme.Color.labelSecondary : color
+    daysLabel.font =
+      level == .ok
+      ? UIFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+      : UIFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
+  }
 }

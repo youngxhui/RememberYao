@@ -24,6 +24,21 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
 
   var cellReuseIdentifier: String { "Cell" }
 
+  /// 子类覆盖：分区的标题（nil = 不显示标题）。
+  func sectionTitle(for section: SectionKey) -> String? { nil }
+
+  /// 子类覆盖：为某行出 cell。默认按 `cellReuseIdentifier` 出普通单元格并
+  /// `configure`；需要异形行（库存进度条等）的屏幕覆写它，自己 dequeue 对应的
+  /// cell 类（参照 `FormScreenViewController` 的 FieldCell 用法）
+  func cell(
+    for row: RowType, in tableView: UITableView, at indexPath: IndexPath
+  ) -> UITableViewCell {
+    let cell = tableView.dequeueReusableCell(
+      withIdentifier: cellReuseIdentifier, for: indexPath)
+    configure(cell, for: row, at: indexPath)
+    return cell
+  }
+
   override func viewDidLoad() {
     super.viewDidLoad()
     view.backgroundColor = Theme.Color.canvas
@@ -74,10 +89,7 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
       tableView: tableView,
       cellProvider: { [weak self] tableView, indexPath, row in
         guard let self else { return UITableViewCell() }
-        let cell = tableView.dequeueReusableCell(
-          withIdentifier: cellReuseIdentifier, for: indexPath)
-        configure(cell, for: row, at: indexPath)
-        return cell
+        return cell(for: row, in: tableView, at: indexPath)
       })
   }
 
@@ -105,6 +117,22 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
   }
 
   // MARK: - UITableViewDelegate
+
+  func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    sectionTitle(for: section)
+  }
+
+  /// 分区标题视图。
+  ///
+  /// 走 `viewForHeaderInSection` 而不是只给 `titleForHeaderInSection`：后者在
+  /// 本表的 diffable data source 组合下能取到标题、header view 的帧却恒为 0
+  /// （真机实测标题不渲染），显式给视图行为确定。返回 nil 的分区不显示标题。
+  func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+    guard let title = sectionTitle(for: section) else { return nil }
+    let view = UITableViewHeaderFooterView()
+    view.textLabel?.text = title
+    return view
+  }
 
   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
     tableView.deselectRow(at: indexPath, animated: true)

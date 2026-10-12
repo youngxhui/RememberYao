@@ -161,9 +161,9 @@ public final class L10n {
 
 /// 翻译函数。
 ///
-/// 占位符用字典传：`t("notification.body", ["person": name, "medication": med])`。
-/// 词条里的占位符写成 `{person}` / `{count}`，字典里多给的键会被忽略、少给的键
-/// 保持原样 —— 后者能在真机上一眼看出漏传，比静默吞掉好。
+/// 占位符用字典传：`t("notification.body", ["person": name, "medication": med,
+/// "amount": amount])`。词条里的占位符写成 `{person}` / `{count}`，字典里多给的
+/// 键会被忽略、少给的键保持原样 —— 后者能在真机上一眼看出漏传，比静默吞掉好。
 public struct Translate: Sendable {
   let language: Language
 
