@@ -23,14 +23,12 @@ enum ProfileRow: Hashable {
 /// 本周统计走 `Core/Domain` 的 `weekStats`，屏幕只负责摆。顶部通栏是
 /// Mini Archive 收藏夹（`tableHeaderView`，水平滚动与表格垂直滚动方向正交）。
 final class ProfileViewController: ListScreenViewController<ProfileRow>, ViewModelHolder {
+  let viewModel: AppViewModel
 
   init(viewModel: AppViewModel) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
   }
-
-
-  var viewModel: AppViewModel!
 
   /// Mini Archive 收藏夹：通栏横排（不跟着其它区块内缩），水平滚动与表格的
   /// 垂直滚动方向正交，可以直接走 `tableHeaderView`。

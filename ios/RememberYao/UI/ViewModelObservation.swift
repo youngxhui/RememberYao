@@ -7,7 +7,7 @@ import Observation
 /// 「conformance crosses into main actor-isolated code」。
 @MainActor
 protocol ViewModelHolder: AnyObject {
-  var viewModel: AppViewModel! { get set }
+  var viewModel: AppViewModel { get }
 
   /// ViewModel 数据变更后调用。默认空实现，子类按需覆盖。
   func viewModelDataChanged()
@@ -33,16 +33,18 @@ extension UIViewController {
     let viewModel = holder.viewModel
     withObservationTracking {
       // 读全部集合建立观察关系：任一集合变化都会通知本屏
-      _ = viewModel?.medications
-      _ = viewModel?.persons
-      _ = viewModel?.plans
-      _ = viewModel?.reminders
-      _ = viewModel?.usages
-      _ = viewModel?.packs
-      _ = viewModel?.blisterSlots
-      _ = viewModel?.settings
+      _ = viewModel.medications
+      _ = viewModel.persons
+      _ = viewModel.plans
+      _ = viewModel.reminders
+      _ = viewModel.usages
+      _ = viewModel.packs
+      _ = viewModel.blisterSlots
+      _ = viewModel.settings
     } onChange: { [weak self] in
       Task { @MainActor in
+        // 通过 existential 调用：viewModelDataChanged 现在是协议正式要求，
+        // 存在于 witness table 里，可以正确分派到子类覆写。
         (self as? any ViewModelHolder)?.viewModelDataChanged()
         // 重新注册，继续观察后续变更
         self?.registerViewModelObservation()

@@ -19,17 +19,13 @@ enum HomeRow: Hashable {
 /// `UIAlertController` 操作面板、原生侧滑操作。屏幕只负责读 `Store` 与派发
 /// 动作，所有业务判断（是否漏服、还能吃几天、低库存）都在 `Core/Domain` 里。
 final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHolder {
+  let viewModel: AppViewModel
+  private var memberFilter: String?
 
   init(viewModel: AppViewModel) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
   }
-
-
-  var viewModel: AppViewModel!
-
-  /// nil = 全部成员。
-  private var memberFilter: String?
 
   /// 提醒卡堆叠：接下来的待处理提醒，纵向滑动换卡。
   ///

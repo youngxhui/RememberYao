@@ -19,7 +19,7 @@ enum PersonDetailRow: Hashable {
 /// 从成员详情进配置表单时，用药人是**定死**的，不再给选择器
 /// （`fa48631`：用药人由入口定死）。
 final class PersonDetailViewController: ListScreenViewController<PersonDetailRow>, ViewModelHolder {
-  var viewModel: AppViewModel!
+  let viewModel: AppViewModel
   private let personId: String
   private let onChanged: () -> Void
 

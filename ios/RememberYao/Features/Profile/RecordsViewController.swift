@@ -17,14 +17,12 @@ enum RecordRow: Hashable {
 }
 
 final class RecordsViewController: ListScreenViewController<RecordRow>, ViewModelHolder {
+  let viewModel: AppViewModel
 
   init(viewModel: AppViewModel) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
   }
-
-
-  var viewModel: AppViewModel!
 
   /// 当前查看的日期（`YYYY-MM-DD`）。
   private var day = DateKey.today()

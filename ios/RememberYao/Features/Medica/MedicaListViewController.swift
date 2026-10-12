@@ -17,6 +17,11 @@ struct MedicationRow: Hashable {
 /// 不用自造 chip 横滑 —— iOS 平台习惯是漏斗按钮 + 菜单，且分类超过 4 项时
 /// segmented control 也放不下。
 final class MedicaListViewController: ListScreenViewController<MedicationRow>, ViewModelHolder {
+  let viewModel: AppViewModel
+  private let searchController = UISearchController(searchResultsController: nil)
+  private var categoryFilter: MedicationCategory?
+  private var lowStockOnly = false
+  private var query = ""
 
   init(viewModel: AppViewModel) {
     self.viewModel = viewModel
@@ -26,15 +31,6 @@ final class MedicaListViewController: ListScreenViewController<MedicationRow>, V
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
-
-
-  var viewModel: AppViewModel!
-  private let searchController = UISearchController(searchResultsController: nil)
-
-  /// 筛选：nil = 全部。
-  private var categoryFilter: MedicationCategory?
-  private var lowStockOnly = false
-  private var query = ""
 
   override func viewDidLoad() {
     super.viewDidLoad()

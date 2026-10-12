@@ -15,14 +15,20 @@ import UIKit
 class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
   UITableViewDelegate
 {
+  // MARK: - 分区键
+
   /// 分区键。故意不叫 `Section`：子类都会声明自己的 `Section` enum，
   /// 同名会把继承来的这个别名遮住。
   typealias SectionKey = Int
+
+  // MARK: - 表格
 
   private(set) var tableView: UITableView!
   private(set) var dataSource: UITableViewDiffableDataSource<SectionKey, RowType>!
 
   var cellReuseIdentifier: String { "Cell" }
+
+  // MARK: - 子类钩子（必须在类主体，才能在子类里 override）
 
   /// 子类覆盖：分区的标题（nil = 不显示标题）。参数是快照里的分区 key，
   /// 不是表格中的分区索引 —— 索引由 delegate 收到后经 dataSource 反查传入
@@ -40,58 +46,30 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
     return cell
   }
 
-  override func viewDidLoad() {
-    super.viewDidLoad()
-    view.backgroundColor = Theme.Color.canvas
-    configureTableView()
-  }
+  /// 子类覆盖：该行是否可侧滑删除。
+  func swipeDeleteEnabled(for row: RowType) -> Bool { false }
 
-  override func viewWillAppear(_ animated: Bool) {
-    super.viewWillAppear(animated)
-    reload()
-  }
-
-  /// 子类覆盖：重新读 `Store` 并 `applySnapshot()`。
-  func reload() {
-    applySnapshot()
-  }
-
-  /// 数据变更后刷新本屏。
+  /// 子类覆盖：弹二次确认后执行删除。
   ///
-  /// 列表屏的数据只来自 ViewModel：冷启动时首屏的 `viewWillAppear` 可能赶在
-  /// 首次 `refresh()` 完成之前（`loading` 还是 true，`reload()` 被守卫挡掉），
-  /// 观察回调是唯一能补上的时机 —— 没有它，冷启动的首页会一直空着，直到切一次
-  /// tab 再回来。写操作（标记服用等）后的刷新也一并走这里
-  func viewModelDataChanged() {
-    reload()
+  /// 完成后**必须**调 `completion(Bool)`：`true` = 已删除，`false` = 用户取消。
+  /// 默认实现按「没删」处理，漏调也不会把侧滑卡住。
+  func confirmDelete(_ row: RowType, completion: @escaping (Bool) -> Void) {
+    completion(false)
   }
 
-  private func configureTableView() {
-    tableView = UITableView(frame: .zero, style: .insetGrouped)
-    tableView.translatesAutoresizingMaskIntoConstraints = false
-    tableView.delegate = self
-    tableView.backgroundColor = Theme.Color.canvas
-    tableView.contentInsetAdjustmentBehavior = .automatic
-    tableView.keyboardDismissMode = .interactive
-    tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellReuseIdentifier)
-    view.addSubview(tableView)
-
-    // 表格铺满整屏、伸到导航栏下，由 contentInsetAdjustmentBehavior 把内容
-    // 推到安全区外。要放进滚动区的头部（提醒卡堆叠 / Mini Archive）由各屏
-    // 自己挂 `tableHeaderView`，随内容一起滚走
-    NSLayoutConstraint.activate([
-      tableView.topAnchor.constraint(equalTo: view.topAnchor),
-      tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-      tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-      tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-    ])
-
-    dataSource = UITableViewDiffableDataSource(
-      tableView: tableView,
-      cellProvider: { [weak self] tableView, indexPath, row in
-        guard let self else { return UITableViewCell() }
-        return cell(for: row, in: tableView, at: indexPath)
-      })
+  /// 二次确认删除弹窗。系统 `UIAlertController`，不要自己写 modal。
+  func presentDeleteConfirmation(
+    titleKey: String, confirmKey: String,
+    onConfirm: @escaping () -> Void,
+    onCancel: @escaping () -> Void = {}
+  ) {
+    present(
+      NativeControls.confirmDelete(
+        titleKey: titleKey, confirmKey: confirmKey,
+        onConfirm: onConfirm, onCancel: onCancel),
+      anchoredTo: view,
+      animated: true
+    )
   }
 
   /// 子类覆盖：配置单元格。
@@ -115,6 +93,55 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
 
   func rowIdentifier(at indexPath: IndexPath) -> RowType? {
     dataSource.itemIdentifier(for: indexPath)
+  }
+
+  // MARK: - Lifecycle
+
+  /// 子类覆盖：数据变更后刷新本屏。
+  ///
+  /// 列表屏的数据只来自 ViewModel：冷启动时首屏的 `viewWillAppear` 可能赶在
+  /// 首次 `refresh()` 完成之前（`loading` 还是 true，`reload()` 被守卫挡掉），
+  /// 观察回调是唯一能补上的时机 —— 没有它，冷启动的首页会一直空着，直到切一次
+  /// tab 再回来。写操作（标记服用等）后的刷新也一并走这里
+  func viewModelDataChanged() {
+    reload()
+  }
+
+  /// 子类覆盖：重新读 `Store` 并 `applySnapshot()`。
+  func reload() {
+    applySnapshot()
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    view.backgroundColor = Theme.Color.canvas
+    configureTableView()
+    registerViewModelObservation()
+  }
+
+  private func configureTableView() {
+    tableView = UITableView(frame: .zero, style: .insetGrouped)
+    tableView.translatesAutoresizingMaskIntoConstraints = false
+    tableView.delegate = self
+    tableView.backgroundColor = Theme.Color.canvas
+    tableView.contentInsetAdjustmentBehavior = .automatic
+    tableView.keyboardDismissMode = .interactive
+    tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellReuseIdentifier)
+    view.addSubview(tableView)
+
+    NSLayoutConstraint.activate([
+      tableView.topAnchor.constraint(equalTo: view.topAnchor),
+      tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+    ])
+
+    dataSource = UITableViewDiffableDataSource(
+      tableView: tableView,
+      cellProvider: { [weak self] tableView, indexPath, row in
+        guard let self else { return UITableViewCell() }
+        return cell(for: row, in: tableView, at: indexPath)
+      })
   }
 
   // MARK: - UITableViewDelegate
@@ -158,33 +185,5 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
     }
     action.image = UIImage(systemName: "trash")
     return UISwipeActionsConfiguration(actions: [action])
-  }
-
-  // MARK: - 子类钩子
-
-  /// 子类覆盖：该行是否可侧滑删除。
-  func swipeDeleteEnabled(for row: RowType) -> Bool { false }
-
-  /// 子类覆盖：弹二次确认后执行删除。
-  ///
-  /// 完成后**必须**调 `completion(Bool)`：`true` = 已删除，`false` = 用户取消。
-  /// 默认实现按「没删」处理，漏调也不会把侧滑卡住。
-  func confirmDelete(_ row: RowType, completion: @escaping (Bool) -> Void) {
-    completion(false)
-  }
-
-  /// 二次确认删除弹窗。系统 `UIAlertController`，不要自己写 modal。
-  func presentDeleteConfirmation(
-    titleKey: String, confirmKey: String,
-    onConfirm: @escaping () -> Void,
-    onCancel: @escaping () -> Void = {}
-  ) {
-    present(
-      NativeControls.confirmDelete(
-        titleKey: titleKey, confirmKey: confirmKey,
-        onConfirm: onConfirm, onCancel: onCancel),
-      anchoredTo: view,
-      animated: true
-    )
   }
 }

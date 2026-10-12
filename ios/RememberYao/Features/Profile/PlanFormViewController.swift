@@ -15,7 +15,7 @@ enum PlanFormRow: Hashable {
 /// 保存走 `applyPlanChanges` 一次落多笔，只重排一次通知（`docs/domain-spec.md` 4.7）。
 /// 逐笔调 addPlan / updatePlan 的话，每笔都会触发一次全量通知重排，选四种药就闪四次。
 final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewModelHolder {
-  var viewModel: AppViewModel!
+  let viewModel: AppViewModel
 
   /// 入口定死的用药人。从药品详情进来时为 nil，需要选。
   private let fixedPersonId: String?
@@ -44,7 +44,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewM
     super.init(nibName: nil, bundle: nil)
   }
 
-  func viewModelDataChanged() {
+  override func viewModelDataChanged() {
     reloadRows()
   }
 

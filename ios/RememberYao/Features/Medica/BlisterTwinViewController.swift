@@ -7,7 +7,7 @@ import UIKit
 /// 药板视觉（铝箔底 + 泡罩 + 药饼配色）由 `SlotCell` 用 `CALayer` 画 —— 格子
 /// 状态会变，实时画比预渲染一批 `UIImage` 简单。
 final class BlisterTwinViewController: UIViewController, ViewModelHolder {
-  var viewModel: AppViewModel!
+  let viewModel: AppViewModel
   private let medicationId: String
 
   /// 单元格标识。diffable data source 要求 `Hashable`，槽位自带 id，

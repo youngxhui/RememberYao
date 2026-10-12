@@ -23,16 +23,13 @@ enum SettingsRow: Hashable {
 /// `UIAlertController` 单选。分组列表就是 iOS 设置页的标准形态，
 /// 不需要自造任何东西。
 final class SettingsViewController: ListScreenViewController<SettingsRow>, ViewModelHolder {
+  let viewModel: AppViewModel
+  private var settings: Settings { viewModel.settings }
 
   init(viewModel: AppViewModel) {
     self.viewModel = viewModel
     super.init(nibName: nil, bundle: nil)
   }
-
-
-  var viewModel: AppViewModel!
-
-  private var settings: Settings { viewModel.settings }
 
   override func viewDidLoad() {
     super.viewDidLoad()

@@ -43,6 +43,15 @@ class FormScreenViewController<RowType: Hashable & Sendable>: UIViewController,
     }
   }
 
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    view.backgroundColor = Theme.Color.canvas
+    configureTableView()
+    configurePrimaryButton()
+    observeKeyboard()
+    registerViewModelObservation()
+  }
+
   deinit {
     // deinit 是 nonisolated 的，而移除观察者要在主线程做。UIKit 的 VC 本来
     // 就在主线程释放，所以 assumeIsolated 在这里是安全的。
@@ -51,14 +60,6 @@ class FormScreenViewController<RowType: Hashable & Sendable>: UIViewController,
         NotificationCenter.default.removeObserver(keyboardObserver)
       }
     }
-  }
-
-  override func viewDidLoad() {
-    super.viewDidLoad()
-    view.backgroundColor = Theme.Color.canvas
-    configureTableView()
-    configurePrimaryButton()
-    observeKeyboard()
   }
 
   private func configureTableView() {
@@ -156,6 +157,9 @@ class FormScreenViewController<RowType: Hashable & Sendable>: UIViewController,
 
   /// 子类覆盖：输入字段值变化。`row` 是 `buildRows()` 里返回的那个行标识。
   func setValue(_ value: String, for row: RowType) {}
+
+  /// ViewModel 数据变更后刷新表单行。
+  func viewModelDataChanged() {}
 
   func applyRows() {
     var snapshot = NSDiffableDataSourceSnapshot<SectionKey, RowType>()

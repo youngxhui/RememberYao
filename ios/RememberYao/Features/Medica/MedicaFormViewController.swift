@@ -22,7 +22,7 @@ enum MedicaFormRow: Hashable {
 /// 表单一律 `UITableView` inset grouped：系统自带分组圆角、发丝线、键盘避让。
 /// 板装药可随药品一并建数字孪生（`docs/domain-spec.md` 4.5）。
 final class MedicaFormViewController: FormScreenViewController<MedicaFormRow>, ViewModelHolder {
-  var viewModel: AppViewModel!
+  let viewModel: AppViewModel
   private let medication: Medication?
   private let onSaved: () -> Void
 
@@ -49,7 +49,7 @@ final class MedicaFormViewController: FormScreenViewController<MedicaFormRow>, V
     super.init(nibName: nil, bundle: nil)
   }
 
-  func viewModelDataChanged() {
+  override func viewModelDataChanged() {
     reloadRows()
   }
 
