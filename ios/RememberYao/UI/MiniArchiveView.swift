@@ -496,6 +496,15 @@ private final class ArchiveFolderView: UIView {
     }
   }
 
+  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+    super.traitCollectionDidChange(previousTraitCollection)
+    // 底板投影色是动态色，同样会被烤进 layer：明暗翻面时重设
+    // （封面渐变走的 GradientView 已在内部自行重解析）
+    guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
+    else { return }
+    back.layer.shadowColor = Theme.Archive.Color.shadow.resolvedColor(with: traitCollection).cgColor
+  }
+
   override init(frame: CGRect) {
     super.init(frame: frame)
     backgroundColor = .clear

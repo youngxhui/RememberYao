@@ -639,6 +639,17 @@ private final class StackIndicatorView: UIView {
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError() }
 
+  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+    super.traitCollectionDidChange(previousTraitCollection)
+    // 分段描边是动态色，同样会被烤进 layer：明暗翻面时重设
+    guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
+    else { return }
+    let edge = Theme.Promo.Color.edge.resolvedColor(with: traitCollection).cgColor
+    for seg in segments {
+      seg.layer.borderColor = edge
+    }
+  }
+
   func configure(ids: [String]) {
     guard segments.count != ids.count else { return }
     animators.forEach {
