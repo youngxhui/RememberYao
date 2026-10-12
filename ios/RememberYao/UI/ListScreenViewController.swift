@@ -24,7 +24,8 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
 
   var cellReuseIdentifier: String { "Cell" }
 
-  /// 子类覆盖：分区的标题（nil = 不显示标题）。
+  /// 子类覆盖：分区的标题（nil = 不显示标题）。参数是快照里的分区 key，
+  /// 不是表格中的分区索引 —— 索引由 delegate 收到后经 dataSource 反查传入
   func sectionTitle(for section: SectionKey) -> String? { nil }
 
   /// 子类覆盖：为某行出 cell。默认按 `cellReuseIdentifier` 出普通单元格并
@@ -118,17 +119,18 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
 
   // MARK: - UITableViewDelegate
 
-  func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-    sectionTitle(for: section)
-  }
-
   /// 分区标题视图。
   ///
   /// 走 `viewForHeaderInSection` 而不是只给 `titleForHeaderInSection`：后者在
   /// 本表的 diffable data source 组合下能取到标题、header view 的帧却恒为 0
   /// （真机实测标题不渲染），显式给视图行为确定。返回 nil 的分区不显示标题。
   func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
-    guard let title = sectionTitle(for: section) else { return nil }
+    // `section` 是表格里的分区**索引**，不是快照里的分区 key：空分区不进快照，
+    // 两者会错位（今天没有安排时，库存分区就占到索引 0），必须经 dataSource
+    // 反查出 key 再问标题
+    guard let key = dataSource.sectionIdentifier(for: section),
+      let title = sectionTitle(for: key)
+    else { return nil }
     let view = UITableViewHeaderFooterView()
     view.textLabel?.text = title
     return view
