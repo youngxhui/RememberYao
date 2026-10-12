@@ -1,5 +1,6 @@
 package top.youngxhui.rememberyao.data.repository
 
+import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -152,7 +153,7 @@ class Store @Inject constructor(
      * 全部待处理闹钟取消再重排一遍。
      */
     private suspend fun <T> write(block: suspend () -> T): T {
-        writeMutex.withLock {
+        return writeMutex.withLock {
             val result = db.withTransaction { block() }
             scheduler.resync(scheduleInput())
             result
@@ -357,7 +358,11 @@ class Store @Inject constructor(
         if (decision.slots.isNotEmpty()) {
             blisterSlotDao.upsertAll(decision.slots.map { it.toEntity() })
         }
-        decision.medication?.let { medicationDao.upsert(it.toEntity()) }
+        // 收尾必须是 Unit：`?.let` 的返回值是 Unit?，会把 write 的 T 推断成 Unit?，
+        // 与 Repository 里声明的 Unit 冲突
+        if (decision.medication != null) {
+            medicationDao.upsert(decision.medication.toEntity())
+        }
     }
 
     // MARK: - 设置
