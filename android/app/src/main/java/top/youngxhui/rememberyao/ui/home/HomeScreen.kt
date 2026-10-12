@@ -109,6 +109,7 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text(todayTitle()) },
+                modifier = Modifier.testId("home-top-bar"),
                 scrollBehavior = scrollBehavior
             )
         }

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import top.youngxhui.rememberyao.R
+import top.youngxhui.rememberyao.ui.components.testId
 
 private data class OnboardingPage(
     val titleRes: Int,
@@ -76,7 +77,10 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                TextButton(onClick = onFinish) { Text(stringResource(R.string.onboarding_skip)) }
+                TextButton(
+                    onClick = onFinish,
+                    modifier = Modifier.testId("onboarding-skip")
+                ) { Text(stringResource(R.string.onboarding_skip)) }
             }
 
             HorizontalPager(

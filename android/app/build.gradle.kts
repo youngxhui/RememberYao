@@ -32,6 +32,8 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        // @RunWith(AndroidJUnit4) 要的 runner；不写死就取决于 AGP 的默认值
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -112,4 +114,13 @@ dependencies {
 
     // 领域层是纯函数，用最朴素的 JUnit 4 断言就够
     testImplementation(libs.junit)
+
+    // UI 测试：Compose UI Test。版本交给 BOM，与主依赖里的 compose ui 保持一致
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    // createComposeRule() 要用的空 Activity；本测试走 createAndroidComposeRule<MainActivity>()，
+    // 按官方模板仍带上，省得以后写纯 Compose 测试时再补
+    debugImplementation(libs.compose.ui.test.manifest)
+    // 冷启动进首页的瞬间会弹通知权限申请框，盖住 tab 栏点不动：进测试前先授掉
+    androidTestImplementation(libs.androidx.test.rules)
 }

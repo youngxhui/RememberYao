@@ -43,6 +43,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import top.youngxhui.rememberyao.R
 import top.youngxhui.rememberyao.core.l10n.Prefs
+import top.youngxhui.rememberyao.ui.components.testId
 import top.youngxhui.rememberyao.ui.home.HomeScreen
 import top.youngxhui.rememberyao.ui.medica.BlisterTwinScreen
 import top.youngxhui.rememberyao.ui.medica.MedicaDetailScreen
@@ -98,12 +99,31 @@ object Routes {
 private enum class TopLevel(
     val route: String,
     val labelRes: Int,
+    val testId: String,
     val selectedIcon: ImageVector,
     val icon: ImageVector
 ) {
-    HOME(Routes.HOME, R.string.nav_home, Icons.Filled.Home, Icons.Outlined.Home),
-    MEDICA(Routes.MEDICA, R.string.nav_medica, Icons.Filled.Medication, Icons.Outlined.Medication),
-    PROFILE(Routes.PROFILE, R.string.nav_profile, Icons.Filled.Person, Icons.Outlined.Person)
+    HOME(
+        route = Routes.HOME,
+        labelRes = R.string.nav_home,
+        testId = "tab-home",
+        selectedIcon = Icons.Filled.Home,
+        icon = Icons.Outlined.Home
+    ),
+    MEDICA(
+        route = Routes.MEDICA,
+        labelRes = R.string.nav_medica,
+        testId = "tab-medica",
+        selectedIcon = Icons.Filled.Medication,
+        icon = Icons.Outlined.Medication
+    ),
+    PROFILE(
+        route = Routes.PROFILE,
+        labelRes = R.string.nav_profile,
+        testId = "tab-profile",
+        selectedIcon = Icons.Filled.Person,
+        icon = Icons.Outlined.Person
+    )
 }
 
 /** tab 的排列顺序：决定左右滑动的方向（设计稿的行为节）。 */
@@ -207,6 +227,7 @@ fun RememberYaoApp() {
                         NavigationBarItem(
                             selected = selected,
                             onClick = { navController.navigateTopLevel(item.route) },
+                            modifier = Modifier.testId(item.testId),
                             icon = {
                                 Icon(
                                     imageVector = if (selected) item.selectedIcon else item.icon,

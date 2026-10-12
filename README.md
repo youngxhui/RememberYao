@@ -239,10 +239,16 @@ tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
 
 ## 测试
 
-- **Android 有单元测试**：`app/src/test/java/.../core/domain/DomainTest.kt`（JUnit 4），
+- **Android 单元测试**：`app/src/test/java/.../core/domain/DomainTest.kt`（JUnit 4），
   覆盖 `stableHash` 跨端一致、`DateKey` 运算、库存分级、`weekStats`、`inQuietHours`
-  跨零点区间。跑：`./gradlew :app:testDebugUnitTest`。iOS 端没有测试源集，
-  `stableHash` 的对齐由 Android 这组固定向量反向锁死。
+  跨零点区间。跑：`./gradlew :app:testDebugUnitTest`。`stableHash` 的两端对齐由这组
+  固定向量反向锁死。
+- **两端 UI 测试（tab 栏）**：iOS `ios/RememberYaoUITests/TabsUITest.swift`（XCTest）、
+  Android `app/src/androidTest/java/.../ui/TabsUiTest.kt`（Compose UI Test），两端断言
+  同一件事 —— tab 恰好三个、每个都能点进去、目标屏的控件真的亮出来。跑：
+  `./gradlew :app:connectedDebugAndroidTest`（要连着设备 / 模拟器）。
+  Android 侧除了 `ui-test-junit4` 还带了 `androidx.test:rules`：冷启动一进首页就会弹
+  通知权限申请框，不先授掉的话它盖在 tab 栏上面，点击全被对话框吃掉。
 - Maestro 流仍在 Expo 版里（`expo/maestro/*.yaml`），尚未移植。
 - 最该继续覆盖的一层：`Decisions` / `Decisions.kt` 的提醒生成、库存扣减、
   `decideApplyPlanChanges`、`decideOpenTwin`。

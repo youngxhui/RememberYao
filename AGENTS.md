@@ -21,7 +21,7 @@
 | iOS | Swift 6 / UIKit（纯代码，无 Storyboard）/ SwiftData / UserNotifications，XcodeGen 生成工程 |
 | Android | Kotlin / Jetpack Compose + Material 3 Expressive / Room / Hilt，Gradle KTS |
 | 最低版本 | iOS 26 / Android 14（minSdk 34） |
-| 测试 | Android JUnit（`app/src/test/`，覆盖领域层），iOS 无测试源集 |
+| 测试 | Android：JUnit（`app/src/test/`，领域层）+ Compose UI Test（`app/src/androidTest/`，tab 栏）；iOS：XCTest（`RememberYaoUITests/`，tab 栏） |
 | Maestro | 流在 Expo 版里（`expo/maestro/`），未移植 |
 
 根目录**没有** package.json / node_modules —— 那是 Expo 版的残留（现存于 `expo/`），
@@ -37,6 +37,8 @@ cd ios && xcodebuild -project RememberYao.xcodeproj -scheme RememberYao \
 # Android
 cd android && ./gradlew assembleDebug
 cd android && ./gradlew :app:testDebugUnitTest
+# Android UI 测试（Compose UI Test）：要连着设备 / 模拟器
+cd android && ./gradlew :app:connectedDebugAndroidTest
 ```
 
 ## 硬规则
