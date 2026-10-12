@@ -58,7 +58,7 @@ private val pages = listOf(
 /**
  * 引导页：首次启动的两页产品介绍。
  *
- * 全屏无 tab 栏（与 Expo 版 `src/app/onboarding.tsx` 一致）。翻页用
+ * 全屏无 tab 栏（与 iOS 端 `OnboardingViewController` 一致）。翻页用
  * `HorizontalPager`、进度用小圆点、主操作用 Material 3 的 `Button` ——
  * 引导页没有需要自造的控件。
  */

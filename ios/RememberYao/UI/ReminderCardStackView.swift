@@ -2,7 +2,7 @@ import UIKit
 
 // MARK: - 卡片数据派生
 
-/// 一张提醒卡的展示数据。从 store 快照派生，与 Expo 版 `toCardItem` 同口径。
+/// 一张提醒卡的展示数据。从 store 快照派生，与 Android 端 `toStackCardItem` 同口径。
 struct CardItem {
   let reminder: Reminder
   /// 顶部时间行：今天只显示 HH:MM，明天加「明天」，更早的显示月日时间。
@@ -141,7 +141,7 @@ private enum Beat {
 /// 接入约定：放进滚动区用（首页是 `tableHeaderView`，随页面一起滚走）。
 /// 纵向拖动与 `UIScrollView` 的滚动手势同向，嵌进滚动屏时必须让滚动视图的
 /// pan `require(toFail:)` 本视图的 `panGesture`：超过死区的纵向拖动由牌堆
-/// 接管换卡，其余拖动照常滚页面 —— 与 Expo 版 RNGH Pan 在 ScrollView 里
+/// 接管换卡，其余拖动照常滚页面 —— 与 Android 端 Pan 在 LazyColumn 里
 /// 的抢占行为一致。
 final class ReminderCardStackView: UIView {
   /// 任意写操作（标记服用）后的回调，供调用方 reload。
@@ -161,7 +161,7 @@ final class ReminderCardStackView: UIView {
   private var engageY: CGFloat = 0
   private var prog: CGFloat = 0
   private var press: CGFloat = 0
-  /// 沉底中的卡片 id（压到最低、不可交互）；与 Expo 版 `sinking` 同义。
+  /// 沉底中的卡片 id（压到最低、不可交互）；与 Android 端 `sinkingId` 同义。
   private var sinkingID: String?
 
   private let indicator = StackIndicatorView()
@@ -189,7 +189,7 @@ final class ReminderCardStackView: UIView {
     panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
     panGesture.delegate = self
     // 不取消按钮的 touch：手势一识别就 cancel 的话，死区内的小抖动也点不中
-    // 「已服用」（Expo 版 RNGH Pan 未激活时 Pressable 照样能点）。拖动后的
+    // 「已服用」（Android 端 Pan 未激活时按钮照样能点）。拖动后的
     // 误触改由 dragConsumedTake 吞，见 configure 里的 onTake
     panGesture.cancelsTouchesInView = false
     addGestureRecognizer(panGesture)
@@ -240,7 +240,7 @@ final class ReminderCardStackView: UIView {
         item: cardItem(reminder, medications: medications, persons: persons, plans: plans),
         slot: slot)
       card.onTake = { [weak self, weak card] id in
-        // 拖动后吞掉松手落在按钮上的误触（与 Expo 版 moved 同义）；
+        // 拖动后吞掉松手落在按钮上的误触（与 Android 端 `moved` 同义）；
         // 死区内的小抖动不算拖动，照常点得中
         guard let self, let card, !card.dragConsumedTake else { return }
         self.onTake?(id)
@@ -278,7 +278,7 @@ final class ReminderCardStackView: UIView {
     }
   }
 
-  /// 卡片内容派生（Expo 版 `toCardItem` 的逐条对应）。
+  /// 卡片内容派生（Android 端 `toStackCardItem` 的逐条对应）。
   private func cardItem(
     _ reminder: Reminder, medications: [Medication], persons: [Person],
     plans: [MedicationPlan]
@@ -413,8 +413,8 @@ final class ReminderCardStackView: UIView {
     guard let frontID = order.first, let front = cards[frontID] else { return }
     // 中段在卡内由 UIStackView 摆位，发生在本次布局通行的后段（父先子后）：
     // 不先让顶卡把内部布局走完就量，读到的是中段还没上位的陈旧帧（≈ 卡片
-    // 顶边），整条指示器就钉死在时间行那一档，对不上 Expo 版的位置。
-    // 强制一次内部布局再实测，时机与 Expo 版 onLayout 的上报等价
+    // 顶边），整条指示器就钉死在时间行那一档，对不上 Android 端的位置。
+    // 强制一次内部布局再实测，时机与 Android 端 onGloballyPositioned 的上报等价
     front.layoutIfNeeded()
     // 卡片在牌堆里的 AL 顶边恒为 topPad（槽位偏移全走 transform），中段偏移
     // 取卡内坐标 —— 两者都不含 transform，指示器因此钉死在牌堆上，不随
@@ -462,13 +462,13 @@ final class ReminderCardStackView: UIView {
       applyFollow()
 
     case .changed:
-      // phase 离开 1 后不再跟手（Expo 的 onUpdate 同款早退），否则会踩掉
+      // phase 离开 1 后不再跟手（Android 端 onUpdate 同款早退），否则会踩掉
       // 正在跑的沉底动画
       guard phase == 1 else { return }
       let translation = gesture.translation(in: self).y
       // 死区内不挪卡片，但手势保持识别：此时让 recognizer 失败（回 shouldBegin
-      // 判死区）在滚动区里等于把这次触摸交给表格滚动，且失败不可逆。与 Expo
-      // 版 activeOffsetY 的「等待」语义一致。engage 之后不再复查死区 ——
+      // 判死区）在滚动区里等于把这次触摸交给表格滚动，且失败不可逆。与 Android
+      // 端 activeOffsetY 的「等待」语义一致。engage 之后不再复查死区 ——
       // 手指划回起点以下也跟着回，交给松手时的弹回
       if engageY == 0 {
         guard abs(translation) > Geo.deadZone else { return }
@@ -478,7 +478,7 @@ final class ReminderCardStackView: UIView {
           cards[frontID]?.dragConsumedTake = true
         }
       }
-      // 阈值判定仍用「距触摸起点」的总位移（与 Expo 的 translationY 同口径），
+      // 阈值判定仍用「距触摸起点」的总位移（与 Android 端 translation 同口径），
       // 保证 90pt 换卡的触发距离不变
       prog = min(1, abs(translation) / Geo.threshold)
       // 跟手量 = 总位移 − 死区余量，且随 prog 收敛：小位移时平滑起步
@@ -499,7 +499,7 @@ final class ReminderCardStackView: UIView {
       animatePress(to: 0)
       impactGenerator = nil
       if phase == 2 {
-        // phase 停在 2 直到下次触摸：轮转 + 清 sinking 与 Expo 的 rotate() 同帧，
+        // phase 停在 2 直到下次触摸：轮转 + 清 sinking 与 Android 端 rotate() 同帧，
         // 子卡的沉底动画继续跑完
         rotate()
       } else if phase == 1 {
@@ -591,7 +591,7 @@ final class ReminderCardStackView: UIView {
     if phase == 1 { applyFollow() }
   }
 
-  /// 死区判定：与 Expo 版 `.activeOffsetY([-6, 6])` 等价。
+  /// 死区判定：与 Android 端 `activeOffsetY` 等价。
   ///
   /// 注意这是 **override** 而不是协议方法 —— `UIView` 自己就有同名方法
   /// （它就是 `UIGestureRecognizerDelegate` 这个槽位），写在扩展里会报
@@ -606,7 +606,7 @@ final class ReminderCardStackView: UIView {
     // 只留方向门（2:1 以内算纵向；系统边缘滑动留给导航返回手势）。
     // 死区**不**在这里判：shouldBegin 返回 false 会让 recognizer 对整次触摸
     // 不可逆地失败，而嵌在滚动区里那等于把刚起头的拖动交给表格滚动 ——
-    // 手指继续划也再也换不了卡（ Expo 版 activeOffsetY 是「等」不是「拒」）。
+    // 手指继续划也再也换不了卡（ Android 端 activeOffsetY 是「等」不是「拒」）。
     // 死区挪到 changed 里判，见 handlePan
     return abs(v.y) * 2 > abs(v.x)
   }
@@ -739,7 +739,7 @@ final class ReminderCardView: UIView {
   let midView = UIView()
 
   /// 本次松手是否算「拖动后误触」。由牌堆在拖动越过死区时置位；
-  /// `takeTapped` 读到后清零 —— 与 Expo 版 `moved` 同义
+  /// `takeTapped` 读到后清零 —— 与 Android 端 `moved` 同义
   var dragConsumedTake = false
 
   var onTake: ((String) -> Void)?
@@ -788,7 +788,7 @@ final class ReminderCardView: UIView {
     // 若把 clip 四边全钉在卡片上，卡片高度就成了自由量：牌堆与固定头部
     // 都没有从下方定义高度的约束，Auto Layout 随手取值，UIStackView 的
     // .fill 分布再把富余量摊给 hugging 最低的 midView —— 整张卡被拉成
-    // 满屏高（Expo / Android 两端都是内容撑高，没有这条反向链）。
+    // 满屏高（两端都是内容撑高，没有这条反向链）。
     // 注意「卡片底 = clip 底」这条不能少：少了它 clip 虽能按内容算出高度，
     // 卡片自身高度仍是自由量，牌堆 bounds 会塌成几十 pt —— 卡片视觉正常
     // 但命中区只剩顶部一小条，滑到卡片中下部就落到外面的表格上，表现就是
@@ -857,7 +857,7 @@ final class ReminderCardView: UIView {
       "", font: UIFont.systemFont(ofSize: 14, weight: .regular),
       color: Theme.Promo.Color.sub)
     for label in [titleLabel, doseLabel] {
-      // 单行截断：与 Expo / Android 一致，长药名不换行才能保证三张卡等高
+      // 单行截断：与 Android 端一致，长药名不换行才能保证三张卡等高
       label.numberOfLines = 1
       label.lineBreakMode = .byTruncatingTail
       label.translatesAutoresizingMaskIntoConstraints = false
@@ -891,7 +891,7 @@ final class ReminderCardView: UIView {
     takeButton.setTitle("", for: .normal)
     takeButton.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
     // 胶囊圆角在 layoutSubviews 里按实测高度设（写死 999 会让背景画不出来）
-    // 左右各 26pt 内边距对齐 Expo 版按钮的 paddingHorizontal：UIButton 默认
+    // 左右各 26pt 内边距对齐 Android 端按钮的 paddingHorizontal：UIButton 默认
     // contentEdgeInsets 为 0，不写这条胶囊会贴着文字收缩成窄椭圆
     takeButton.contentEdgeInsets = UIEdgeInsets(top: 0, left: 26, bottom: 0, right: 26)
     takeButton.addTarget(self, action: #selector(takeDown), for: .touchDown)

@@ -2,7 +2,7 @@ import UIKit
 
 /// 根协调器：分流（引导页 / 主界面）并持有 tab 栏。
 ///
-/// 与 Expo Router 的目录式路由不同，UIKit 侧用显式协调器：每个功能一个
+/// 不用目录式约定路由，UIKit 侧用显式协调器：每个功能一个
 /// `UIViewController` 工厂 + 一条 push 规则。项目只有十几个界面，显式比约定
 /// 好查 —— 搜 `push(` 就知道有哪些跳转。
 @MainActor

@@ -56,8 +56,8 @@ import top.youngxhui.rememberyao.ui.theme.Archive
 /**
  * Mini Archive 收藏夹：闭合时居中一个文件夹，点按或右滑展开成说明书横排。
  *
- * 视觉与交互基准 `design/profile.html` 的「Mini Archive」区块，与 Expo 版
- * `src/components/mini-archive.tsx`、iOS `MiniArchiveView.swift` 同一套几何与节奏。
+ * 视觉与交互基准 `design/profile.html` 的「Mini Archive」区块，与 iOS
+ * `MiniArchiveView.swift` 同一套几何与节奏。
  *
  * 开合状态完全由滚动进度驱动 —— 点按只是发起一次动画滚动，点按与手滑因此走
  * 同一条链路，观感一致。内页卡的飞行用 `animateFloatAsState` + `tween(delay)`：
@@ -358,8 +358,8 @@ private fun FolderBack(dim: Float) {
  * 磨砂半透明封皮：透视下绕左侧翻开（open 时 rotateY -58°），透过封皮能隐约
  * 看到里面的说明书。
  *
- * Android 没有实时 backdrop blur（expo-blur 在 Android 上同样退化为半透明），
- * 因此这里只铺半透明渐变 —— 与 Expo 版跑在 Android 上的表现一致。
+ * 两端都没有实时 backdrop blur（iOS 的磨砂在 3D 旋转期间每帧重采样会出残影），
+ * 因此这里只铺半透明渐变 —— 与 iOS 端一致。
  */
 @Composable
 private fun FolderFront(

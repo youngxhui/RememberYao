@@ -67,13 +67,12 @@ import top.youngxhui.rememberyao.ui.theme.StatusTint
 /**
  * 提醒卡堆叠：接下来的待处理提醒上下堆叠，纵向滑动换卡。
  *
- * 交互与视觉基准 `design/today.html` 的「提醒卡」区块，与 Expo 版
- * `src/components/reminder-card-stack.tsx`、iOS `ReminderCardStackView.swift`
- * 同一套几何与节奏：
+ * 交互与视觉基准 `design/today.html` 的「提醒卡」区块，与 iOS
+ * `ReminderCardStackView.swift` 同一套几何与节奏：
  * - 顶卡跟手并逐步缩小，越过 90dp 阈值后沉入牌堆后方，其余卡各前进一步；
  * - 右侧指示器固定原地不随卡片移动，仅高亮段与沉底同步 morph；
- * - 卡底 = 半透明主题色叠染 + accent 染色 + 斜向光泽。Android 没有实时
- *   backdrop blur（expo-blur 在 Android 上同样退化为半透明），因此不做模糊。
+ * - 卡底 = 半透明主题色叠染 + accent 染色 + 斜向光泽。两端都没有实时
+ *   backdrop blur（iOS 的磨砂在跟手期间每帧重采样会出残影），因此不做模糊。
  *
  * 接入约定：放在滚动区**之外**用。纵向拖动与 `LazyColumn` 的滚动手势同向，
  * 嵌进列表会互相抢（首页因此把它放在列表上方的固定区）。
@@ -211,7 +210,7 @@ fun ReminderCardStack(
     var dragY by remember { mutableFloatStateOf(0f) }
     var prog by remember { mutableFloatStateOf(0f) }
     val press = remember { Animatable(0f) }
-    /** 沉底中的卡片 id：压到最低、不可交互（与 Expo 版 sinking 同义）。 */
+    /** 沉底中的卡片 id：压到最低、不可交互（与 iOS 端 `sinkingId` 同义）。 */
     var sinkingId by remember { mutableStateOf<String?>(null) }
 
     // 指示器纵向位置 = 卡片中段（标题区）顶边。三张卡结构等高，取顶卡一次即可；
@@ -311,7 +310,7 @@ fun ReminderCardStack(
                             }
                         },
                         onVerticalDrag = { _, delta ->
-                            // phase 离开 1 后不再跟手（Expo 的 onUpdate 同款早退），
+                            // phase 离开 1 后不再跟手（与 iOS 端早退时机一致），
                             // 否则会踩掉正在跑的沉底动画
                             if (phase != 1) return@detectVerticalDragGestures
                             dragY += delta
@@ -353,8 +352,8 @@ fun ReminderCardStack(
                                 }
                             }
                             if (phase == 2) {
-                                // 松手轮转牌堆：前→后、其余各前进一步。与 Expo 的
-                                // rotate() 同帧，子卡的沉底动画继续跑完
+                                // 松手轮转牌堆：前→后、其余各前进一步。与 iOS 端 rotate()
+                                // 同帧，子卡的沉底动画继续跑完
                                 if (n > 1) order = order.drop(1) + order.first()
                                 sinkingId = null
                             } else if (phase == 1) {
@@ -523,7 +522,7 @@ private fun StackCard(
             .border(1.dp, item.accent.copy(alpha = 0.4f), radius)
     ) {
         // 卡底三层叠加 = 设计稿 backdrop-filter + color-mix。Android 没有实时
-        // backdrop blur，退化为半透明叠色（与 Expo 版跑在 Android 上一致）
+        // backdrop blur，退化为半透明叠色（两端都退化为半透明叠色）
         FractionalGradient(
             colors = listOf(Promo.Bg.copy(alpha = 0.76f), Promo.Bg.copy(alpha = 0.64f)),
             start = Pair(0.33f, 0.03f),

@@ -128,7 +128,7 @@ final class RecordsViewController: ListScreenViewController<RecordRow>, ViewMode
     let stats = weekStats(viewModel.reminders, from: day, to: day)
 
     var summary: [RecordRow] = [.adherence(percent: stats.adherence)]
-    // 摘要文案与 Expo 版 / Android 版同一条词条：计划 / 已服 / 漏服 / 跳过
+    // 摘要文案与 Android 端同一条词条：计划 / 已服 / 漏服 / 跳过
     let counts = L10n.shared.t(
       "records.summary",
       [

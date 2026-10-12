@@ -3,7 +3,7 @@ import UIKit
 
 /// 设计稿的动画节奏工具。
 ///
-/// Expo 侧所有曲线都写成 `cubic-bezier(x1, y1, x2, y2)`（见两个组件的注释），
+/// 设计稿里所有曲线都写成 `cubic-bezier(x1, y1, x2, y2)`（见两个组件的注释），
 /// 原生侧只有两处对应物：
 /// - `UICubicTimingParameters(controlPoint1:controlPoint2:)` —— 交给
 ///   `UIViewPropertyAnimator` 驱动 layer 属性过渡；

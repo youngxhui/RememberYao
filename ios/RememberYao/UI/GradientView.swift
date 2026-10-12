@@ -4,7 +4,7 @@ import UIKit
 ///
 /// 设计稿里所有渐变都写成 CSS `linear-gradient(160deg, …)` 这种带角度的形式，
 /// 原生侧按「角度 → 归一化起止点」换算后直接设 `startPoint` / `endPoint`
-/// （换算表与 Expo 版 `GRAD_160` / `GRAD_135` 一致）。
+/// （换算表与 Android 端 `GRAD_160` / `GRAD_135` 一致）。
 final class GradientView: UIView {
   override class var layerClass: AnyClass { CAGradientLayer.self }
 

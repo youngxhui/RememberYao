@@ -29,7 +29,7 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
 
   /// 提醒卡堆叠：接下来的待处理提醒，纵向滑动换卡。
   ///
-  /// 挂进 `tableHeaderView` 随页面一起滚走（Expo 版在原生 ScrollView 里，
+  /// 挂进 `tableHeaderView` 随页面一起滚走（Android 端在 LazyColumn 里，
   /// 同样是滚动内容的一部分）。纵向换卡手势与表格滚动手势同向，靠
   /// `require(toFail:)` 协调：超过死区的纵向拖动由牌堆接管换卡，其余拖动
   /// 照常滚页面。没有待处理提醒时组件自降为 0 高。
@@ -107,12 +107,12 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
 
   // MARK: - 牌堆头部
 
-  /// 牌堆挂进 `tableHeaderView`：随页面一起滚走（Expo 版在 ScrollView 里，
+  /// 牌堆挂进 `tableHeaderView`：随页面一起滚走（Android 端在 LazyColumn 里，
   /// 同样是滚动内容的一部分）。
   ///
   /// 纵向换卡手势与表格滚动手势同向，必须协调：让表格的 pan 等牌堆的 pan
   /// 失败后再开始 —— 超过死区的纵向拖动由牌堆接管换卡，其余拖动照常滚
-  /// 页面（与 Expo 版 RNGH Pan 在 ScrollView 里的抢占行为一致）。
+  /// 页面（与 Android 端 Pan 在 LazyColumn 里的抢占行为一致）。
   private func installStackHeader() {
     let header = UIView()
     // 卡片投影溢出牌堆边界，壳不能裁剪

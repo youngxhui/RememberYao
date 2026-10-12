@@ -2,7 +2,7 @@ import UIKit
 
 /// 引导页：首次启动的两页产品介绍。
 ///
-/// 放在 tab 组之外，全屏无 tab 栏（与 Expo 版 `src/app/onboarding.tsx` 一致）。
+/// 放在 tab 组之外，全屏无 tab 栏（与 Android 端 `OnboardingScreen` 一致）。
 /// 翻页用 `UIPageViewController`、进度用 `UIPageControl`、主操作用系统
 /// `UIButton.Configuration.filled()` —— 引导页没有需要自造的控件。
 final class OnboardingViewController: UIViewController {

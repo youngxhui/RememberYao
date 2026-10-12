@@ -2,9 +2,9 @@
 
 家庭用药提醒：记录家里每个人的用药配置，到点本地通知提醒，服用后自动扣减库存。
 
-本仓库是 RememberYao 的原生实现（iOS Swift / Android Kotlin），由 Expo 版
-（`expo/`，JavaScript + React Native）重写而来；两端共用同一份领域层契约，见
-[`docs/domain-spec.md`](docs/domain-spec.md)。Expo 版不再是交付物，仅作行为参照。
+原生实现：iOS（Swift / UIKit）与 Android（Kotlin / Jetpack Compose）两端共用同一份
+领域层契约，见 [`docs/domain-spec.md`](docs/domain-spec.md)。早期 JavaScript + React
+Native 版已完成迁移并删除，仓库里只剩两端原生代码。
 
 | | iOS | Android |
 | --- | --- | --- |
@@ -19,8 +19,7 @@
 | 依赖注入 | 手动构造 + `Environment` | Hilt |
 | 项目生成 | Xcode 工程（`RememberYao.xcodeproj`，手工维护） | Gradle KTS |
 
-Expo 版在 `expo/` 目录作为行为参照，**不再是交付物**。后续改动只应落在 `ios/` /
-`android/` 两端之一，并同步 `docs/domain-spec.md`。
+后续改动只应落在 `ios/` / `android/` 两端之一，并同步 `docs/domain-spec.md`。
 
 ---
 
@@ -37,7 +36,7 @@ xcodebuild -project RememberYao.xcodeproj -scheme RememberYao \
 `RememberYao.xcodeproj` 是**手工维护的 Xcode 工程**——早期由 XcodeGen 从
 `project.yml` 生成，该中间层已移除（`project.yml` 删除，配置全量落在
 `project.pbxproj`；共享 scheme 在 `xcshareddata/xcschemes/`）。需要 development
-build：依赖 `UserNotifications` 与 SwiftData，Expo Go 概念在这里不存在。
+build：依赖 `UserNotifications` 与 SwiftData，不经过任何托管运行环境。
 
 > **新增 / 重命名 .swift 文件后，必须把它加进 `project.pbxproj` 的 Sources
 > 构建阶段**，否则它不参与编译，调用处直接报 `Cannot find 'X' in scope`。
@@ -57,7 +56,8 @@ cd android
 
 - 包管理器：Gradle（唯一 lockfile 概念是依赖版本目录 `gradle/libs.versions.toml`）。
 - 仓库配置里带了 Aliyun 镜像兜底，国内网络下直接可用。
-- **不要**再引入 `pnpm-lock.yaml` / `package-lock.json` —— 那是 Expo 版的残留（现存于 `expo/`）。
+- **不要**再引入 `package.json` / `pnpm-lock.yaml` / `node_modules` —— 根目录不是
+  Node 工程，前端依赖目录已随旧版一起删除。
 - material3 显式锁 **1.5.0-alpha24**（`libs.versions.toml` 的 `composeMaterial3`）：
   M3 Expressive 的公开 API（`MaterialExpressiveTheme` / `MotionScheme.expressive()` /
   emphasized 字体 / 八档 `Shapes`）要到 1.5 才开放，BOM 仍钉 1.4.0；该版本要求
@@ -69,6 +69,13 @@ cd android
 ---
 
 ## 目录结构
+
+```
+design/               HTML 设计稿：视觉基准，两端代码注释里引用的 `design/*.html`
+i18n/dictionaries/    zh.ts / en.ts —— 两端共用的 UI 词条唯一上游
+maestro/              Maestro 流（尚未适配原生两端，勿直接跑）
+docs/                 领域层契约 + 方案草案
+```
 
 ### iOS（`ios/RememberYao/`）
 
@@ -118,7 +125,8 @@ ui/
   RememberYaoApp.kt   NavHost + 底部 NavigationBar + Routes + 屏幕过渡
   AppViewModel.kt     Activity 作用域，按集合的 StateFlow，三个 tab 与推入的
                       详情页共享同一份数据
-tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
+tools/gen_strings.py  由仓库根的 `i18n/dictionaries` 生成 res/values/strings.xml
+                  （词典不在 android/ 下，两端共用）
 ```
 
 ---
@@ -166,9 +174,10 @@ tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
 15. **禁止在屏幕 / 组件里写死 UI 文案**。iOS 用 `L10n.shared.t("分组.键")`
     （带参数时 `t("键", ["name": …])`），Android 用 `stringResource(R.string.xxx)`；
     React 之外的地方（通知层、BroadcastReceiver）用 `L10n.get(context, key)`。
-16. Android 词条由 `tools/gen_strings.py` 从 Expo 词典生成，**不要手改
-    `res/values*/strings.xml`**；改 `tools/gen_strings.py` 里的 `EXTRA_ZH` / `EXTRA_EN`
-    （或上游词典）后重跑：
+16. Android 词条由 `tools/gen_strings.py` 从 `i18n/dictionaries` 的 zh.ts / en.ts
+    生成，**不要手改 `res/values*/strings.xml`**；改 `i18n/dictionaries/*.ts`
+    （两端共用词条）或 `tools/gen_strings.py` 里的 `EXTRA_ZH` / `EXTRA_EN`
+    （Android 端特有文案）后重跑：
 
     ```bash
     cd android && python3 -I tools/gen_strings.py
@@ -249,7 +258,7 @@ tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
   `./gradlew :app:connectedDebugAndroidTest`（要连着设备 / 模拟器）。
   Android 侧除了 `ui-test-junit4` 还带了 `androidx.test:rules`：冷启动一进首页就会弹
   通知权限申请框，不先授掉的话它盖在 tab 栏上面，点击全被对话框吃掉。
-- Maestro 流仍在 Expo 版里（`expo/maestro/*.yaml`），尚未移植。
+- Maestro 流在 `maestro/`（`appId` 已改成原生版，但断言的仍是旧版控件标识，尚未适配到原生两端）。
 - 最该继续覆盖的一层：`Decisions` / `Decisions.kt` 的提醒生成、库存扣减、
   `decideApplyPlanChanges`、`decideOpenTwin`。
 
@@ -262,18 +271,17 @@ tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
   是**靠把起始页临时改成第 2 页**验证的，没有真正走完一次点击。
 - **Android 未在真机 / 模拟器上运行过**：只保证 `assembleDebug` / `assembleRelease`
   编译通过 + 领域层单元测试绿。
-- `expo-widgets` 的桌面 Widget 尚未实现。
+- 桌面 Widget（WidgetKit / App Widget）尚未实现。
 
-## ⚠️ 两个 App 的 bundle id 不一样，别装错
+## ⚠️ 别装错 App：旧版产物可能还留在设备上
 
 | | bundle id |
 | --- | --- |
-| 原生版（本仓库根目录，**交付物**） | `top.youngxhui.rememberyao` |
-| Expo 版（`expo/` 目录，不再是交付物） | `top.youngxhui.rememberyao.k3f9` |
-
-两者的产物都叫 `RememberYao.app`，`DerivedData` 目录也同名（`RememberYao-<hash>`），
-`ls | head -1` 极易抓到 Expo 那份。区分办法：原生版没有
-`NSUserActivityTypes: …expo.index_route` 这个 Expo 残留键。验证时务必先确认装对，
+唯一交付版是 `top.youngxhui.rememberyao`。旧版（已删除）用的是
+`top.youngxhui.rememberyao.k3f9`，若设备上还留着它的产物，两个 App 都叫
+`RememberYao.app`、`DerivedData` 目录也同名（`RememberYao-<hash>`），
+`ls | head -1` 极易抓到旧那份。区分办法：原生版没有
+`NSUserActivityTypes: …expo.index_route` 这个残留键。验证前先确认装对，
 否则测的是旧 App。
 
 ## 已修的坑（改动这些区域前先看）
