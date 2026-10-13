@@ -4,6 +4,7 @@ export {
   LANGUAGES,
   LANGUAGE_LABELS,
   getTranslator,
+  translatorFor,
   useI18n,
   useTranslation,
   type Language,

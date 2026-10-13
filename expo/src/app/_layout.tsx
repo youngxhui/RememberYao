@@ -12,7 +12,7 @@ import {
   registerLocalizedNotificationTexts,
   syncNotificationsWithStore,
 } from "@/lib/notifications";
-import { setPostMutationHook } from "@/lib/store";
+import { ensureDefaultPerson, setPostMutationHook } from "@/lib/store";
 
 export default function RootLayout() {
   return (
@@ -30,6 +30,13 @@ function AppShell() {
   const colorScheme = useColorScheme();
   const theme = useTheme();
   const { language } = useI18n();
+
+  // 默认用药人（「自己」）兜底：首启动自动建好，用户不必先加成员就能配药。
+  // 依赖 language —— 语言偏好是异步解析的，解析完成后重跑一次，把默认名
+  // 刷成当前语言（没改过名才刷）
+  useEffect(() => {
+    void ensureDefaultPerson(language);
+  }, [language]);
 
   // 默认主题的 primary 是系统蓝，header 的返回按钮/标题强调色会跟业务区的青绿脱节，
   // 这里按明暗模式取基础主题再把品牌色与页面底色换成本项目的 token

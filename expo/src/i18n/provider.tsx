@@ -53,6 +53,14 @@ const I18nContext = createContext<I18nContextValue | null>(null);
  *  Provider 每次渲染会更新它；Provider 尚未挂载时回退到中文。 */
 let ambientT: Translate = (path, vars) => interpolate(lookup(zh, path), vars);
 
+/** 按指定语言取翻译函数：数据层（React 之外）拼本地化默认值用。
+ *  与 Provider 里的 t() 同一套查找/回退逻辑，但不依赖 React 渲染时序。 */
+export function translatorFor(language: Language): Translate {
+  const dictionary = DICTIONARIES[language];
+  return (path, vars) =>
+    interpolate(lookup(dictionary, path, lookup(zh, path)), vars);
+}
+
 /** 在 React 之外取翻译函数 */
 export function getTranslator(): Translate {
   return ambientT;
@@ -105,11 +113,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<I18nContextValue>(() => {
-    const dictionary = DICTIONARIES[language];
-    // 缺键时回退到中文，再缺就显示 key —— 漏翻一眼可见
-    const t: Translate = (path, vars) =>
-      interpolate(lookup(dictionary, path, lookup(zh, path)), vars);
-    return { language, setLanguage, t };
+    return { language, setLanguage, t: translatorFor(language) };
   }, [language, setLanguage]);
 
   // React 之外（通知调度）用的入口。放 effect 里而不是渲染期赋值：

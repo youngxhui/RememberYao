@@ -42,7 +42,7 @@ appId: top.youngxhui.rememberyao.k3f9
 - assertVisible:
     id: "home-add-medication-button"
 # 成员筛选：@expo/ui 的 Picker（appearance=menu）。只有一家以上成员才渲染，
-# clearState 后是 0 个，所以这里是 optional
+# clearState 后只有默认的「自己」一个，所以这里是 optional
 - assertVisible:
     id: "home-member-picker"
     optional: true

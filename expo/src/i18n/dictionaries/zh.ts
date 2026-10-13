@@ -30,7 +30,7 @@ export const zh = {
     page1Title: "用药提醒",
     page1Subtitle: "按时吃药 · 守护健康",
     page2Title: "轻松管理家庭用药",
-    page2Subtitle: "支持多成员、多药品、智能提醒，让家人用药更安心",
+    page2Subtitle: "默认就是自己，也可为家人分别配置，多药品、智能提醒更安心",
   },
   home: {
     title: "今天",
@@ -270,6 +270,10 @@ export const zh = {
     nameInputPlaceholder: "如：爷爷",
     nameRequired: "请填写姓名",
     addMemberButton: "添加家庭成员",
+    /** 默认用药人的名字：首次启动自动创建，不必先加成员再配药 */
+    defaultName: "自己",
+    /** 删除最后一个成员时的说明：一位都不留会让配置无从挂靠 */
+    lastMemberHint: "至少保留一位用药人",
     gender: "性别",
     genderMale: "男",
     genderFemale: "女",

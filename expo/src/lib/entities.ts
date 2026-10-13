@@ -295,6 +295,14 @@ export const GRACE_MINUTES = 60;
 /** 低库存阈值：按当前计划估算剩余可服用天数 ≤ 该值时视为库存不足 */
 export const LOW_STOCK_DAYS = 3;
 
+/**
+ * 默认用药人（「自己」）的固定 id。
+ *
+ * 首启动自动创建，用户不必先加成员就能配药；固定 id 让「这是默认创建的那位」
+ * 可被稳定识别（改名、跟随界面语言刷新名字都靠它），也避免重复创建。
+ */
+export const SELF_PERSON_ID = "self";
+
 /** 枚举 → 翻译路径。查不到时回退到枚举值本身，不至于显示空 */
 const TYPE_LABEL_PATH: Record<MedicationType, Path> = {
   blister: "medication.typeBlister",

@@ -62,7 +62,7 @@ import {
   withTransaction,
   type Tx,
 } from "@/db/repo";
-import { getTranslator } from "@/i18n";
+import { getTranslator, LANGUAGES, translatorFor, type Language } from "@/i18n";
 import {
   addDays,
   dateToTime,
@@ -71,6 +71,7 @@ import {
   pickAvatarColor,
   planActiveOnDate,
   reminderMissDate,
+  SELF_PERSON_ID,
   todayKey,
   type BlisterPack,
   type BlisterSlot,
@@ -863,6 +864,11 @@ export async function deleteMedication(id: string): Promise<void> {
 
 // ─── 用药人 CRUD ──────────────────────────────────────────
 
+/** 默认用药人（「自己」）在各语言下的名字：用来识别「用户没改过名」 */
+const DEFAULT_PERSON_NAMES = new Set(
+  LANGUAGES.map((lang) => translatorFor(lang)("person.defaultName")),
+);
+
 /** 新建用药人的输入：除姓名外都是可选的基础信息 */
 export type PersonInput = {
   name: string;
@@ -871,6 +877,41 @@ export type PersonInput = {
   allergies?: string[];
   underlyingConditions?: string[];
 };
+
+/**
+ * 保证库里有一位默认用药人（「自己」）。
+ *
+ * 首启动（或成员被删光后）自动补上：App 默认就是自己会吃药，不必逼用户先
+ * 建成员再配药 —— 之前的流程「先加家庭成员 → 才能绑药」把这一步变成了前置
+ * 门槛，默认成员就是为拆掉它。
+ *
+ * 名字跟随界面语言：没改过名（名字仍是某语言的默认名）时切语言会一起刷新，
+ * 改过就保持用户输入。幂等，每次启动 / 切语言都会调。
+ */
+export async function ensureDefaultPerson(language: Language): Promise<void> {
+  await mutate(async (tx) => {
+    const existing = await listPersons(tx);
+    const name = translatorFor(language)("person.defaultName");
+    if (existing.length === 0) {
+      await insertPerson(
+        {
+          id: SELF_PERSON_ID,
+          name,
+          avatarColor: pickAvatarColor(name),
+          allergies: [],
+          underlyingConditions: [],
+          createdAt: nowIso(),
+        },
+        tx,
+      );
+      return;
+    }
+    const self = existing.find((p) => p.id === SELF_PERSON_ID);
+    if (self && self.name !== name && DEFAULT_PERSON_NAMES.has(self.name)) {
+      await updatePersonRow(self.id, { name }, tx);
+    }
+  });
+}
 
 export async function addPerson(input: PersonInput): Promise<Person> {
   const person: Person = {

@@ -138,6 +138,11 @@ export default function PlanFormScreen() {
         setEnabled(existing.enabled);
       }
     }
+    // 没指定用药人时默认选最早加入的那位（首启动自动创建的「自己」）：
+    // 不必逼用户先挑人，App 默认就是自己会吃药
+    if (!params.id && !params.personId && !personId) {
+      setPersonId(persons[0]?.id ?? "");
+    }
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id, editingPlan, loading]);

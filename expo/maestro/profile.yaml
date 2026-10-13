@@ -1,6 +1,9 @@
 appId: top.youngxhui.rememberyao.k3f9
 ---
-# 「我的」冒烟：引导页 → 我的 tab → 添加家庭成员 → 成员列表/详情 → 删除
+# 「我的」冒烟：引导页 → 我的 tab → 默认成员「自己」→ 添加家庭成员 → 详情 → 删除
+#
+# 默认用药人（id 固定 self）首启动由 store.ensureDefaultPerson 建好，用户不必
+# 先加成员就能配药；「删除最后一个成员」被拦住，所以这里删的是后加的 Mom。
 #
 # 本次重点是 persons.tsx / person-detail.tsx 的 SectionCard 修复：原来 List
 # （iOS = SwiftUI List，本身是滚动容器）嵌在 ScrollView 里会塌成零高、成员行
@@ -51,8 +54,10 @@ appId: top.youngxhui.rememberyao.k3f9
     start: 90%, 55%
     end: 90%, 20%
     duration: 400
+# 默认用药人「自己」首启动就建好（store.ensureDefaultPerson），不需要先加成员
 - extendedWaitUntil:
-    visible: "还没有家庭成员，点右上角添加"
+    visible:
+      id: "profile-member-self"
     timeout: 10000
 - assertVisible:
     id: "profile-add-member-button"
@@ -99,7 +104,8 @@ appId: top.youngxhui.rememberyao.k3f9
     visible: "Mom"
     timeout: 20000
 
-# ── 进详情删除成员（二次确认）→ 回 persons 空态 ──
+# ── 进详情删除成员（二次确认）→ 回 persons 表单屏 ──
+# 此时还有默认的「自己」，不是「删除最后一个」，删除按钮照常给
 - tapOn: "Mom"
 - extendedWaitUntil:
     visible:
@@ -113,17 +119,19 @@ appId: top.youngxhui.rememberyao.k3f9
 - tapOn:
     id: "person-delete-button"
 - extendedWaitUntil:
-    visible: "还没有家庭成员，先在上方添加"
+    visible:
+      id: "person-name-input"
     timeout: 20000
 
-# ── 回「我的」根页面：空态回来，页面不崩；设置入口只剩右上角 toolbar ──
+# ── 回「我的」根页面：删掉的成员消失，默认的「自己」还在，页面不崩 ──
 - tapOn: "我的"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible:
       id: "profile-add-member-button"
     timeout: 20000
-- assertVisible: "还没有家庭成员，点右上角添加"
+- assertVisible:
+    id: "profile-member-self"
 # 底部菜单卡（设置/通知设置/隐私与数据）已删：设置统一走右上角 toolbar 按钮
 # （Stack.Toolbar.Button 不支持 testID，只能按文案定位）
 - assertVisible: "设置"

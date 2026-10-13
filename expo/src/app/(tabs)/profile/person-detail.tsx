@@ -23,6 +23,7 @@ import {
   planStatusLabel,
   useMedications,
   usePerson,
+  usePersons,
   usePlansForPerson,
   type Medication,
   type MedicationPlan,
@@ -63,12 +64,16 @@ export default function PersonDetailScreen() {
     loading: medicationsLoading,
     reload: reloadMedications,
   } = useMedications();
-  const loading = personLoading || plansLoading || medicationsLoading;
+  const { data: allPersons, loading: personsLoading } = usePersons();
+  const loading =
+    personLoading || plansLoading || medicationsLoading || personsLoading;
   const reload = useCallback(() => {
     reloadPerson();
     reloadPlans();
     reloadMedications();
   }, [reloadPerson, reloadPlans, reloadMedications]);
+  // 一位成员都不留会让用药配置无从挂靠：默认的「自己」至少保住一个
+  const isLastMember = allPersons.length <= 1;
   const [confirmDeletePerson, setConfirmDeletePerson] = useState(false);
 
   useFocusEffect(
@@ -288,28 +293,41 @@ export default function PersonDetailScreen() {
               />
               {/* 删除是危险操作：不用主题色的 borderedProminent（填充/描边都会
                   带主色），改纯文字按钮 + 危险色文字。文字色必须靠 children 里的
-                  Text 显式给 —— label 的文字色跟按钮样式的 tint 走，压不住 */}
-              <Button
-                testID="person-delete-button"
-                variant="text"
-                onPress={() => {
-                  removePerson();
-                }}
-                modifiers={nativeButtonModifiers({ fullWidth: true })}
-              >
+                  Text 显式给 —— label 的文字色跟按钮样式的 tint 走，压不住。
+                  只剩一位成员时不给删：用药配置要挂靠在用药人上，删光就无处可挂 */}
+              {isLastMember ? (
                 <Text
                   textStyle={{
-                    fontSize: 15,
-                    fontWeight: "600",
-                    color: theme.danger,
+                    fontSize: 13,
+                    color: theme.textSecondary,
                     textAlign: "center",
                   }}
                 >
-                  {confirmDeletePerson
-                    ? t("common.confirmDelete")
-                    : t("person.deleteButtonAlt")}
+                  {t("person.lastMemberHint")}
                 </Text>
-              </Button>
+              ) : (
+                <Button
+                  testID="person-delete-button"
+                  variant="text"
+                  onPress={() => {
+                    removePerson();
+                  }}
+                  modifiers={nativeButtonModifiers({ fullWidth: true })}
+                >
+                  <Text
+                    textStyle={{
+                      fontSize: 15,
+                      fontWeight: "600",
+                      color: theme.danger,
+                      textAlign: "center",
+                    }}
+                  >
+                    {confirmDeletePerson
+                      ? t("common.confirmDelete")
+                      : t("person.deleteButtonAlt")}
+                  </Text>
+                </Button>
+              )}
             </Column>
           </Column>
         </ScrollView>

@@ -42,7 +42,7 @@ export const en = {
     page1Subtitle: "On time, every time",
     page2Title: "Family meds, organized",
     page2Subtitle:
-      "Multiple members, multiple meds, smart reminders — peace of mind for the whole family",
+      "Starts with you — add family members any time. Multiple meds, smart reminders",
   },
   home: {
     title: "Today",
@@ -282,6 +282,8 @@ export const en = {
     nameInputPlaceholder: "e.g. Grandpa",
     nameRequired: "Enter a name",
     addMemberButton: "Add family member",
+    defaultName: "Me",
+    lastMemberHint: "Keep at least one member",
     gender: "Gender",
     genderMale: "Male",
     genderFemale: "Female",
