@@ -20,7 +20,7 @@ struct ArchiveEntry {
   let footer: String?
 
   /// store 药品 → 说明书条目：只展示 store 里真实存在的字段，
-  /// 与 Android 端 `toArchiveEntry` 对齐。
+  /// 与 Expo 版 `archiveEntryFromMedication` 对齐。
   @MainActor
   static func from(_ medication: Medication) -> ArchiveEntry {
     let unit = L10n.unitLabel(medication.unit)
@@ -83,7 +83,7 @@ private enum Geo {
 
 /// 时长预算：整套开合约 1s 收尾、封皮 650ms、单张飞行 ≤770ms。
 /// delight 档允许超过常规 UI 的 300ms 上限，但更早 1.2s+ 的飞行在旧机上
-/// 读作卡顿而非隆重，因此节奏定在 420ms 起步（设计稿原为 1200ms）。
+/// 读作卡顿而非隆重，因此 Expo 侧已从 1200ms 砍到 420ms 起步。
 @MainActor
 private enum Beat {
   /// 封皮翻开曲线（设计稿 cubic-bezier(0.23, 1, 0.32, 1)）。
@@ -199,7 +199,7 @@ private enum Grad {
 /// 设计基准 `design/profile.html` 的「Mini Archive」区块。
 ///
 /// 开合状态完全由滚动进度驱动 —— 点按只是发起一次平滑滚动，点按与手滑
-/// 因此走同一条链路，观感一致（与 Android 端同一设计）。
+/// 因此走同一条链路，观感一致（与 Expo 版同一设计）。
 ///
 /// 布局是纯 frame 的：所有尺寸都是设计常量，唯一变量是自身宽度
 /// （分屏 / 旋转时重算水平 padding 与 contentSize）。
@@ -350,7 +350,7 @@ final class MiniArchiveView: UIView, UIScrollViewDelegate {
     folderSlot.clipsToBounds = false
     // 不要在这里 applyState。tableHeaderView 会随表格滚动反复重排，
     // 无条件落到终态会把正在飞的开合瞬间拍死 —— 点按展开 / 合上正是
-    // 滚动驱动的，scrollViewDidScroll 刚启动就被清零。Android 端由 Compose
+    // 滚动驱动的，scrollViewDidScroll 刚启动就被清零。Expo 侧由 React
     // state 驱动，没有这条重置路径。分屏改宽只影响左右留白，飞行距离
     // 是节距常量，进行中的进度不用重算。
   }
@@ -564,7 +564,7 @@ private final class ArchiveFolderView: UIView {
 
   var isAnimating: Bool { cover.active }
 
-  /// 开合封皮。磨砂在 3D 旋转期间每帧重采样会出残影，因此不用磨砂
+  /// 开合封皮。磨砂在 3D 旋转期间每帧重采样会出残影，与 Expo 版一致
   /// 在打开时直接摘掉（设计稿 backdrop-filter: none）。
   /// 转角逐帧 lerp，不走 animator：`scrollViewDidScroll` 处在滚动动画事务里，
   /// 那里创建的 property animator 会被卷进 `setContentOffset` 的动画，
@@ -677,7 +677,7 @@ private final class MiniLeaf: UIView {
   /// transform 载体。leaf 自身必须永远保持 identity：UIKit 的 frame setter
   /// 在 transform ≠ identity 时会按缩放反推 bounds（合上态 scale 0.6476 会把
   /// 210×268 撑成 324×414，卡片内容整体错位）—— 展开态是纯平移所以只在
-  /// 合上后暴露，表现为「出发正确、收回落点错」。Android（Compose）与 iOS
+  /// 合上后暴露，表现为「出发正确、收回落点错」。Expo（Yoga）与 Android
   /// （graphicsLayer）布局与变换分离，没有这条耦合。
   /// `layoutSubviews` 里同样不能写 `content.frame`：父级一 layout（表格
   /// 滚动 header 就会），飞行中的 transform 就被反推掉，卡片不再移动。

@@ -1,0 +1,46 @@
+name: Preview builds
+
+on:
+  pull_request:
+    if: ${{ !github.event.pull_request.draft }}
+  push:
+    branches:
+      - "**"
+    if: github.ref_name != 'main'
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel_in_progress: true
+
+jobs:
+  build_ios_preview:
+    name: Build iOS preview
+    type: build
+    params:
+      platform: ios
+      profile: preview
+
+  build_android_preview:
+    name: Build Android preview
+    type: build
+    params:
+      platform: android
+      profile: preview
+
+  comment:
+    name: Comment preview builds
+    needs: [build_ios_preview, build_android_preview]
+    type: github-comment
+    params:
+      message: |
+        ## 🔍 Preview builds
+
+        | Platform | Build ID |
+        | -------- | ------- |
+        | iOS | `${{ needs.build_ios_preview.outputs.build_id }}` |
+        | Android | `${{ needs.build_android_preview.outputs.build_id }}` |
+
+        *Internal distribution builds (ad hoc / APK). Install with the EAS CLI or the build links on the [EAS Dashboard](https://expo.dev/accounts/youngxhui/projects/remember-yao).*
+      build_ids:
+        - ${{ needs.build_ios_preview.outputs.build_id }}
+        - ${{ needs.build_android_preview.outputs.build_id }}

@@ -1,7 +1,7 @@
 # RememberYao — Agent 指南（原生版）
 
 家庭用药提醒 App 的原生实现：iOS（Swift 6 / UIKit）与 Android（Kotlin / Jetpack Compose），
-两端共用同一份领域层契约。仓库里只有这两端原生代码，不含任何前端 / JS 目录。
+两端共用同一份领域层契约。旧 Expo 版在 `expo/` 目录，仅作行为参照，**不再是交付物**。
 
 `CLAUDE.md` 仅引用本文件，所有约定以本文件为准。
 
@@ -22,10 +22,9 @@
 | Android | Kotlin / Jetpack Compose + Material 3 Expressive / Room / Hilt，Gradle KTS |
 | 最低版本 | iOS 26 / Android 14（minSdk 34） |
 | 测试 | Android：JUnit（`app/src/test/`，领域层）+ Compose UI Test（`app/src/androidTest/`，tab 栏）；iOS：XCTest（`RememberYaoUITests/`，tab 栏） |
-| Maestro | 流在 `maestro/`，尚未适配到原生两端 |
-| 词典 | `i18n/dictionaries/zh.ts` / `en.ts`（两端共用，iOS 手抄进 `.xcstrings`，Android 由脚本生成） |
+| Maestro | 流在 Expo 版里（`expo/maestro/`），未移植 |
 
-根目录**没有** package.json / node_modules —— 这不是 Node 工程，
+根目录**没有** package.json / node_modules —— 那是 Expo 版的残留（现存于 `expo/`），
 不要在根目录跑 bun / npm / expo。
 
 ## 命令
@@ -65,8 +64,8 @@ cd android && ./gradlew :app:connectedDebugAndroidTest
 
 ### 多语言
 
-14. **禁止在屏幕 / 组件里写死 UI 文案**。iOS 用 `L10n.shared.t("分组.键")`（带参数时 `t("键", ["name": …])`），Android 用 `stringResource(R.string.xxx)`；通知层、BroadcastReceiver 等拿不到 Context/Compose 的地方用 `L10n.get(context, key)`。
-15. 词条的唯一上游是 `i18n/dictionaries/zh.ts` / `en.ts`。Android 的 `res/values*/strings.xml` 由 `tools/gen_strings.py` 生成，**不要手改**；iOS 的 `.xcstrings` 手抄同步。改词条改上游词典，Android 端特有文案改脚本里的 `EXTRA_ZH` / `EXTRA_EN`，然后重跑：
+14. **禁止在屏幕 / 组件里写死 UI 文案**。iOS 用 `L10n.shared.t("分组.键")`（带参数时 `t("键", ["name": …])`），Android 用 `stringResource(R.string.xxx)`；通知层、BroadcastReceiver 等 React 之外的地方用 `L10n.get(context, key)`。
+15. Android 词条由 `tools/gen_strings.py` 从 `expo/` 里的 Expo 词典生成，**不要手改 `res/values*/strings.xml`**；改 `tools/gen_strings.py` 里的 `EXTRA_ZH` / `EXTRA_EN` 后重跑：
 
     ```bash
     cd android && python3 -I tools/gen_strings.py
@@ -101,15 +100,13 @@ android/app/src/main/java/top/youngxhui/rememberyao/
   ui/         theme + components + home/medica/profile/records/onboarding 各屏
               + RememberYaoApp（NavHost）+ AppViewModel
 docs/domain-spec.md   两端领域层契约
-i18n/dictionaries/    zh.ts / en.ts —— 两端共用的 UI 词条唯一上游
-design/               HTML 设计稿（视觉基准，两端注释里引用的 `design/*.html`）
-maestro/              Maestro 流（id 断言仍是旧版控件，尚未适配原生两端）
+expo/                 旧 Expo 版（JS），行为参照，不要在此提交新功能
 ```
 
 ## 待办（改这些区域时留意）
 
 - **Android 未在真机 / 模拟器上运行过**：只保证 `assembleDebug` / `assembleRelease` 编译通过 + 领域层单元测试绿。
 - **iOS 只验证了引导页**（冷启动、两页、进主界面后的 tab 栏与首页大标题，无崩溃）；主界面各屏未做运行时验证。注意本环境 `simctl io tap` / `swipe` 不送达事件。
-- 桌面 Widget（WidgetKit / App Widget）尚未实现。
-- Maestro 流（`maestro/`）：`appId` 已改成原生版，但断言的仍是旧版控件标识（如 `twin-slot-1-0`），尚未适配原生两端。
+- `expo-widgets` 的桌面 Widget 尚未实现。
+- Maestro 流未从 Expo 版（`expo/maestro/`）移植。
 - 最该继续覆盖的测试层：`Decisions` / `Decisions.kt` 的提醒生成、库存扣减、`decideApplyPlanChanges`、`decideOpenTwin`。

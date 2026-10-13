@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把 `i18n/dictionaries` 的 zh.ts / en.ts 词典转成 Android strings.xml。
+"""把 Expo 版的 zh.ts / en.ts 词典转成 Android strings.xml。
 
 - 键路径 `a.b.c` → 资源名 `a_b_c`
 - 占位符 `{name}` → 位置参数 `%N$s`（按首次出现顺序编号）
@@ -12,7 +12,7 @@ import re
 import sys
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parents[2] / "i18n" / "dictionaries"
+SRC = Path("/Users/yangxiaohui/SideProjects/RememberYao/expo/src/i18n/dictionaries")
 OUT_ZH = Path("/Users/yangxiaohui/SideProjects/RememberYao/android/app/src/main/res/values/strings.xml")
 OUT_EN = Path("/Users/yangxiaohui/SideProjects/RememberYao/android/app/src/main/res/values-en/strings.xml")
 

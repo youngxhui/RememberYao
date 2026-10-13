@@ -12,7 +12,7 @@ enum PersonsRow: Hashable {
 ///
 /// 原生表单：`UITableView` inset grouped + `UITextField` + `UISwitch` /
 /// `UISegmentedControl`。多项用逗号分隔的字段（过敏史、基础病）仍是单行输入，
-/// 与 Android 端一致 —— 做成标签输入器会显著增加复杂度，收益不大。
+/// 与 Expo 版一致 —— 做成标签输入器会显著增加复杂度，收益不大。
 final class PersonsViewController: FormScreenViewController<PersonsRow>, ViewModelHolder {
   let viewModel: AppViewModel
   private let onSaved: () -> Void

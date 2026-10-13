@@ -3,7 +3,7 @@ import UserNotifications
 
 /// 本地通知调度。
 ///
-/// 与 Android 端 `NotificationScheduler` 的调度规则逐条对齐：
+/// 与 Expo 版 `src/lib/notifications.ts` 的调度规则逐条对齐：
 /// - 每次重排先取消全部已调度通知，再逐条重排
 /// - 总开关关闭时只清空不调度
 /// - 触发时间 = max(计划时间 or 宽限期结束, 稍后提醒时刻)

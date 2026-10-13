@@ -94,7 +94,7 @@ fun HomeScreen(
     val plans by viewModel.plans.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
 
-    // 屏幕回到前台时把别处的变更拉回来（与 iOS 端 `viewWillAppear` 里的 reload 对应）
+    // 屏幕回到前台时把别处的变更拉回来（对应 Expo 版 useFocusEffect(reload)）
     LaunchedEffect(Unit) { viewModel.reload() }
 
     var memberFilter by remember { mutableStateOf<String?>(null) }

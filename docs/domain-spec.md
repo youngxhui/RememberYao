@@ -3,8 +3,7 @@
 本文档是 iOS（Swift）与 Android（Kotlin）共用的**领域层契约**。
 所有业务规则、公式、不变式以此文为准；两端实现必须逐条对齐，不允许各自发挥。
 
-本规格由最早的 JavaScript 版（`store.ts` / `db/schema.ts` / `notifications.ts`）迁移而来，
-该版本已从仓库删除；规则以本文为准，与两端现状逐条核对过。
+来源：Expo 版 `src/lib/store.ts` / `src/db/schema.ts` / `src/lib/notifications.ts`。
 
 ---
 
@@ -485,5 +484,6 @@ API 26 起声音与震动由**渠道**决定，`Notification.Builder.setSound/se
 | Android | 去快照重构完成（Decisions / Store 增量落库 / 通知签名 diff / 屏幕按集合订阅）；领域层单测覆盖的纯函数全部保留。**本次重构后尚未构建验证**（环境缺 Gradle 9.4.1 守护进程需要的 JDK 25 工具链，且工具链下载网络不可达），也未在真机 / 模拟器上运行过 |
 | iOS | 去快照重构完成（Decisions / Store 增量落库 / AppViewModel 按集合 / pbxproj 已同步），`xcodebuild ... build` 通过（0 error；`FormScreenViewController.swift` 有若干既有的 actor 隔离提示，非本次引入）。**主界面未做运行时验证** |
 
-> 后续改动只应落在 `ios/` / `android/` 两端之一，并同步本规格。
+> 迁移来源是 Expo 版（`expo/src/`）。Expo 版仍保留作为行为参照，
+> 但不再是交付物；后续改动只应落在 `ios/` / `android/` 两端之一，并同步本规格。
 

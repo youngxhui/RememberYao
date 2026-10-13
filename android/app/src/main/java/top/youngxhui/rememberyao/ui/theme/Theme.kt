@@ -217,7 +217,7 @@ object Foil {
 /**
  * Mini Archive 收藏夹（`design/profile.html` 的 `--archive-*`）。
  *
- * 与 iOS `Theme.Archive` 同一套值。纸与印刷色是
+ * 与 iOS `Theme.Archive`、Expo `theme.ts` 的 archive 组同一套值。纸与印刷色是
  * 「实物」，不随明暗翻面；封皮 / 墨色 / 阴影跟随主题 —— 用 `@Composable` 取值
  * 而不是静态常量，就是为让这两组在暗色下自动换档。
  *

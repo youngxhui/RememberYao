@@ -43,7 +43,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 /// 会让「启动时发生了什么」变难读。另外前台收到通知时也要展示横幅，否则用户在
 /// App 内完全看不到到点提醒。
 final class NotificationInteractionDelegate: NSObject, UNUserNotificationCenterDelegate {
-  /// 前台收到通知也展示横幅（与 Android 端一致）。
+  /// 前台收到通知也展示横幅（与 Expo 版 `shouldShowBanner: true` 一致）。
   func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
