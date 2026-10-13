@@ -81,7 +81,7 @@ grep -rn "process\.env\[" src/ ; grep -rn "const {.*} = process\.env" src/
 | --- | --- | --- |
 | 文件名 | **kebab-case** | `dose-timeline.tsx`、`use-theme.ts` |
 | 组件 | PascalCase | `DoseTimeline`、`ProgressBar` |
-| Hook | `use` 前缀 camelCase | `useAppData`、`useOnboardingGate` |
+| Hook | `use` 前缀 camelCase | `useMedications`、`useOnboardingGate` |
 | 常量 | UPPER_SNAKE_CASE | `GRACE_MINUTES`、`LEGACY_MEDICINES_KEY` |
 | 类型 | PascalCase，不加 `I` 前缀 | `MedicationPlan`、`ReminderStatus` |
 | 平台变体文件 | 同名 + 平台后缀 | `bar-chart.tsx` / `bar-chart.ios.tsx` / `bar-chart.android.tsx` |

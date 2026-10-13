@@ -50,7 +50,11 @@ import {
   stockLevel,
   stockSummary,
   todayKey,
-  useAppData,
+  useMedication,
+  usePersons,
+  usePacksForMedication,
+  usePlansForMedication,
+  useSlotsForMedication,
   type Medication,
   type MedicationPlan,
   type Person,
@@ -84,8 +88,45 @@ export default function MedicationDetailScreen() {
   const theme = useTheme();
   const { language } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { medications, persons, plans, packs, blisterSlots, loading, reload } =
-    useAppData();
+  // 按需读取：这一屏只要这味药本身、它的配置 / 板 / 槽位，以及成员名单
+  const {
+    data: medication,
+    loading: medicationLoading,
+    reload: reloadMedication,
+  } = useMedication(id);
+  const {
+    data: plans,
+    loading: plansLoading,
+    reload: reloadPlans,
+  } = usePlansForMedication(id);
+  const {
+    data: packs,
+    loading: packsLoading,
+    reload: reloadPacks,
+  } = usePacksForMedication(id);
+  const {
+    data: blisterSlots,
+    loading: slotsLoading,
+    reload: reloadSlots,
+  } = useSlotsForMedication(id);
+  const {
+    data: persons,
+    loading: personsLoading,
+    reload: reloadPersons,
+  } = usePersons();
+  const loading =
+    medicationLoading ||
+    plansLoading ||
+    packsLoading ||
+    slotsLoading ||
+    personsLoading;
+  const reload = useCallback(() => {
+    reloadMedication();
+    reloadPlans();
+    reloadPacks();
+    reloadSlots();
+    reloadPersons();
+  }, [reloadMedication, reloadPlans, reloadPacks, reloadSlots, reloadPersons]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [restockError, setRestockError] = useState(false);
   const restockAmount = useNativeState("");
@@ -98,7 +139,7 @@ export default function MedicationDetailScreen() {
     }, [reload]),
   );
 
-  // 首屏还在读 SQLite：此时 medications 是空的，直接渲染会闪一下「药品不存在」
+  // 首屏还在读 SQLite：直接渲染会闪一下「药品不存在」
   if (loading) {
     return (
       <>
@@ -107,8 +148,6 @@ export default function MedicationDetailScreen() {
       </>
     );
   }
-
-  const medication = medications.find((m) => m.id === id);
 
   if (!medication) {
     return (
@@ -130,7 +169,7 @@ export default function MedicationDetailScreen() {
   }
 
   const summary = stockSummary(medication, plans);
-  const relatedPlans = plans.filter((p) => p.medicationId === medication.id);
+  const relatedPlans = plans;
   const twin = blisterSummary(medication, packs, blisterSlots);
 
   const remove = async () => {

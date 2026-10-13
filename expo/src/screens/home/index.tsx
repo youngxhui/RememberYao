@@ -22,7 +22,14 @@ import {
   isNotificationEnabled,
   requestNotificationPermission,
 } from "@/lib/notifications";
-import { todayKey, useAppData, type Person } from "@/lib/store";
+import {
+  todayKey,
+  useMedications,
+  useOpenReminders,
+  usePersons,
+  usePlans,
+  type Person,
+} from "@/lib/store";
 import { StockPanelExpoUI } from "@/screens/home/stock-panel";
 
 /**
@@ -56,8 +63,35 @@ export function Home() {
   const theme = useTheme();
   const t = useTranslation();
   const checkingOnboarding = useOnboardingGate();
-  const { reminders, medications, persons, plans, loading, reload } =
-    useAppData();
+  // 按需读取：这一屏只要未处理提醒 + 药品 + 成员 + 配置（库存估算用）
+  const {
+    data: medications,
+    loading: medicationsLoading,
+    reload: reloadMedications,
+  } = useMedications();
+  const {
+    data: persons,
+    loading: personsLoading,
+    reload: reloadPersons,
+  } = usePersons();
+  const {
+    data: plans,
+    loading: plansLoading,
+    reload: reloadPlans,
+  } = usePlans();
+  const {
+    data: reminders,
+    loading: remindersLoading,
+    reload: reloadReminders,
+  } = useOpenReminders();
+  const loading =
+    medicationsLoading || personsLoading || plansLoading || remindersLoading;
+  const reload = useCallback(() => {
+    reloadMedications();
+    reloadPersons();
+    reloadPlans();
+    reloadReminders();
+  }, [reloadMedications, reloadPersons, reloadPlans, reloadReminders]);
   const {
     width: contentWidth,
     onHostLayout,

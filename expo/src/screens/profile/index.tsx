@@ -21,7 +21,9 @@ import { useTranslation } from "@/i18n";
 import {
   missedStreaks,
   todayKey,
-  useAppData,
+  usePersons,
+  usePlans,
+  useReminderHistory,
   weekStartKey,
   weekStats,
   type MedicationPlan,
@@ -67,7 +69,28 @@ export function Profile() {
   const router = useRouter();
   const theme = useTheme();
   const t = useTranslation();
-  const { persons, plans, reminders, loading, reload } = useAppData();
+  // 按需读取：成员与配置是全集（概览卡要按人聚合），提醒取保留窗口内的历史
+  const {
+    data: persons,
+    loading: personsLoading,
+    reload: reloadPersons,
+  } = usePersons();
+  const {
+    data: plans,
+    loading: plansLoading,
+    reload: reloadPlans,
+  } = usePlans();
+  const {
+    data: reminders,
+    loading: remindersLoading,
+    reload: reloadReminders,
+  } = useReminderHistory();
+  const loading = personsLoading || plansLoading || remindersLoading;
+  const reload = useCallback(() => {
+    reloadPersons();
+    reloadPlans();
+    reloadReminders();
+  }, [reloadPersons, reloadPlans, reloadReminders]);
   const {
     width: contentWidth,
     onHostLayout,

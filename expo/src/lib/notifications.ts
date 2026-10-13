@@ -6,14 +6,15 @@ import { getTranslator } from "@/i18n";
 import {
   dateToTime,
   inQuietHours,
-  loadData,
+  loadScheduleData,
   medicationUnitLabel,
   missedStreaks,
   reminderDueDate,
   reminderMissDate,
   skipReminder,
+  syncReminders,
   takeReminder,
-  type AppData,
+  type ScheduleData,
 } from "./store";
 
 const CHANNEL_ID = "medication-reminders";
@@ -100,19 +101,20 @@ export async function requestNotificationPermission(): Promise<boolean> {
  * - 已到点但仍在宽限期内的提醒，改在宽限期结束时再提醒一次
  * - 命中「稍后提醒」的推迟时刻时，以推迟时刻为准（不早于原定提醒时间）
  * - 落在免打扰时段内的提醒仍然调度，但静音（只横幅不响铃）
+ *
+ * 数据来自 `loadScheduleData()`：只读待处理提醒与它们引用的药品 / 用药人，
+ * 不再把整份应用数据拉进内存。
  */
-export async function rescheduleReminders(data: AppData): Promise<void> {
+export async function rescheduleReminders(data: ScheduleData): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
   const t = getTranslator();
   const now = Date.now();
-  const medications = new Map(data.medications.map((m) => [m.id, m]));
-  const persons = new Map(data.persons.map((p) => [p.id, p]));
+  const { settings, pending, medications, persons } = data;
   // 总开关关掉就到此为止：清空已排的，未来的也不再排。
   // 这里必须 return，否则会顺手把静音/免打扰的判断也跳过了
-  if (!data.settings.notificationsEnabled) return;
+  if (!settings.notificationsEnabled) return;
 
-  for (const reminder of data.reminders) {
-    if (reminder.status !== "pending") continue;
+  for (const reminder of pending) {
     const due = reminderDueDate(reminder).getTime();
     const snoozed = reminder.snoozedUntil
       ? new Date(reminder.snoozedUntil).getTime()
@@ -128,8 +130,8 @@ export async function rescheduleReminders(data: AppData): Promise<void> {
     // 免打扰只压掉声音，不压掉通知本身 —— 漏服是安全相关的事，
     // 静默到「用户完全不知道漏了」比吵醒人更糟
     const silent =
-      !data.settings.soundEnabled ||
-      inQuietHours(data.settings, dateToTime(new Date(at)));
+      !settings.soundEnabled ||
+      inQuietHours(settings, dateToTime(new Date(at)));
     const content = {
       title: overdue ? t("notification.titleOverdue") : t("notification.title"),
       body: t("notification.body", {
@@ -212,18 +214,18 @@ let alertedStreaks = new Set<string>();
  * 连击达到阈值就立刻发一次。用 `alertedStreaks` 记住已提醒的人，
  * 只有当连击「重新攒起来」时才会再响，避免每次重排都刷屏。
  */
-async function notifyMissedStreaks(data: AppData): Promise<void> {
-  const { missedAlertStreak, soundEnabled } = data.settings;
+async function notifyMissedStreaks(data: ScheduleData): Promise<void> {
+  const { settings, history, persons } = data;
   const t = getTranslator();
 
   // 阈值关掉时清空记忆，用户重新打开后不会收到一串补发的提醒
-  if (missedAlertStreak <= 0) {
+  if (settings.missedAlertStreak <= 0) {
     alertedStreaks = new Set();
     return;
   }
-  if (!data.settings.notificationsEnabled) return;
+  if (!settings.notificationsEnabled) return;
 
-  const streaks = missedStreaks(data.reminders, missedAlertStreak);
+  const streaks = missedStreaks(history, settings.missedAlertStreak);
   // 本轮不再命中的成员（用户已经处理完了）从记忆里移除，
   // 这样下次重新攒够会正常再提醒
   for (const personId of alertedStreaks) {
@@ -235,7 +237,7 @@ async function notifyMissedStreaks(data: AppData): Promise<void> {
   alertedStreaks = streaks;
 
   const names = fresh
-    .map((id) => data.persons.find((p) => p.id === id)?.name)
+    .map((id) => persons.get(id)?.name)
     .filter((name): name is string => Boolean(name));
   if (names.length === 0) return;
 
@@ -246,10 +248,10 @@ async function notifyMissedStreaks(data: AppData): Promise<void> {
         title: t("notification.missedStreakTitle"),
         body: t("notification.missedStreakBody", {
           person: names.join("、"),
-          count: missedAlertStreak,
+          count: settings.missedAlertStreak,
         }),
         color: BRAND_COLOR,
-        sound: soundEnabled,
+        sound: settings.soundEnabled,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -263,11 +265,13 @@ async function notifyMissedStreaks(data: AppData): Promise<void> {
   }
 }
 
-/** 读取最新数据并重排通知；串行执行，连续变更会合并为几次重排 */
+/** 同步提醒 → 读调度数据 → 重排通知；串行执行，连续变更会合并为几次重排 */
 export function syncNotificationsWithStore(): Promise<void> {
   syncChain = syncChain
     .then(async () => {
-      const data = await loadData();
+      // 先同步提醒（补生成 / 判漏服 / 清理），再按真实状态重排
+      await syncReminders();
+      const data = await loadScheduleData();
       await rescheduleReminders(data);
       await notifyMissedStreaks(data);
       return undefined;

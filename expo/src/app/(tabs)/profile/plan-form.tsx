@@ -40,7 +40,9 @@ import {
   medicationUnitLabel,
   timeToDate,
   todayKey,
-  useAppData,
+  useMedications,
+  usePersons,
+  usePlan,
   type Medication,
 } from "@/lib/store";
 
@@ -89,7 +91,11 @@ export default function PlanFormScreen() {
     medicationId?: string;
   }>();
   const isEditing = Boolean(params.id);
-  const { medications, persons, plans, loading } = useAppData();
+  // 按需读取：药品与成员是这一屏的选项全集；编辑态只回填那一条配置
+  const { data: medications, loading: medicationsLoading } = useMedications();
+  const { data: persons, loading: personsLoading } = usePersons();
+  const { data: editingPlan, loading: planLoading } = usePlan(params.id);
+  const loading = medicationsLoading || personsLoading || planLoading;
 
   // 首屏等 SQLite 载入再渲染：medications / persons 空着会闪一下「药箱还是空的」，
   // 编辑态还会把回填闪成新建态（AGENTS.md：首屏加载没结束时不显示 empty 态）
@@ -113,13 +119,13 @@ export default function PlanFormScreen() {
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // 数据就绪后只填充一次：等 plans 载入完再填，避免把用户已输入的内容覆盖掉
+  // 数据就绪后只填充一次：等编辑态那条配置载入完再填，避免把用户已输入的内容覆盖掉
   const filledRef = useRef(false);
   useEffect(() => {
     if (filledRef.current || loading) return;
     filledRef.current = true;
     if (params.id) {
-      const existing = plans.find((p) => p.id === params.id);
+      const existing = editingPlan;
       if (existing) {
         setPersonId(existing.personId);
         setDoses({ [existing.medicationId]: String(existing.doseAmount) });
@@ -134,7 +140,7 @@ export default function PlanFormScreen() {
     }
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id, plans, loading]);
+  }, [params.id, editingPlan, loading]);
 
   const changeTimesPerDay = (count: number) => {
     setTimesPerDay(count);

@@ -13,8 +13,8 @@
 | [docs/conventions/ui-design.md](docs/conventions/ui-design.md) | `@expo/ui` 选型、平台专属组件隔离、RNHostView、主题 token、组件契约、native slop |
 | [docs/conventions/expo-ui-layout.md](docs/conventions/expo-ui-layout.md) | `@expo/ui` 与 RN 混用的布局边界、尺寸测量、`matchContents`、折叠/展开适配 |
 | [docs/conventions/routing-structure.md](docs/conventions/routing-structure.md) | `src/app` 规则、`_layout.tsx`、Stack/Link/NativeTabs、目录归属 |
-| [docs/conventions/data-state.md](docs/conventions/data-state.md) | store.ts 单点持久化、纯函数、日期字符串、提醒状态机、通知同步、Maestro |
-| [docs/conventions/database.md](docs/conventions/database.md) | `src/db` 表结构、迁移、全量快照语义、从 AsyncStorage 迁移 |
+| [docs/conventions/data-state.md](docs/conventions/data-state.md) | store.ts 单点持久化、按屏幕的查询 Hook、纯函数、日期字符串、提醒状态机、通知同步、Maestro |
+| [docs/conventions/database.md](docs/conventions/database.md) | `src/db` 表结构、版本重建、按实体按需读写与事务、查询 Hook |
 | [docs/conventions/i18n.md](docs/conventions/i18n.md) | `src/i18n` 运行时、`t()` 类型安全、词条维护、通知文案重注册 |
 
 写代码前先读**精确版本**的 Expo 文档：https://docs.expo.dev/versions/v58.0.0/
@@ -90,14 +90,14 @@ maestro test maestro/dashboard.yaml     # 首页（今日）冒烟：引导页 �
 
 ### 数据层
 
-19. **屏幕永远不直接碰 AsyncStorage 或 SQLite**。所有状态和持久化集中在 `src/lib/store.ts`。
-20. 读取用 `useAppData()`，屏幕在 `useFocusEffect` 里调 `reload()`。
+19. **屏幕永远不直接碰 SQLite**。所有状态和持久化集中在 `src/lib/store.ts`（编排）与 `src/db/repo.ts`（读写）。
+20. 读取用按屏幕的查询 Hook（`useMedications` / `useRemindersForDate` / `useMedication(id)` …），屏幕在 `useFocusEffect` 里调 `reload()`。**不要图省事拉全集**：这一屏要什么读什么。
 21. **日期/时间用字符串**：日期 `YYYY-MM-DD`，时间 `HH:MM`，时间戳 ISO。比较时间用 `localeCompare`，**不要引入日期库**。
 22. `MedicationUsage` 的 `personName` / `medicationName` / `time` 是**快照**，删除药品或用药人不清除历史。新增字段保持这个不可变性。
 23. **任何写操作后必须经 `setPostMutationHook` 触发 `syncNotificationsWithStore()` 重排通知**，不要绕过。
 24. 提醒状态机 `pending → taken / skipped / missed`；**超过 1 小时宽限期**未处理才判 `missed`，漏服可补服（`late: true`）。
-25. `store.ts` 的提醒生成、库存扣减是**纯函数**，新逻辑保持纯函数形态。
-26. **持久化只走 `src/db` 仓储层**（`selectAll` / `replaceAll`），SQL 与列名不出现在 `store.ts` 以外。改表结构要同时改 `src/db/schema.ts` 和 `src/db/client.ts` 的迁移 SQL。详见 [database.md](docs/conventions/database.md)。
+25. `entities.ts` 与 store 里的提醒生成、库存扣减、状态迁移是**纯函数**，新逻辑保持纯函数形态。
+26. **持久化只走 `src/db` 仓储层**：按实体 / 按查询的 granular 函数（`getReminder` / `listPacksForMedication` / `updateReminder` …），SQL 与列名不出现在 `src/db` 以外；行 ↔ 实体映射也收敛在 `repo.ts`。**多表写入必须包在 `withTransaction` 里**（一个操作一个事务，失败整体回滚）。改表结构要同时改 `src/db/schema.ts`、`client.ts` 的 `CREATE_TABLES` 并 `SCHEMA_VERSION` +1（版本不符会删库重建）。详见 [database.md](docs/conventions/database.md)。
 
 ### 多语言
 
@@ -145,14 +145,16 @@ src/
     profile/              我的实现：index（档案横排 / 本周概览 / 家庭成员 / 菜单）+ settings（设置页）
   db/
     schema.ts             Drizzle 表定义（snake_case 列名、索引）
-    client.ts             开库 + 按 user_version 跑迁移
-    repo.ts               仓储层：selectAll / replaceAll（全量快照，先插后删）
+    client.ts             开库 + 版本不符即整库重建
+    repo.ts               仓储层：按实体 / 按查询的 granular 读写 + withTransaction，行 ↔ 实体映射
   i18n/
     provider.tsx          I18nProvider + useTranslation / useI18n / getTranslator
     languages.ts          Language 类型、设备语言归一、字典 lookup
     dictionaries/         zh.ts（基准）/ en.ts，键必须一一对应
   lib/
-    store.ts              数据层：实体类型、SQLite 持久化、提醒生成、状态机、库存计算
+    entities.ts           实体类型、常量与纯函数（日期 / 库存 / 孪生 / 统计）
+    store.ts              数据层：写操作编排（读所需 → 纯函数决策 → 事务写差异）、
+                          提醒同步、按屏幕的查询 Hook、通知调度数据；再导出 entities
     notifications.ts      通知层：权限、调度、操作按钮、响应处理、与 store 同步
     onboarding.ts         引导页"已看过"标记
   hooks/                  use-theme / use-color-scheme / use-onboarding-gate / use-expo-ui-content-width

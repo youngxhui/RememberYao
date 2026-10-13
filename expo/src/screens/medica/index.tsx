@@ -21,7 +21,7 @@ import {
   medicationCategoryLabel,
   medicationTypeLabel,
   stockLevel,
-  useAppData,
+  useMedications,
   type Medication,
   type StockLevel,
 } from "@/lib/store";
@@ -68,7 +68,7 @@ export function Medica() {
   const router = useRouter();
   const theme = useTheme();
   const t = useTranslation();
-  const { medications, loading, reload } = useAppData();
+  const { data: medications, loading, reload } = useMedications();
   const [filter, setFilter] = useState<MedicaFilter>("all");
   const [query, setQuery] = useState("");
 

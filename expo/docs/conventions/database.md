@@ -1,17 +1,21 @@
 # 数据库层
 
 本地 **SQLite**（`expo-sqlite` + `drizzle-orm`），2026-09 从「AsyncStorage 存整份 JSON」迁移而来。
+2026-10 从「整份读入内存再整份写回」改为**按实体、按需读写**。
 
 ## 结构
 
 ```
 src/db/
   schema.ts   表定义（Drizzle），列名 snake_case
-  client.ts   打开数据库 + 按 user_version 顺序跑迁移
-  repo.ts     仓储层：selectAll / replaceAll
+  client.ts   打开数据库 + 版本不符即重建
+  repo.ts     仓储层：按实体 / 按查询的 granular 读写 + 事务
 ```
 
-`src/lib/store.ts` 仍然是**唯一的数据入口**（规则 19/20 不变），只是把 `AsyncStorage.setItem(JSON)` 换成了 `replaceAll()`。对外 API 一字未改，屏幕层无感知。
+`src/lib/store.ts` 仍然是**唯一的数据入口**（规则 19/20 不变）：屏幕只调它的
+查询 Hook 与写操作，SQL 与列名不出现在 `src/db` 以外。行 ↔ 实体的映射
+（snake_case 列名、JSON 列、枚举收窄）收敛在 `repo.ts`，store 与屏幕只见到
+`src/lib/entities.ts` 的实体形状。
 
 ## 表
 
@@ -22,61 +26,99 @@ src/db/
 | `plans` | 用药配置 | `medication_id`、`person_id` |
 | `reminders` | 按天生成的单次提醒 | `date`、`plan_id`、**UNIQUE `(plan_id, date, time)`** |
 | `usages` | 服用记录（快照） | `taken_at`、`reminder_id` |
+| `packs` | 泡罩药板（板装孪生） | `medication_id`、UNIQUE `(medication_id, seq)` |
+| `blister_slots` | 泡罩槽位 | `pack_id`、UNIQUE `(pack_id, slot_index)` |
+| `settings` | 全局偏好（单行，id 恒为 `singleton`） | PK |
 
 ### 两个设计决定
 
-**`plans.times` 存 JSON 字符串。** 每日服用时间数组总是整体读写、从不按元素查询，拆子表只会让写入路径变复杂。`store.ts` 的 `toRows`/`fromRows` 负责序列化。
+**`plans.times` 存 JSON 字符串。** 每日服用时间数组总是整体读写、从不按元素查询，拆子表只会让写入路径变复杂。`repo.ts` 的 `toPlanRow` / `fromPlanRow` 负责序列化。
 
-**`reminders` 上有 UNIQUE `(plan_id, date, time)`。** 这是提醒去重的**最后一道防线** —— `syncRemindersIn` 已经在内存里去重过（幂等），但它只靠 `Set` 判断，一旦并发写或逻辑改动，重复提醒会直接变成重复通知。数据库层兜底比在 UI 层排查便宜得多。
+**`reminders` 上有 UNIQUE `(plan_id, date, time)`。** 这是提醒去重的**最后一道防线** —— 生成前会在内存里去重（`planReminderSync`），但它只靠 `Set` 判断；提醒同步是「读窗口 → 算差异 → 写」的多步流程，并发同步会算出同一批新提醒，数据库层兜底比在 UI 层排查便宜得多。
 
 **服用记录的快照字段仍是快照。** `usages.person_name` / `medication_name` / `time` 存的是创建时的值，删药品/删人不清除历史（规则 22）。这几列**没有外键约束**就是为此。
 
-## 全量快照语义
+## 按需读写（替代全量快照）
 
-`replaceAll(data)` 在一个事务里做两件事：
+每个仓储函数只碰自己那张表（级联删除除外），读什么、写什么由调用方决定：
 
-1. `INSERT ... ON CONFLICT DO UPDATE` 写入传入的全部行
-2. `DELETE WHERE id NOT IN (...)` 删掉不在集合内的行
+```ts
+// 读：屏幕要什么查什么
+const reminder = await getReminder(id, tx);
+const ownPacks = await listPacksForMedication(medicationId, tx);
 
-**先插后删**，这样删除不会破坏外键引用。
+// 写：只写改动到的行
+await updateReminder(id, { status: "taken", resolvedAt }, tx);
+await updateMedicationRow(id, { remainingQuantity, updatedAt }, tx);
+```
 
-这不是偷懒的整表覆盖，是刻意选择：提醒生成与状态机本来就是纯函数在内存里算出完整份数据（`store.ts` 规则 25），仓储层只负责把结果写回去，业务逻辑没有分叉。家庭用药一年也就几千行，全量写的开销可以忽略，换来的是实现简单、失败整体回滚。
+**多表写入包在 `withTransaction` 里。** store 的每个写操作都是一个事务：
+「标记已服用」要同时插 usage、改提醒状态、扣库存、消耗槽位，要么全部落库，
+要么整体回滚，不会留下半份数据。所有写操作经 store 的 `mutate()` 串行执行
+（写队列），保证「已服用」进行到一半时进来的「撤销」能看到前者的写。
 
-`NOT IN (NULL)` 在 SQL 里恒为假，所以空集合要走特殊分支（`repo.ts` 的 `stale()`）—— 直接 `notInArray(col, [])` 表达不了「删光」。
+查询函数都接受可选的最后一个参数 `db?: Handle`（库连接或事务句柄）：
+不传走全局连接，传了就在调用方的事务里执行 —— 事务边界由 store 控制。
+
+### 为什么不再全量快照
+
+旧版 `replaceAll()` 每次写盘都 upsert 全部行再删不在集合内的行，配 `selectAll()`
+整份读入内存。家庭用药一年几千行，全量写的开销确实可以忽略，但它有两个真实代价：
+
+1. **每次写盘都重写整库**：标记一次服用要顺带重写全部药品、配置、历史记录；
+2. **整个应用只有一份内存态**：任何屏幕的 reload 都是全表读取，数据量随使用时间单调增长，
+   读取成本与屏幕实际需要什么无关。
+
+现在读写都按屏幕的实际需要：首页查未处理提醒，详情页查这一味药的配置 / 板 / 槽位，
+服药记录按日期查。业务逻辑没有分叉 —— 提醒生成与状态机照旧是纯函数
+（`planReminderSync` / `planTwinBuild` / `planPackAppend`），只是输入从
+「整份 AppData」变成「这一操作用到的几个切片」。
+
+## 查询 Hook
+
+store 层把仓储函数包成按屏幕的 Hook（`useMedications` / `useRemindersForDate` /
+`useMedication` / `usePacksForMedication` …），统一形态：
+
+```tsx
+const { data, loading, reload } = useRemindersForDate(date);
+
+useFocusEffect(useCallback(() => { reload(); }, [reload]));
+```
+
+- `deps` 变化自动重查（如翻日期），`reload` 供聚焦时手动刷新；
+- `loading` 是**首屏**加载标志，加载没结束时不显示 empty 态（界面四态约定）；
+- 提醒类查询（`useOpenReminders` / `useRemindersForDate` / `useReminderHistory`）
+  读数据前会先跑 `syncReminders()`（幂等）：界面看到的状态必须和状态机的当前判定一致；
+- 读失败保留上一份数据并结束 loading，屏幕走 empty / error 态而不是白屏。
 
 ## 迁移
 
-`client.ts` 按 `PRAGMA user_version` 顺序执行 `MIGRATIONS` 表里的 SQL：
+`client.ts` 按 `PRAGMA user_version` 判断表结构版本：**不符即整库重建**
+（`DROP` 全部表 → 按最新 `CREATE_TABLES` 重建 → 写回版本号）。开发阶段不做
+增量迁移，代价是本地数据丢失 —— 换表结构本就要重来，比留着半张旧表崩在
+`no such column` 上好。
 
-```ts
-const MIGRATIONS: Record<number, string> = { 1: MIGRATION_V1 };
-```
+**加字段 / 加表的流程**：
 
-**加新迁移**：在末尾追加 `2: MIGRATION_V2`，SQL 全部用 `IF NOT EXISTS` 写，重复执行安全。版本号由 `Object.keys(MIGRATIONS).length` 推导，不用手改常量。
+1. `schema.ts` 加列（带默认值，否则老行是 NULL）
+2. `client.ts` 的 `CREATE_TABLES` 同步加（**两处都要改**：Drizzle schema 用于类型推导，运行时建表走这份 SQL）
+3. `SCHEMA_VERSION` +1 —— 下次启动自动删库重建
+4. `repo.ts` 的行映射（`fromXxxRow` / `toXxxRow` / `xxxSetValues`）处理新字段
+5. `src/lib/entities.ts` 的实体类型加字段
 
+`user_version` 只在建表成功后才写入，中途失败会让版本停留在旧值，下次启动重来。
 开库时固定设 `journal_mode = WAL`（并发读性能）和 `foreign_keys = ON`。
-
-### 从 AsyncStorage 迁移
-
-`store.ts` 的 `initDb()` 在开库后检查 AsyncStorage 的 `rememberyao-data-v1`：
-
-- 有 → 解析、规范化（补全快照字段）、`replaceAll` 写进 SQLite、**成功后**才 `removeItem`
-- 失败 → 保留旧数据，下次启动重试
-
-**绝不先删后写。** 静默丢用户两年的服药历史是不可接受的失败模式。
 
 ## 并发
 
-`store.ts` 保留原来的 `writeQueue` 串行化：写盘失败重试一次，写队列不被 rejection 污染，磁盘失败时保留内存态、下次变更继续尝试。SQLite 的事务提供了原子性，`writeQueue` 提供的是「同一时刻只有一个写事务」。
+- **写**：store 的 `mutate()` 用写队列串行化所有事务，同一时刻只有一个写事务；
+  单次失败记日志后吞掉（事务已回滚，不留半份数据），屏幕随后 reload 会看到操作未生效。
+- **读**：WAL 下读不阻塞写，查询 Hook 直接并发读。
+- **提醒同步**：`syncReminders()` 整段串行（sync 链）—— 生成前的读不在写事务里，
+  两个屏幕同时聚焦会算出同一批新提醒，靠 UNIQUE 索引兜底会让其中一次事务失败。
 
-`readData()` 首次调用会开 `initDb()`，并发调用共享同一个 Promise（`initPromise`），只真正开一次库。失败时把 `initPromise` 置空让下次重试，并退化为空数据 —— 屏幕走 error/empty 态而不是白屏。
-
-## 加字段的流程
-
-1. `schema.ts` 加列（带默认值，否则老行是 NULL）
-2. `client.ts` 的 `MIGRATIONS` 加 `2: MIGRATION_V2`，用 `ALTER TABLE ... ADD COLUMN`
-3. `store.ts` 的 `fromRows` / `toRows` 处理新字段
-4. 更新 `schema.ts` 里对应的索引定义（Drizzle schema 用于类型推导，运行时建表走 `client.ts` 的 SQL —— **两处都要改**）
+`getDb()` 懒打开数据库，并发调用共享同一个实例；打开失败时抛给上层，
+屏幕走 error / empty 态而不是白屏。
 
 ## 开发工具
 

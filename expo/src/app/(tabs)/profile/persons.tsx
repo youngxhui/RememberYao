@@ -6,8 +6,8 @@ import {
   TextInput,
   useNativeState,
 } from "@expo/ui";
-import { Stack, useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { Stack, useRouter } from "expo-router";
+import { useState } from "react";
 
 import { MemberAvatar } from "@/components/avatar";
 import {
@@ -26,12 +26,7 @@ import {
 import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
-import {
-  addPerson,
-  pickAvatarColor,
-  useAppData,
-  type Gender,
-} from "@/lib/store";
+import { addPerson, pickAvatarColor, type Gender } from "@/lib/store";
 
 /** 年龄的合理区间：超出按填错处理，不进库（老人 100+ 也放得过，误敲的 0/999 拦掉） */
 const AGE_MIN = 1;
@@ -75,7 +70,6 @@ export default function PersonsScreen() {
   const router = useRouter();
   const theme = useTheme();
   const t = useTranslation();
-  const { reload } = useAppData();
   const [nameError, setNameError] = useState(false);
   const [ageError, setAgeError] = useState(false);
   // 头像预览用的 React 镜像：useNativeState 在原生端不触发 React 重渲染，
@@ -87,12 +81,6 @@ export default function PersonsScreen() {
   const age = useNativeState("");
   const allergies = useNativeState("");
   const conditions = useNativeState("");
-
-  useFocusEffect(
-    useCallback(() => {
-      reload();
-    }, [reload]),
-  );
 
   const add = async () => {
     if (!name.value.trim()) {
@@ -118,7 +106,6 @@ export default function PersonsScreen() {
     age.value = "";
     allergies.value = "";
     conditions.value = "";
-    await reload();
     router.push({
       pathname: "/(tabs)/profile/person-detail",
       params: { id: person.id },

@@ -1,807 +1,98 @@
-import { useCallback, useEffect, useState } from "react";
-
-import { replaceAll, selectAll, type PersistedData } from "@/db/repo";
-import { getTranslator, type Path, type Translate } from "@/i18n";
-
-// ─── 实体定义 ───────────────────────────────────────────────
-
-/** 药品类型：板装 / 瓶装 / 散装 */
-export type MedicationType = "blister" | "bottle" | "loose";
-/** 药品用途分类：慢性病 / 临时用药 / 保健品（药品库列表按它筛选） */
-export type MedicationCategory = "chronic" | "acute" | "supplement";
-/** 单位：片 / 粒 */
-export type MedicationUnit = "tablet" | "pill";
-
-/** 药品：家里的实际药品和库存 */
-export type Medication = {
-  id: string;
-  name: string;
-  type: MedicationType;
-  /** 用途分类。与 `type`（包装形式）是两个维度，不要混 */
-  category: MedicationCategory;
-  /** 规格，如 "10mg/片"。自由文本，没有统一取值表 */
-  specification: string;
-  unit: MedicationUnit;
-  /** 总数量（入库时的数量） */
-  totalQuantity: number;
-  /** 当前剩余数量 */
-  remainingQuantity: number;
-  /** 板装规格：每板行数。非板装药或未记录为 null。
-   *  只影响补货新建的板；老板各自存自己的 rows/cols */
-  blisterRows: number | null;
-  /** 板装规格：每板列数（与 blisterRows 配对出现） */
-  blisterCols: number | null;
-  /** 有效期 "YYYY-MM-DD"，null 表示未记录 */
-  expiryDate: string | null;
-  /** 是否处方药 */
-  prescription: boolean;
-  notes: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-/** 用药人：家庭中的具体用药人 */
-/** 性别枚举；存库为 TEXT，UI 侧本地化 */
-export type Gender = "male" | "female" | "other";
-
-export type Person = {
-  id: string;
-  name: string;
-  /** 头像底色（取姓名首字展示） */
-  avatarColor: string;
-  /** 性别；未填写为 undefined */
-  gender?: Gender;
-  /** 年龄（周岁）；未填写为 undefined */
-  age?: number;
-  /** 过敏原列表；空数组表示未填写 */
-  allergies: string[];
-  /** 基础病 / 慢性病史列表；空数组表示未填写 */
-  underlyingConditions: string[];
-  createdAt: string;
-};
-
-/** 用药配置：谁吃什么药、怎么吃 */
-export type MedicationPlan = {
-  id: string;
-  medicationId: string;
-  personId: string;
-  /** 每次剂量（单位：药品单位，片/粒） */
-  doseAmount: number;
-  /** 每日具体服用时间 "HH:MM"，数组长度即每日次数 */
-  times: string[];
-  /** 开始日期 YYYY-MM-DD */
-  startDate: string;
-  /** 结束日期 YYYY-MM-DD，null 表示长期 */
-  endDate: string | null;
-  enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ReminderStatus = "pending" | "taken" | "skipped" | "missed";
-
-/** 提醒：根据用药配置生成的某一次具体提醒 */
-export type Reminder = {
-  id: string;
-  planId: string;
-  medicationId: string;
-  personId: string;
-  /** 提醒日期 YYYY-MM-DD */
-  date: string;
-  /** 提醒时间 HH:MM */
-  time: string;
-  doseAmount: number;
-  status: ReminderStatus;
-  /** 「稍后提醒」：把本次通知推迟到该时刻再响 ISO。未设置时按计划时间提醒 */
-  snoozedUntil?: string;
-  /** 已服用/跳过的处理时间 ISO */
-  resolvedAt?: string;
-  createdAt: string;
-};
-
-/** 服用记录：点击“已服用”后产生。
- *  name / time 为创建时的快照，药品或用药人被删除后历史记录仍可读。
- *  reminderId / planId 可空：孪生页手动点格子记的服用没有提醒来源。 */
-export type MedicationUsage = {
-  id: string;
-  /** 来源提醒；手动记录为 null */
-  reminderId: string | null;
-  /** 来源用药配置；手动记录为 null */
-  planId: string | null;
-  medicationId: string;
-  personId: string;
-  /** 快照：用药人姓名 */
-  personName: string;
-  /** 快照：药品名称 */
-  medicationName: string;
-  /** 快照：计划中的服用时间 "HH:MM"；手动记录为操作时刻 */
-  time: string;
-  /** 实际服用的数量 */
-  amount: number;
-  /** 是否漏服后补记 */
-  late?: boolean;
-  /** 实际服用时间 ISO */
-  takenAt: string;
-  createdAt: string;
-};
-
-// ─── 泡罩孪生实体 ─────────────────────────────────────────
-
-/** 槽位状态：full 有药 / empty 已服（含迁移进来的历史消耗）/ void 损坏遗失 */
-export type BlisterSlotStatus = "full" | "empty" | "void";
-
-/** 药板：一块实体泡罩，板装药数字孪生的单位。
- *  rows × cols 存在板自己身上：补货新建板时按药品规格来，而老板的规格
- *  可能已被用户改过，历史板必须保持自己的几何，否则格子对不上物理药板。 */
-export type BlisterPack = {
-  id: string;
-  medicationId: string;
-  /** 盒内第几板，从 1 开始 */
-  seq: number;
-  rows: number;
-  cols: number;
-  createdAt: string;
-};
-
-/** 槽位：泡罩里的一格。index 从 0 开始，从左到右、从上到下 —— 消耗顺序
- *  与真人嗑药片的顺序一致（nextFullSlots 依赖这个排序）。 */
-export type BlisterSlot = {
-  id: string;
-  packId: string;
-  index: number;
-  status: BlisterSlotStatus;
-  /** 消耗它的服用记录 id；手动记录 / 历史消耗为 null */
-  usageId: string | null;
-  /** 消耗时刻 ISO */
-  consumedAt: string | null;
-  /** 快照：消耗者姓名（与 usages 的快照策略一致，删用药人不清历史） */
-  consumedBy: string | null;
-};
-
-/**
- * 全局设置偏好。
- *
- * 独立于业务实体存在：这些开关影响通知调度，但不属于任何药品或用药人。
- * 默认值必须与 `src/db/schema.ts` 里 settings 各列的 `.default()` 保持一致 ——
- * 列默认值管「写库时没给值」，这里管「读不到行时给什么」，两边不同就会出现
- * 「重启前是 true、重启后变 false」这类只在开发期冒出来的怪问题。
- */
-export type Settings = {
-  /** 总开关：关闭后不再调度任何提醒通知 */
-  notificationsEnabled: boolean;
-  /** 稍后提醒间隔（分钟） */
-  snoozeMinutes: number;
-  /** 免打扰开始 "HH:MM"，null 表示不启用 */
-  quietStart: string | null;
-  /** 免打扰结束 "HH:MM" */
-  quietEnd: string | null;
-  /** 提醒到达时是否发声 / 震动 */
-  soundEnabled: boolean;
-  /** 同一成员连续漏服达到该次数时额外提醒；0 表示不提醒 */
-  missedAlertStreak: number;
-};
-
-export const DEFAULT_SETTINGS: Settings = {
-  notificationsEnabled: true,
-  snoozeMinutes: 10,
-  quietStart: null,
-  quietEnd: null,
-  soundEnabled: true,
-  missedAlertStreak: 2,
-};
-
-/** 设置可选的稍后提醒间隔（分钟）。首项是设计稿给的默认值 10。 */
-export const SNOOZE_OPTIONS: number[] = [10, 15, 30, 60];
-
-/** 免打扰时段是否覆盖给定的 "HH:MM"（纯函数，供调度层判断）。
- *  跨零点的区间（如 22:00–07:00）要拆成两段比较，否则整段永远判为不在区间内。 */
-export function inQuietHours(
-  settings: Pick<Settings, "quietStart" | "quietEnd">,
-  hhmm: string,
-): boolean {
-  const { quietStart, quietEnd } = settings;
-  if (!quietStart || !quietEnd) return false;
-  if (quietStart === quietEnd) return false;
-  return quietStart < quietEnd
-    ? hhmm >= quietStart && hhmm < quietEnd
-    : hhmm >= quietStart || hhmm < quietEnd;
-}
-
-export type AppData = {
-  medications: Medication[];
-  persons: Person[];
-  plans: MedicationPlan[];
-  reminders: Reminder[];
-  usages: MedicationUsage[];
-  /** 泡罩药板（板装药的数字孪生）。非板装药没有板 */
-  packs: BlisterPack[];
-  /** 泡罩槽位，跟着板走 */
-  blisterSlots: BlisterSlot[];
-  /** 全局设置偏好，恒为一条 */
-  settings: Settings;
-};
-
-const EMPTY_DATA: AppData = {
-  medications: [],
-  persons: [],
-  plans: [],
-  reminders: [],
-  usages: [],
-  packs: [],
-  blisterSlots: [],
-  settings: DEFAULT_SETTINGS,
-};
-
-// ─── 常量 ─────────────────────────────────────────────────
-
-/** 药品类型 / 单位：值是稳定的枚举键，展示文案走 i18n，不在这里写死 */
-export const MEDICATION_TYPES: MedicationType[] = [
-  "blister",
-  "bottle",
-  "loose",
-];
-
-/** 药品用途分类：首项同时是「添加药品」表单与建表列默认值 */
-export const MEDICATION_CATEGORIES: MedicationCategory[] = [
-  "chronic",
-  "acute",
-  "supplement",
-];
-
-/** 分类缺省值：与 `MEDICATION_CATEGORIES` 首项、`medications.category` 的列默认值一致 */
-export const DEFAULT_MEDICATION_CATEGORY: MedicationCategory = "chronic";
-
-export const MEDICATION_UNITS: MedicationUnit[] = ["tablet", "pill"];
-
-export const PERSON_AVATAR_COLORS = [
-  "#0F766E",
-  "#D97706",
-  "#DC2626",
-  "#2563EB",
-  "#7C3AED",
-  "#DB2777",
-];
-
-/**
- * 姓名 → 取色索引：对姓名做稳定的 31 倍滚动 hash，再对色板长度取模。
- * 纯函数，同名恒得同色；只依赖 UTF-16 code unit，跨运行 / 跨语言稳定。
- * `Math.imul` + `| 0` 把中间结果压回 32 位有符号整数，避免长姓名累加成
- * 浮点后取模失真。
- */
-function hashName(name: string): number {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) {
-    h = (Math.imul(h, 31) + name.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
-}
-
-/**
- * 按姓名 hash 从头像色板取色（重名同色）。替代早先按创建顺序轮询 ——
- * 姓名不变色就稳定，不会因为前面增删成员而变色。
- */
-export function pickAvatarColor(name: string): string {
-  return PERSON_AVATAR_COLORS[
-    hashName(name.trim()) % PERSON_AVATAR_COLORS.length
-  ];
-}
-
-/** 药饼 / 胶囊配色：按药品 id 稳定取色（重录同药同色，改名不改色）。
- *  `body` 是片身或胶囊体，`cap` 是胶囊帽，`score` 是药饼的压痕线。
- *  取真实药片的常见配色：白片、糖衣片、双色胶囊 —— 数字孪生的泡罩里
- *  装的是“这颗药”，不是抽象色块。 */
-export type PillTint = {
-  body: string;
-  cap: string;
-  score: string;
-};
-
-export const PILL_TINTS: PillTint[] = [
-  { body: "#FDFDFA", cap: "#F2DFB4", score: "#E5DEC9" },
-  { body: "#FFF6DE", cap: "#F2C94C", score: "#E8D49A" },
-  { body: "#FDEBEB", cap: "#E86A6A", score: "#EFC3C3" },
-  { body: "#FFF1D6", cap: "#F2994A", score: "#EBD2A6" },
-  { body: "#EAF2FD", cap: "#4A7FD4", score: "#C9D9F0" },
-  { body: "#EDF7EF", cap: "#5FA777", score: "#CDE6D5" },
-];
-
-export function pickPillTint(id: string): PillTint {
-  return PILL_TINTS[hashName(id) % PILL_TINTS.length];
-}
-
-/** 宽限期（分钟）：到点后这么久仍未处理才标记为漏服 */
-export const GRACE_MINUTES = 60;
-
-/** 提醒保留天数：更早的已处理提醒会被清理，服用记录永久保留 */
-const REMINDER_KEEP_DAYS = 90;
-
-/** 低库存阈值：按当前计划估算剩余可服用天数 ≤ 该值时视为库存不足 */
-export const LOW_STOCK_DAYS = 3;
-
-/** 枚举 → 翻译路径。查不到时回退到枚举值本身，不至于显示空 */
-const TYPE_LABEL_PATH: Record<MedicationType, Path> = {
-  blister: "medication.typeBlister",
-  bottle: "medication.typeBottle",
-  loose: "medication.typeLoose",
-};
-
-const UNIT_LABEL_PATH: Record<MedicationUnit, Path> = {
-  tablet: "medication.unitTablet",
-  pill: "medication.unitPill",
-};
-
-const CATEGORY_LABEL_PATH: Record<MedicationCategory, Path> = {
-  chronic: "medication.categoryChronic",
-  acute: "medication.categoryAcute",
-  supplement: "medication.categorySupplement",
-};
-
-export function medicationTypeLabel(
-  type: MedicationType,
-  t: Translate,
-): string {
-  return t(TYPE_LABEL_PATH[type]);
-}
-
-export function medicationCategoryLabel(
-  category: MedicationCategory,
-  t: Translate,
-): string {
-  return t(CATEGORY_LABEL_PATH[category]);
-}
-
-export function medicationUnitLabel(
-  unit: MedicationUnit,
-  t: Translate,
-): string {
-  return t(UNIT_LABEL_PATH[unit]);
-}
-
-// ─── 日期/时间工具 ─────────────────────────────────────────
-
-const pad = (n: number) => String(n).padStart(2, "0");
-
-/** Date → 本地 YYYY-MM-DD */
-export function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-export function todayKey(): string {
-  return dateKey(new Date());
-}
-
-/** YYYY-MM-DD ± n 天 */
-export function addDays(key: string, days: number): string {
-  const [y, m, d] = key.split("-").map(Number);
-  return dateKey(new Date(y, m - 1, d + days));
-}
-
-/** 解析 "YYYY-MM-DD" + "HH:MM" 为本地 Date */
-export function parseDateTime(key: string, time: string): Date {
-  const [y, m, d] = key.split("-").map(Number);
-  const [hours = 0, minutes = 0] = time.split(":").map(Number);
-  return new Date(y, m - 1, d, hours, minutes, 0, 0);
-}
-
-/** "YYYY-MM-DD" → 本地 Date（当天 00:00）。`parseDateTime` 的日期部分单独抽出来，
- *  给只需要日期的原生选择器用（有效期、开始/结束日期） */
-export function dateFromKey(key: string): Date {
-  const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
-/** 提醒的计划服用时间 */
-export function reminderDueDate(reminder: Reminder): Date {
-  return parseDateTime(reminder.date, reminder.time);
-}
-
-/** 提醒的漏服判定时间（计划时间 + 宽限期） */
-export function reminderMissDate(reminder: Reminder): Date {
-  return new Date(
-    reminderDueDate(reminder).getTime() + GRACE_MINUTES * 60 * 1000,
-  );
-}
-
-export function timeToDate(time: string): Date {
-  const [hours = 0, minutes = 0] = time.split(":").map(Number);
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-  return date;
-}
-
-export function dateToTime(date: Date): string {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-export function defaultTimes(count: number): string[] {
-  return ["08:00", "12:00", "18:00", "21:00", "10:00", "15:00"].slice(0, count);
-}
-
-export function compareTime(a: string, b: string): number {
-  return a.localeCompare(b);
-}
-
-// ─── 存储读写 ─────────────────────────────────────────────
-
-let cache: AppData | null = null;
-let writeQueue: Promise<void> = Promise.resolve();
-let initPromise: Promise<AppData> | null = null;
-
-/** 数据变更后的全局钩子（用于通知重排），由根布局注册 */
-let postMutationHook: (() => void) | null = null;
-
-export function setPostMutationHook(hook: (() => void) | null): void {
-  postMutationHook = hook;
-}
-
-function genId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
-
-/** 行 → 实体：把 snake_case 列名转回驼峰，解开 `times` 的 JSON，并收窄枚举字段 */
-function fromRows(rows: PersistedData): AppData {
-  return {
-    medications: rows.medications.map((m) => ({
-      ...m,
-      type: m.type as MedicationType,
-      // 枚举列在库里是自由 TEXT，读出来统一按枚举收窄；不在取值表内的值
-      // （理论上不会有）落到首项，而不是把脏值带进 UI
-      category: MEDICATION_CATEGORIES.includes(m.category as MedicationCategory)
-        ? (m.category as MedicationCategory)
-        : DEFAULT_MEDICATION_CATEGORY,
-      unit: m.unit as MedicationUnit,
-      blisterRows: m.blisterRows ?? null,
-      blisterCols: m.blisterCols ?? null,
-    })),
-    // 新增强制列（allergies / underlying_conditions）是 JSON 字符串，
-    // gender / age 可空；从库里还原成实体形状
-    persons: rows.persons.map((p) => ({
-      ...p,
-      gender: parseGender(p.gender),
-      age: p.age ?? undefined,
-      allergies: safeParseTags(p.allergies),
-      underlyingConditions: safeParseTags(p.underlyingConditions),
-    })),
-    plans: rows.plans.map((p) => ({
-      ...p,
-      times: safeParseTimes(p.times),
-    })),
-    reminders: rows.reminders.map((r) => ({
-      ...r,
-      status: r.status as ReminderStatus,
-      snoozedUntil: r.snoozedUntil ?? undefined,
-      resolvedAt: r.resolvedAt ?? undefined,
-    })),
-    usages: rows.usages.map((u) => ({
-      ...u,
-      reminderId: u.reminderId ?? null,
-      planId: u.planId ?? null,
-    })),
-    packs: rows.packs,
-    // 行对象的键是实体属性名（index），列名 slot_index 由 drizzle 自己映射
-    blisterSlots: rows.blisterSlots.map((s) => ({
-      ...s,
-      status: s.status as BlisterSlotStatus,
-      usageId: s.usageId ?? null,
-      consumedAt: s.consumedAt ?? null,
-      consumedBy: s.consumedBy ?? null,
-    })),
-    // 单行表读不到行（新装 / 还没写过设置）就用默认值，不补一行空记录
-    settings: fromSettingsRow(rows.settings[0]),
-  };
-}
-
-/**
- * 设置行 → 实体。读不到行（新装 / 还没写过设置）时用默认值，
- * 不补一行空记录 —— 单行表的空态就靠返回默认值表达。
- */
-function fromSettingsRow(
-  row: PersistedData["settings"][number] | undefined,
-): Settings {
-  if (!row) return DEFAULT_SETTINGS;
-  return row;
-}
-
-function safeParseTimes(raw: string): string[] {
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-/** 性别列收窄：库里的自由 TEXT 只在取值表内认，其它（脏值 / null）当未填写 */
-function parseGender(raw: string | null): Gender | undefined {
-  return raw === "male" || raw === "female" || raw === "other"
-    ? raw
-    : undefined;
-}
-
-/** JSON 字符串数组列 → string[]（过敏史 / 基础病），坏值退化成空数组 */
-function safeParseTags(raw: string): string[] {
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((x): x is string => typeof x === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-/** 实体 → 行：驼峰转 snake_case，`times` 序列化为 JSON。
- *  `snoozedUntil` / `resolvedAt` / `late` 的 `undefined → null / false` 是实体可选
- *  字段与「列非空」之间的类型桥接，不是老数据兜底，不能删。 */
-function toRows(data: AppData): PersistedData {
-  return {
-    medications: data.medications,
-    persons: data.persons.map((p) => ({
-      ...p,
-      gender: p.gender ?? null,
-      age: p.age ?? null,
-      allergies: JSON.stringify(p.allergies),
-      underlyingConditions: JSON.stringify(p.underlyingConditions),
-    })),
-    plans: data.plans.map((p) => ({
-      ...p,
-      times: JSON.stringify(p.times),
-    })),
-    reminders: data.reminders.map((r) => ({
-      ...r,
-      snoozedUntil: r.snoozedUntil ?? null,
-      resolvedAt: r.resolvedAt ?? null,
-    })),
-    usages: data.usages.map((u) => ({ ...u, late: u.late ?? false })),
-    packs: data.packs,
-    blisterSlots: data.blisterSlots,
-    // 设置恒为一行：空数组表示"还没写过"，repo 层会跳过删除、保持表为空
-    settings:
-      data.settings === DEFAULT_SETTINGS
-        ? []
-        : [{ id: SETTINGS_ROW_ID, ...toSettingsRow(data.settings) }],
-  };
-}
-
-const SETTINGS_ROW_ID = "singleton";
-
-/** 实体 → 设置行。可空的免打扰字段直传 null，对应列的 NULL */
-function toSettingsRow(settings: Settings) {
-  return {
-    notificationsEnabled: settings.notificationsEnabled,
-    snoozeMinutes: settings.snoozeMinutes,
-    quietStart: settings.quietStart,
-    quietEnd: settings.quietEnd,
-    soundEnabled: settings.soundEnabled,
-    missedAlertStreak: settings.missedAlertStreak,
-  };
-}
-
-/**
- * 首次读取：开库 → 读全表。
- * 表结构由 `src/db/client.ts` 负责保证（版本不符即重建）。
- */
-async function initDb(): Promise<AppData> {
-  return fromRows(await selectAll());
-}
-
-async function readData(): Promise<AppData> {
-  if (cache) return cache;
-  if (!initPromise) {
-    initPromise = initDb().catch((error) => {
-      initPromise = null;
-      throw error;
-    });
-  }
-  try {
-    cache = await initPromise;
-  } catch (error) {
-    // 数据库不可用时退化为空数据，屏幕走 error/empty 态而不是白屏
-    console.warn("数据库读取失败", error);
-    cache = EMPTY_DATA;
-  }
-  return cache;
-}
-
-/** 串行落库；单次失败重试一次，避免写队列被 rejection 污染 */
-async function persist(rows: PersistedData, attempt = 0): Promise<void> {
-  try {
-    await replaceAll(rows);
-  } catch (error) {
-    if (attempt >= 1) throw error;
-    await persist(rows, attempt + 1);
-  }
-}
-
-async function writeData(data: AppData): Promise<void> {
-  cache = data;
-  const rows = toRows(data);
-  writeQueue = writeQueue.catch(() => {}).then(() => persist(rows));
-  try {
-    await writeQueue;
-  } catch {
-    // 磁盘写入失败时保留内存态，下次变更会再次尝试落盘
-    console.warn("数据写入失败，将在下次变更时重试");
-  }
-}
-
-async function updateData(
-  mutator: (data: AppData) => AppData,
-): Promise<AppData> {
-  const next = mutator(await readData());
-  await writeData(next);
-  postMutationHook?.();
-  return next;
-}
-
-/** 读取（不经过 React）并同步提醒，供通知调度等非 UI 场景使用 */
-export async function loadData(): Promise<AppData> {
-  const raw = await readData();
-  const synced = syncRemindersIn(raw);
-  if (synced !== raw) {
-    await writeData(synced);
-    postMutationHook?.();
-  }
-  return synced;
-}
-
-// ─── 提醒生成与状态同步 ───────────────────────────────────
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DependencyList,
+} from "react";
+
+import {
+  definedValues,
+  deleteMedication as deleteMedicationRow,
+  deletePendingRemindersForPlan,
+  deletePerson as deletePersonRow,
+  deletePlan as deletePlanRow,
+  deletePacksForMedication,
+  deletePlansForMedication,
+  deletePlansForPerson,
+  deleteRemindersBefore,
+  deleteRemindersForPlans,
+  deleteSlotsForPacks,
+  deleteUsage,
+  getMedication,
+  getPack,
+  getPerson,
+  getPlan,
+  getReminder,
+  getSettings,
+  getSlot,
+  getUsage,
+  hasRemindersBefore,
+  insertMedication,
+  insertPack,
+  insertPerson,
+  insertPlan,
+  insertReminders,
+  insertSlots,
+  insertUsage,
+  listMedications,
+  listMedicationsByIds,
+  listOpenReminders,
+  listPacksForMedication,
+  listPendingReminders,
+  listPersons,
+  listPersonsByIds,
+  listPlans,
+  listPlansForMedication,
+  listPlansForPerson,
+  listRecentUsages,
+  listRemindersForDate,
+  listRemindersInRange,
+  listSlotsByUsage,
+  listSlotsForMedication,
+  listSlotsForPacks,
+  listUsagesForMedication,
+  saveSettings,
+  updateMedication as updateMedicationRow,
+  updatePerson as updatePersonRow,
+  updatePlan as updatePlanRow,
+  updateReminder,
+  updateSlot,
+  updateSlots,
+  withTransaction,
+  type Tx,
+} from "@/db/repo";
+import { getTranslator } from "@/i18n";
+import {
+  addDays,
+  dateToTime,
+  DEFAULT_SETTINGS,
+  nextFullSlots,
+  pickAvatarColor,
+  planActiveOnDate,
+  reminderMissDate,
+  todayKey,
+  type BlisterPack,
+  type BlisterSlot,
+  type Gender,
+  type Medication,
+  type MedicationPlan,
+  type MedicationUsage,
+  type Person,
+  type Reminder,
+  type Settings,
+} from "@/lib/entities";
+
+// 实体类型、常量与纯函数统一从 entities 再导出：屏幕的 import 路径不变
+export * from "@/lib/entities";
+
+// ─── 策略常量 ──────────────────────────────────────────────
 
 /** 提前生成的天数（含今天） */
 const GENERATE_AHEAD_DAYS = 7;
 
-/** 配置在指定日期是否生效 */
-export function planActiveOnDate(plan: MedicationPlan, key: string): boolean {
-  if (!plan.enabled) return false;
-  if (key < plan.startDate) return false;
-  if (plan.endDate && key > plan.endDate) return false;
-  return true;
-}
-
-/** 配置的展示状态：停用 / 已结束 / 服用中 */
-export function planStatusLabel(plan: MedicationPlan, t: Translate): string {
-  if (!plan.enabled) return t("plan.statusDisabled");
-  if (plan.endDate && plan.endDate < todayKey()) return t("plan.statusEnded");
-  return t("plan.statusActive");
-}
-
-/**
- * 同步提醒（幂等，无变更时返回原引用）：
- * 1. 为每个生效中的配置生成 今天 ~ 今天+6天 的提醒（不重复生成）
- * 2. 超过宽限期仍未处理的提醒标记为“漏服”
- * 3. 清理过早的已处理提醒（服用记录永久保留）
- */
-function syncRemindersIn(data: AppData): AppData {
-  const today = todayKey();
-  const existing = new Set(
-    data.reminders.map((r) => `${r.planId}|${r.date}|${r.time}`),
-  );
-  const newReminders: Reminder[] = [];
-  for (const plan of data.plans) {
-    for (let i = 0; i < GENERATE_AHEAD_DAYS; i++) {
-      const key = addDays(today, i);
-      if (!planActiveOnDate(plan, key)) continue;
-      for (const time of plan.times) {
-        const idKey = `${plan.id}|${key}|${time}`;
-        if (existing.has(idKey)) continue;
-        existing.add(idKey);
-        newReminders.push({
-          id: genId(),
-          planId: plan.id,
-          medicationId: plan.medicationId,
-          personId: plan.personId,
-          date: key,
-          time,
-          doseAmount: plan.doseAmount,
-          status: "pending",
-          createdAt: nowIso(),
-        });
-      }
-    }
-  }
-
-  const now = new Date();
-  let missedChanged = false;
-  const marked = data.reminders.map((r) => {
-    if (r.status !== "pending") return r;
-    if (reminderMissDate(r) < now) {
-      missedChanged = true;
-      return { ...r, status: "missed" as const, resolvedAt: nowIso() };
-    }
-    return r;
-  });
-
-  const cutoff = addDays(today, -REMINDER_KEEP_DAYS);
-  const pruned = marked.filter((r) => r.date >= cutoff);
-  const prunedChanged = pruned.length !== marked.length;
-
-  if (newReminders.length === 0 && !missedChanged && !prunedChanged) {
-    return data;
-  }
-  return { ...data, reminders: [...pruned, ...newReminders] };
-}
-
-export async function syncReminders(): Promise<void> {
-  await updateData(syncRemindersIn);
-}
-
-// ─── 库存 ─────────────────────────────────────────────────
-
-/**
- * 库存充裕度：只看「还剩多少」，不看还能吃几天。
- *
- * 与 `stockSummary().low` 是两个维度，别混用 —— 后者按当前用药配置估算剩余天数，
- * 依赖「有人在吃这个药」；药品库里没配任何用药计划的药拿不到它。前者只依赖库存
- * 自身，列表的色条与状态胶囊、以及「库存不足」筛选都取这里。
- * 阈值来自 design/medications.html 的 stockStatus()。
- *
- * `totalQuantity` 为 0（没记库存）时按 critical 处理：设计稿的 stockStatus()
- * 在这里是 0/0 → NaN，三个比较全 false，会显示成「库存充足」；把 0 库存
- * 说成充足比说成缺货更糟。
- */
-export type StockLevel = "ok" | "low" | "critical";
-
-export function stockLevel(medication: Medication): StockLevel {
-  const ratio =
-    medication.totalQuantity > 0
-      ? medication.remainingQuantity / medication.totalQuantity
-      : 0;
-  if (ratio <= 0.15) return "critical";
-  if (ratio <= 0.3) return "low";
-  return "ok";
-}
-
-/** 按当前生效配置估算某药品的消耗与剩余天数 */
-export function stockSummary(
-  medication: Medication,
-  plans: MedicationPlan[],
-): { dailyDose: number; daysLeft: number | null; low: boolean } {
-  const today = todayKey();
-  const dailyDose = plans
-    .filter(
-      (p) => p.medicationId === medication.id && planActiveOnDate(p, today),
-    )
-    .reduce((sum, p) => sum + p.doseAmount * p.times.length, 0);
-  const daysLeft =
-    dailyDose > 0 ? Math.floor(medication.remainingQuantity / dailyDose) : null;
-  return {
-    dailyDose,
-    daysLeft,
-    low: daysLeft !== null && daysLeft <= LOW_STOCK_DAYS,
-  };
-}
-
-/** 补货：增加总数量与剩余数量 */
-export async function restockMedication(
-  id: string,
-  amount: number,
-): Promise<void> {
-  if (!Number.isFinite(amount) || amount <= 0) return;
-  await updateData((data) => {
-    // 板装药已建孪生时按粒数补货会破坏「Σfull === remainingQuantity」不变式
-    // （补进来的药没有对应的槽位），这类药的补货必须走 appendBlisterPacks 按板补
-    if (data.packs.some((p) => p.medicationId === id)) return data;
-    return {
-      ...data,
-      medications: data.medications.map((m) =>
-        m.id === id
-          ? {
-              ...m,
-              totalQuantity: m.totalQuantity + amount,
-              remainingQuantity: m.remainingQuantity + amount,
-              updatedAt: nowIso(),
-            }
-          : m,
-      ),
-    };
-  });
-}
-
-// ─── 泡罩孪生 ─────────────────────────────────────────────
+/** 提醒保留天数：更早的已处理提醒会被清理，服用记录永久保留 */
+const REMINDER_KEEP_DAYS = 90;
 
 /** 每板单边格数上限：防手滑填出 100×100 的「药板」把网格和账一起撑坏 */
 const MAX_PACK_SIDE = 12;
@@ -812,131 +103,232 @@ function clampSide(n: number): number {
   return Math.min(Math.max(Math.round(n), 1), MAX_PACK_SIDE);
 }
 
-/** 板的展示状态：由槽位推导，不落库 —— 存了就要跟着每次消耗回写，必然漂移 */
-export type PackStatus = "sealed" | "open" | "consumed";
+// ─── id / 时间戳 ───────────────────────────────────────────
 
-export function packStatus(slots: BlisterSlot[]): PackStatus {
-  if (slots.length === 0) return "sealed";
-  if (!slots.some((s) => s.status === "full")) return "consumed";
-  return slots.some((s) => s.status !== "full") ? "open" : "sealed";
+function genId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** 某药品的孪生概览。`fullSlots` 必须等于 `medication.remainingQuantity`
- *  （不变式见 docs/plans/medication-digital-twin.md 3.3） */
-export type BlisterSummary = {
-  /** 是否已建孪生 */
-  enabled: boolean;
-  packCount: number;
-  /** 每板格数（取第一板；同药各板规格一致，只有老板可能不同） */
-  slotsPerPack: number;
-  totalSlots: number;
-  fullSlots: number;
-  /** 下一块要开的板（还有药的板里序号最小）；null = 全部吃完 */
-  openPack: BlisterPack | null;
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+// ─── 写操作编排 ────────────────────────────────────────────
+
+/** 数据变更后的全局钩子（用于通知重排），由根布局注册 */
+let postMutationHook: (() => void) | null = null;
+
+export function setPostMutationHook(hook: (() => void) | null): void {
+  postMutationHook = hook;
+}
+
+/** 写队列：串行化所有事务，读写之间不被另一个写操作插队 */
+let writeQueue: Promise<void> = Promise.resolve();
+
+/**
+ * 执行一个事务写操作，完成后触发通知重排。
+ *
+ * 串行化与历史版本同一目的：「已服用」进行到一半又进来一次「撤销」时，
+ * 后者的读必须看到前者的写。单次失败只记日志不外抛 —— 事务已整体回滚，
+ * 不会留下半份数据，屏幕随后 reload 会看到操作未生效。
+ */
+async function mutate(fn: (tx: Tx) => Promise<void>): Promise<void> {
+  writeQueue = writeQueue
+    .catch(() => {})
+    .then(() => withTransaction(fn))
+    .catch((error) => {
+      console.warn("数据写入失败", error);
+    });
+  await writeQueue;
+  // 即便本次写入失败也重排一次：通知必须和库里的真实状态一致
+  postMutationHook?.();
+}
+
+// ─── 提醒同步（纯决策 + 差异落库） ─────────────────────────
+
+export type ReminderSyncChanges = {
+  /** 需要新建的提醒 */
+  toInsert: Reminder[];
+  /** 需要标记为漏服的提醒（id + 判定时刻） */
+  toMarkMissed: { id: string; resolvedAt: string }[];
 };
 
-export function blisterSummary(
-  medication: Medication,
-  packs: BlisterPack[],
-  slots: BlisterSlot[],
-): BlisterSummary {
-  const own = packs.filter((p) => p.medicationId === medication.id);
-  // Hermes 没有 toSorted()；filter 产物是副本，原地排序不碰 store 数据
-  // oxlint-disable-next-line unicorn/no-array-sort
-  own.sort((a, b) => a.seq - b.seq);
-  const packIds = new Set(own.map((p) => p.id));
-  const ownSlots = slots.filter((s) => packIds.has(s.packId));
-  return {
-    enabled: own.length > 0,
-    packCount: own.length,
-    slotsPerPack: own[0] ? own[0].rows * own[0].cols : 0,
-    totalSlots: ownSlots.length,
-    fullSlots: ownSlots.filter((s) => s.status === "full").length,
-    openPack:
-      own.find((p) =>
-        ownSlots.some((s) => s.packId === p.id && s.status === "full"),
-      ) ?? null,
-  };
-}
-
-/** 按「板序 → 格序」取前 count 个 full 槽位 —— 泡罩从左到右、从上到下消耗，
- *  与真人嗑药片的顺序一致 */
-export function nextFullSlots(
-  packs: BlisterPack[],
-  slots: BlisterSlot[],
-  count: number,
-): BlisterSlot[] {
-  if (count <= 0) return [];
-  const ordered = [...packs];
-  // oxlint-disable-next-line unicorn/no-array-sort
-  ordered.sort((a, b) => a.seq - b.seq);
-  const result: BlisterSlot[] = [];
-  for (const pack of ordered) {
-    const packSlots = slots.filter(
-      (s) => s.packId === pack.id && s.status === "full",
-    );
-    // oxlint-disable-next-line unicorn/no-array-sort
-    packSlots.sort((a, b) => a.index - b.index);
-    for (const slot of packSlots) {
-      if (result.length >= count) return result;
-      result.push(slot);
+/**
+ * 计算提醒同步要做的变更（纯函数，输入输出与 IO 无关）：
+ * 1. 为传入的配置补生成 今天 ~ 今天+6 天 内缺失的提醒
+ * 2. 超过宽限期仍未处理的 pending 提醒标记为「漏服」
+ *
+ * `pending` 只用于判漏服，不参与生成；调用方传空数组即跳过第二步
+ * （改配置后的按配置重生成走这条，漏服判定只属于全局 syncReminders）。
+ */
+export function planReminderSync(input: {
+  plans: MedicationPlan[];
+  /** 生成窗口内已存在的提醒，去重靠它 + 库上的 UNIQUE (plan_id, date, time) 兜底 */
+  windowReminders: Reminder[];
+  /** 全部 pending 提醒（判漏服用） */
+  pending: Reminder[];
+  today: string;
+  now: Date;
+  newId: () => string;
+  nowIso: () => string;
+}): ReminderSyncChanges {
+  const {
+    plans,
+    windowReminders,
+    pending,
+    today,
+    now,
+    newId,
+    nowIso: stamp,
+  } = input;
+  const existing = new Set(
+    windowReminders.map((r) => `${r.planId}|${r.date}|${r.time}`),
+  );
+  const toInsert: Reminder[] = [];
+  for (const plan of plans) {
+    for (let i = 0; i < GENERATE_AHEAD_DAYS; i++) {
+      const key = addDays(today, i);
+      if (!planActiveOnDate(plan, key)) continue;
+      for (const time of plan.times) {
+        const idKey = `${plan.id}|${key}|${time}`;
+        if (existing.has(idKey)) continue;
+        existing.add(idKey);
+        toInsert.push({
+          id: newId(),
+          planId: plan.id,
+          medicationId: plan.medicationId,
+          personId: plan.personId,
+          date: key,
+          time,
+          doseAmount: plan.doseAmount,
+          status: "pending",
+          createdAt: stamp(),
+        });
+      }
     }
   }
-  return result;
+
+  const toMarkMissed: ReminderSyncChanges["toMarkMissed"] = [];
+  for (const reminder of pending) {
+    if (reminderMissDate(reminder) < now) {
+      toMarkMissed.push({ id: reminder.id, resolvedAt: stamp() });
+    }
+  }
+  return { toInsert, toMarkMissed };
+}
+
+/** 生成窗口的日期区间（含两端） */
+function generationWindow(today = todayKey()): { from: string; to: string } {
+  return { from: today, to: addDays(today, GENERATE_AHEAD_DAYS - 1) };
 }
 
 /**
- * 消耗指定药品的前 count 个 full 槽位（takeReminder 用）。
+ * 同步提醒（幂等）：补生成、判漏服、清理过早的已处理提醒。
+ * 返回是否有变更 —— 有变更时已经落库并触发通知重排。
  *
- * 槽位不足（没建孪生 / 数据对不上）时原样返回 —— 提醒闭环永不因孪生数据
- * 不完整而阻断，库存照扣。
+ * 界面类查询（useOpenReminders / useRemindersForDate / useReminderHistory）
+ * 读数据前都会先跑一遍：用户看到的状态必须和状态机的当前判定一致。
+ *
+ * 整个同步串行执行：生成前的读不在写事务里，两个屏幕同时聚焦会算出同一批
+ * 新提醒，靠 UNIQUE (plan_id, date, time) 兜底也会让其中一次事务失败。
  */
-function consumeSlotsIn(
-  data: AppData,
-  medicationId: string,
-  count: number,
-  ctx: { usageId: string; consumedAt: string; consumedBy: string },
-): AppData {
-  const ownPacks = data.packs.filter((p) => p.medicationId === medicationId);
-  if (ownPacks.length === 0) return data;
-  const ownPackIds = new Set(ownPacks.map((p) => p.id));
-  const targets = nextFullSlots(
-    ownPacks,
-    data.blisterSlots.filter((s) => ownPackIds.has(s.packId)),
-    count,
-  );
-  if (targets.length === 0) return data;
-  const hit = new Set(targets.map((s) => s.id));
-  return {
-    ...data,
-    blisterSlots: data.blisterSlots.map((s) =>
-      hit.has(s.id)
-        ? {
-            ...s,
-            status: "empty" as const,
-            usageId: ctx.usageId,
-            consumedAt: ctx.consumedAt,
-            consumedBy: ctx.consumedBy,
-          }
-        : s,
-    ),
-  };
+let syncChain: Promise<unknown> = Promise.resolve();
+
+export async function syncReminders(): Promise<boolean> {
+  const run = syncChain
+    .catch(() => {})
+    .then(async (): Promise<boolean> => {
+      const today = todayKey();
+      const range = generationWindow(today);
+      const [plans, windowReminders, pending] = await Promise.all([
+        listPlans(),
+        listRemindersInRange(range.from, range.to),
+        listPendingReminders(),
+      ]);
+      const changes = planReminderSync({
+        plans,
+        windowReminders,
+        pending,
+        today,
+        now: new Date(),
+        newId: genId,
+        nowIso,
+      });
+      const cutoff = addDays(today, -REMINDER_KEEP_DAYS);
+      const stale = await hasRemindersBefore(cutoff);
+      if (
+        changes.toInsert.length === 0 &&
+        changes.toMarkMissed.length === 0 &&
+        !stale
+      ) {
+        return false;
+      }
+      await mutate(async (tx) => {
+        await insertReminders(changes.toInsert, tx);
+        for (const item of changes.toMarkMissed) {
+          await updateReminder(
+            item.id,
+            { status: "missed", resolvedAt: item.resolvedAt },
+            tx,
+          );
+        }
+        if (stale) await deleteRemindersBefore(cutoff, tx);
+      });
+      return true;
+    });
+  syncChain = run;
+  return run;
 }
 
 /**
- * 开启数字孪生：为存量板装药建板，按当前剩余量把历史消耗补成 empty 格。
+ * 按配置重生成它的提醒：作废未处理的，再补生成窗口内缺失的。
+ *
+ * 改时间 / 剂量 / 停用都会立即反映到未来的提醒上；已服用 / 已跳过 / 已漏服
+ * 的记录作为历史保留。新增配置与 applyPlanChanges 共用这一条路。
+ */
+async function regeneratePlanReminders(
+  plan: MedicationPlan,
+  tx: Tx,
+): Promise<void> {
+  await deletePendingRemindersForPlan(plan.id, tx);
+  const today = todayKey();
+  const range = generationWindow(today);
+  const windowReminders = await listRemindersInRange(range.from, range.to, tx);
+  const changes = planReminderSync({
+    plans: [plan],
+    windowReminders,
+    pending: [],
+    today,
+    now: new Date(),
+    newId: genId,
+    nowIso,
+  });
+  await insertReminders(changes.toInsert, tx);
+}
+
+// ─── 泡罩孪生：建板 / 补板的纯决策 ─────────────────────────
+
+export type TwinBuildResult = {
+  packs: BlisterPack[];
+  slots: BlisterSlot[];
+  /** 药品行上要跟着改的字段 */
+  patch: Partial<Medication>;
+};
+
+/**
+ * 计算开启数字孪生要建的板与槽（纯函数）。
  *
  * 不变式：建板后 Σfull === remainingQuantity，Σ全部格 === 板数 × 每板粒数。
  * 板数至少要装得下当前剩余；`totalQuantity` 重写为真实槽位数 ——
  * 老数据「记了 25 但一板 30」这类账，以物理板为准修正。
+ * 重复开启 = 重建：旧板旧格由调用方先删（见 openBlisterTwin）。
  */
-function openBlisterTwinIn(
-  data: AppData,
-  medicationId: string,
+export function planTwinBuild(
+  medication: Medication,
   input: { rows: number; cols: number; packCount: number },
-): AppData {
-  const medication = data.medications.find((m) => m.id === medicationId);
-  if (!medication || medication.type !== "blister") return data;
+  newId: () => string,
+  stamp: () => string,
+): TwinBuildResult {
   const rows = clampSide(input.rows);
   const cols = clampSide(input.cols);
   const perPack = rows * cols;
@@ -945,22 +337,16 @@ function openBlisterTwinIn(
     Math.round(input.packCount) || 1,
     Math.ceil(medication.remainingQuantity / perPack),
   );
-  // 重复开启 = 重建：先清掉该药旧的板与格
-  const stalePackIds = new Set(
-    data.packs.filter((p) => p.medicationId === medicationId).map((p) => p.id),
-  );
-  const packs = data.packs.filter((p) => !stalePackIds.has(p.id));
-  const blisterSlots = data.blisterSlots.filter(
-    (s) => !stalePackIds.has(s.packId),
-  );
-  const now = nowIso();
+  const now = stamp();
+  const packs: BlisterPack[] = [];
+  const slots: BlisterSlot[] = [];
   // 总格数减剩余 = 已经被吃掉的历史格数，按板序格序从第一格开始标 empty
   // （usageId 为 null，UI 显示「历史消耗 · 无服用记录」）
   let history = packCount * perPack - medication.remainingQuantity;
   for (let seq = 1; seq <= packCount; seq++) {
     const pack: BlisterPack = {
-      id: genId(),
-      medicationId,
+      id: newId(),
+      medicationId: medication.id,
       seq,
       rows,
       cols,
@@ -968,8 +354,8 @@ function openBlisterTwinIn(
     };
     packs.push(pack);
     for (let index = 0; index < perPack; index++) {
-      blisterSlots.push({
-        id: genId(),
+      slots.push({
+        id: newId(),
         packId: pack.id,
         index,
         status: history > 0 ? "empty" : "full",
@@ -981,43 +367,36 @@ function openBlisterTwinIn(
     }
   }
   return {
-    ...data,
     packs,
-    blisterSlots,
-    medications: data.medications.map((m) =>
-      m.id === medicationId
-        ? {
-            ...m,
-            blisterRows: rows,
-            blisterCols: cols,
-            totalQuantity: packCount * perPack,
-            updatedAt: now,
-          }
-        : m,
-    ),
+    slots,
+    patch: {
+      blisterRows: rows,
+      blisterCols: cols,
+      totalQuantity: packCount * perPack,
+      updatedAt: now,
+    },
   };
 }
 
-/** 补货（按板）：追加 count 块满板。板装孪生专用，散装/瓶装走 restockMedication */
-function appendBlisterPacksIn(
-  data: AppData,
-  medicationId: string,
+/** 计算按板补货要追加的板与槽（纯函数） */
+export function planPackAppend(
+  medication: Medication,
+  ownPacks: BlisterPack[],
   count: number,
-): AppData {
-  const medication = data.medications.find((m) => m.id === medicationId);
-  if (!medication) return data;
+  newId: () => string,
+  stamp: () => string,
+): TwinBuildResult {
   const rows = clampSide(medication.blisterRows ?? 1);
   const cols = clampSide(medication.blisterCols ?? 1);
   const perPack = rows * cols;
-  const own = data.packs.filter((p) => p.medicationId === medicationId);
-  let nextSeq = own.reduce((max, p) => Math.max(max, p.seq), 0) + 1;
-  const now = nowIso();
-  const packs = [...data.packs];
-  const blisterSlots = [...data.blisterSlots];
+  let nextSeq = ownPacks.reduce((max, p) => Math.max(max, p.seq), 0) + 1;
+  const now = stamp();
+  const packs: BlisterPack[] = [];
+  const slots: BlisterSlot[] = [];
   for (let i = 0; i < count; i++) {
     const pack: BlisterPack = {
-      id: genId(),
-      medicationId,
+      id: newId(),
+      medicationId: medication.id,
       seq: nextSeq,
       rows,
       cols,
@@ -1026,8 +405,8 @@ function appendBlisterPacksIn(
     nextSeq += 1;
     packs.push(pack);
     for (let index = 0; index < perPack; index++) {
-      blisterSlots.push({
-        id: genId(),
+      slots.push({
+        id: newId(),
         packId: pack.id,
         index,
         status: "full",
@@ -1038,20 +417,199 @@ function appendBlisterPacksIn(
     }
   }
   return {
-    ...data,
     packs,
-    blisterSlots,
-    medications: data.medications.map((m) =>
-      m.id === medicationId
-        ? {
-            ...m,
-            totalQuantity: m.totalQuantity + count * perPack,
-            remainingQuantity: m.remainingQuantity + count * perPack,
-            updatedAt: now,
-          }
-        : m,
-    ),
+    slots,
+    patch: {
+      totalQuantity: medication.totalQuantity + count * perPack,
+      remainingQuantity: medication.remainingQuantity + count * perPack,
+      updatedAt: now,
+    },
   };
+}
+
+// ─── 提醒处理（核心闭环） ─────────────────────────────────
+
+/**
+ * 已服用：生成服用记录并扣减库存。
+ * 待服用和漏服状态都可以补记（漏服补记会标记 late）。
+ */
+export async function takeReminder(id: string): Promise<void> {
+  const takenAt = nowIso();
+  await mutate(async (tx) => {
+    const reminder = await getReminder(id, tx);
+    if (
+      !reminder ||
+      (reminder.status !== "pending" && reminder.status !== "missed")
+    ) {
+      return;
+    }
+    const [medication, person] = await Promise.all([
+      getMedication(reminder.medicationId, tx),
+      getPerson(reminder.personId, tx),
+    ]);
+    const t = getTranslator();
+    const usage: MedicationUsage = {
+      id: genId(),
+      reminderId: reminder.id,
+      planId: reminder.planId,
+      medicationId: reminder.medicationId,
+      personId: reminder.personId,
+      // 药品 / 用药人可能已删：历史里留删除时的占位快照，不清记录
+      personName: person?.name ?? t("status.deletedPerson"),
+      medicationName: medication?.name ?? t("status.deletedMedication"),
+      time: reminder.time,
+      amount: reminder.doseAmount,
+      late: reminder.status === "missed",
+      takenAt,
+      createdAt: takenAt,
+    };
+    await insertUsage(usage, tx);
+    await updateReminder(id, { status: "taken", resolvedAt: takenAt }, tx);
+    if (!medication) return;
+    await updateMedicationRow(
+      reminder.medicationId,
+      {
+        remainingQuantity: Math.max(
+          0,
+          medication.remainingQuantity - reminder.doseAmount,
+        ),
+        updatedAt: takenAt,
+      },
+      tx,
+    );
+    // 板装孪生：按泡罩顺序消耗槽位。槽位不足时 targets 为空，库存照扣 ——
+    // 服药闭环不因孪生数据不完整而阻断
+    const ownPacks = await listPacksForMedication(reminder.medicationId, tx);
+    if (ownPacks.length === 0) return;
+    const ownSlots = await listSlotsForPacks(
+      ownPacks.map((p) => p.id),
+      tx,
+    );
+    const targets = nextFullSlots(ownPacks, ownSlots, reminder.doseAmount);
+    await updateSlots(
+      targets.map((s) => s.id),
+      {
+        status: "empty",
+        usageId: usage.id,
+        consumedAt: takenAt,
+        consumedBy: usage.personName,
+      },
+      tx,
+    );
+  });
+}
+
+/**
+ * 稍后提醒：把通知推迟 minutes 分钟后再次提醒，不改变提醒状态。
+ * 重复设置以最后一次为准；`snoozedReminder(id)` 判断推迟是否仍然生效。
+ *
+ * minutes 省略时取设置里的 `snoozeMinutes`（设置页可改），所以调用方
+ * 只需要传 id —— 间隔是全局偏好，不该在每个界面各写一个默认值。
+ */
+export async function snoozeReminder(
+  id: string,
+  minutes?: number,
+): Promise<void> {
+  await mutate(async (tx) => {
+    const delay = minutes ?? (await getSettings(tx)).snoozeMinutes;
+    const until = new Date(Date.now() + delay * 60 * 1000).toISOString();
+    const reminder = await getReminder(id, tx);
+    if (
+      !reminder ||
+      (reminder.status !== "pending" && reminder.status !== "missed")
+    ) {
+      return;
+    }
+    await updateReminder(id, { snoozedUntil: until }, tx);
+  });
+}
+
+/** 跳过本次提醒（待服用和漏服都可以标记为跳过），不扣减库存 */
+export async function skipReminder(id: string): Promise<void> {
+  const resolvedAt = nowIso();
+  await mutate(async (tx) => {
+    const reminder = await getReminder(id, tx);
+    if (
+      !reminder ||
+      (reminder.status !== "pending" && reminder.status !== "missed")
+    ) {
+      return;
+    }
+    await updateReminder(id, { status: "skipped", resolvedAt }, tx);
+  });
+}
+
+// ─── 泡罩孪生写操作 ───────────────────────────────────────
+
+/** 补货：增加总数量与剩余数量 */
+export async function restockMedication(
+  id: string,
+  amount: number,
+): Promise<void> {
+  if (!Number.isFinite(amount) || amount <= 0) return;
+  await mutate(async (tx) => {
+    const medication = await getMedication(id, tx);
+    if (!medication) return;
+    // 板装药已建孪生时按粒数补货会破坏「Σfull === remainingQuantity」不变式
+    // （补进来的药没有对应的槽位），这类药的补货必须走 appendBlisterPacks 按板补
+    const ownPacks = await listPacksForMedication(id, tx);
+    if (ownPacks.length > 0) return;
+    await updateMedicationRow(
+      id,
+      {
+        totalQuantity: medication.totalQuantity + amount,
+        remainingQuantity: medication.remainingQuantity + amount,
+        updatedAt: nowIso(),
+      },
+      tx,
+    );
+  });
+}
+
+/** 为存量板装药开启数字孪生（孪生页承载引导表单）。重复开启 = 重建 */
+export async function openBlisterTwin(
+  medicationId: string,
+  input: { rows: number; cols: number; packCount: number },
+): Promise<void> {
+  await mutate(async (tx) => {
+    const medication = await getMedication(medicationId, tx);
+    if (!medication || medication.type !== "blister") return;
+    const ownPacks = await listPacksForMedication(medicationId, tx);
+    const built = planTwinBuild(medication, input, genId, nowIso);
+    if (ownPacks.length > 0) {
+      await deleteSlotsForPacks(
+        ownPacks.map((p) => p.id),
+        tx,
+      );
+      await deletePacksForMedication(medicationId, tx);
+    }
+    for (const pack of built.packs) await insertPack(pack, tx);
+    await insertSlots(built.slots, tx);
+    await updateMedicationRow(medicationId, built.patch, tx);
+  });
+}
+
+/** 补货（按板）：追加 count 块满板。板装孪生专用，散装/瓶装走 restockMedication */
+export async function appendBlisterPacks(
+  medicationId: string,
+  count: number,
+): Promise<void> {
+  if (!Number.isFinite(count) || count <= 0) return;
+  await mutate(async (tx) => {
+    const medication = await getMedication(medicationId, tx);
+    if (!medication) return;
+    const ownPacks = await listPacksForMedication(medicationId, tx);
+    const built = planPackAppend(
+      medication,
+      ownPacks,
+      Math.round(count),
+      genId,
+      nowIso,
+    );
+    for (const pack of built.packs) await insertPack(pack, tx);
+    await insertSlots(built.slots, tx);
+    await updateMedicationRow(medicationId, built.patch, tx);
+  });
 }
 
 /**
@@ -1060,215 +618,161 @@ function appendBlisterPacksIn(
  * 与 takeReminder 的按序消耗不同 —— 用户点了哪一格就消耗哪一格：泡罩可以
  * 从任意位置抠开，孪生要镜像用户实际做的事，而不是替他决定。
  */
-function consumeBlisterSlotIn(
-  data: AppData,
+export async function consumeBlisterSlot(
   slotId: string,
   personId: string,
-): AppData {
-  const slot = data.blisterSlots.find((s) => s.id === slotId);
-  if (!slot || slot.status !== "full") return data;
-  const pack = data.packs.find((p) => p.id === slot.packId);
-  if (!pack) return data;
-  const medication = data.medications.find((m) => m.id === pack.medicationId);
-  if (!medication) return data;
-  const person = data.persons.find((p) => p.id === personId);
-  if (!person) return data;
-  const now = nowIso();
-  const usage: MedicationUsage = {
-    id: genId(),
-    reminderId: null,
-    planId: null,
-    medicationId: medication.id,
-    personId: person.id,
-    personName: person.name,
-    medicationName: medication.name,
-    // 手动记录没有计划时间，记操作时刻
-    time: dateToTime(new Date()),
-    amount: 1,
-    late: false,
-    takenAt: now,
-    createdAt: now,
-  };
-  return {
-    ...data,
-    usages: [usage, ...data.usages],
-    blisterSlots: data.blisterSlots.map((s) =>
-      s.id === slotId
-        ? {
-            ...s,
-            status: "empty" as const,
-            usageId: usage.id,
-            consumedAt: now,
-            consumedBy: usage.personName,
-          }
-        : s,
-    ),
-    medications: data.medications.map((m) =>
-      m.id === medication.id
-        ? {
-            ...m,
-            remainingQuantity: Math.max(0, m.remainingQuantity - 1),
-            updatedAt: now,
-          }
-        : m,
-    ),
-  };
+): Promise<void> {
+  await mutate(async (tx) => {
+    const slot = await getSlot(slotId, tx);
+    if (!slot || slot.status !== "full") return;
+    const pack = await getPack(slot.packId, tx);
+    if (!pack) return;
+    const [medication, person] = await Promise.all([
+      getMedication(pack.medicationId, tx),
+      getPerson(personId, tx),
+    ]);
+    if (!medication || !person) return;
+    const now = nowIso();
+    const usage: MedicationUsage = {
+      id: genId(),
+      reminderId: null,
+      planId: null,
+      medicationId: medication.id,
+      personId: person.id,
+      personName: person.name,
+      medicationName: medication.name,
+      // 手动记录没有计划时间，记操作时刻
+      time: dateToTime(new Date()),
+      amount: 1,
+      late: false,
+      takenAt: now,
+      createdAt: now,
+    };
+    await insertUsage(usage, tx);
+    await updateSlot(
+      slotId,
+      {
+        status: "empty",
+        usageId: usage.id,
+        consumedAt: now,
+        consumedBy: usage.personName,
+      },
+      tx,
+    );
+    await updateMedicationRow(
+      medication.id,
+      {
+        remainingQuantity: Math.max(0, medication.remainingQuantity - 1),
+        updatedAt: now,
+      },
+      tx,
+    );
+  });
 }
 
 /** 标记槽位损坏 / 遗失：物理上没吃但格子里没药了。不产生服用记录，库存 −1 */
-function voidBlisterSlotIn(data: AppData, slotId: string): AppData {
-  const slot = data.blisterSlots.find((s) => s.id === slotId);
-  if (!slot || slot.status !== "full") return data;
-  const pack = data.packs.find((p) => p.id === slot.packId);
-  if (!pack) return data;
-  const now = nowIso();
-  return {
-    ...data,
-    blisterSlots: data.blisterSlots.map((s) =>
-      s.id === slotId
-        ? { ...s, status: "void" as const, usageId: null, consumedBy: null }
-        : s,
-    ),
-    medications: data.medications.map((m) =>
-      m.id === pack.medicationId
-        ? {
-            ...m,
-            remainingQuantity: Math.max(0, m.remainingQuantity - 1),
-            updatedAt: now,
-          }
-        : m,
-    ),
-  };
+export async function voidBlisterSlot(slotId: string): Promise<void> {
+  await mutate(async (tx) => {
+    const slot = await getSlot(slotId, tx);
+    if (!slot || slot.status !== "full") return;
+    const pack = await getPack(slot.packId, tx);
+    if (!pack) return;
+    const now = nowIso();
+    await updateSlot(
+      slotId,
+      { status: "void", usageId: null, consumedBy: null },
+      tx,
+    );
+    const medication = await getMedication(pack.medicationId, tx);
+    if (!medication) return;
+    await updateMedicationRow(
+      pack.medicationId,
+      {
+        remainingQuantity: Math.max(0, medication.remainingQuantity - 1),
+        updatedAt: now,
+      },
+      tx,
+    );
+  });
 }
 
 /**
  * 恢复槽位为未服用：void 或历史 empty（无 usage）→ full，库存 +1。
  * 有服用记录的格子必须走 undoUsage —— 那条路还要删 usage、回退提醒。
  */
-function restoreBlisterSlotIn(data: AppData, slotId: string): AppData {
-  const slot = data.blisterSlots.find((s) => s.id === slotId);
-  if (!slot || slot.status === "full" || slot.usageId) return data;
-  const pack = data.packs.find((p) => p.id === slot.packId);
-  if (!pack) return data;
-  const now = nowIso();
-  return {
-    ...data,
-    blisterSlots: data.blisterSlots.map((s) =>
-      s.id === slotId
-        ? {
-            ...s,
-            status: "full" as const,
-            usageId: null,
-            consumedAt: null,
-            consumedBy: null,
-          }
-        : s,
-    ),
-    medications: data.medications.map((m) =>
-      m.id === pack.medicationId
-        ? {
-            ...m,
-            remainingQuantity: Math.min(
-              m.totalQuantity,
-              m.remainingQuantity + 1,
-            ),
-            updatedAt: now,
-          }
-        : m,
-    ),
-  };
+export async function restoreBlisterSlot(slotId: string): Promise<void> {
+  await mutate(async (tx) => {
+    const slot = await getSlot(slotId, tx);
+    if (!slot || slot.status === "full" || slot.usageId) return;
+    const pack = await getPack(slot.packId, tx);
+    if (!pack) return;
+    const now = nowIso();
+    await updateSlot(
+      slotId,
+      { status: "full", usageId: null, consumedAt: null, consumedBy: null },
+      tx,
+    );
+    const medication = await getMedication(pack.medicationId, tx);
+    if (!medication) return;
+    await updateMedicationRow(
+      pack.medicationId,
+      {
+        remainingQuantity: Math.min(
+          medication.totalQuantity,
+          medication.remainingQuantity + 1,
+        ),
+        updatedAt: now,
+      },
+      tx,
+    );
+  });
 }
 
 /**
  * 撤销一次服用：删 usage、回退提醒状态、恢复槽位、回补库存。
  *
  * 提醒回退到 pending 而非 taken —— 撤销后这次剂量重新进入待处理，
- * 已过宽限期会被 syncRemindersIn 再次判为漏服（撤销补记不等于没漏过）。
+ * 已过宽限期会被 syncReminders 再次判为漏服（撤销补记不等于没漏过）。
  */
-function undoUsageIn(data: AppData, usageId: string): AppData {
-  const usage = data.usages.find((u) => u.id === usageId);
-  if (!usage) return data;
-  const now = nowIso();
-  const reminders = data.reminders.map((r) =>
-    usage.reminderId && r.id === usage.reminderId && r.status !== "pending"
-      ? { ...r, status: "pending" as const, resolvedAt: undefined }
-      : r,
-  );
-  const hit = new Set(
-    data.blisterSlots.filter((s) => s.usageId === usageId).map((s) => s.id),
-  );
-  const blisterSlots = data.blisterSlots.map((s) =>
-    hit.has(s.id)
-      ? {
-          ...s,
-          status: "full" as const,
-          usageId: null,
-          consumedAt: null,
-          consumedBy: null,
-        }
-      : s,
-  );
-  const medications = data.medications.map((m) =>
-    m.id === usage.medicationId
-      ? {
-          ...m,
+export async function undoUsage(usageId: string): Promise<void> {
+  await mutate(async (tx) => {
+    const usage = await getUsage(usageId, tx);
+    if (!usage) return;
+    const now = nowIso();
+    if (usage.reminderId) {
+      const reminder = await getReminder(usage.reminderId, tx);
+      if (reminder && reminder.status !== "pending") {
+        await updateReminder(
+          reminder.id,
+          { status: "pending", resolvedAt: null },
+          tx,
+        );
+      }
+    }
+    const hit = await listSlotsByUsage(usageId, tx);
+    if (hit.length > 0) {
+      await updateSlots(
+        hit.map((s) => s.id),
+        { status: "full", usageId: null, consumedAt: null, consumedBy: null },
+        tx,
+      );
+    }
+    const medication = await getMedication(usage.medicationId, tx);
+    if (medication) {
+      await updateMedicationRow(
+        usage.medicationId,
+        {
           remainingQuantity: Math.min(
-            m.totalQuantity,
-            m.remainingQuantity + usage.amount,
+            medication.totalQuantity,
+            medication.remainingQuantity + usage.amount,
           ),
           updatedAt: now,
-        }
-      : m,
-  );
-  return {
-    ...data,
-    reminders,
-    blisterSlots,
-    medications,
-    usages: data.usages.filter((u) => u.id !== usageId),
-  };
-}
-
-/** 为存量板装药开启数字孪生（孪生页承载引导表单） */
-export async function openBlisterTwin(
-  medicationId: string,
-  input: { rows: number; cols: number; packCount: number },
-): Promise<void> {
-  await updateData((data) => openBlisterTwinIn(data, medicationId, input));
-}
-
-/** 补货（按板）：追加 count 块满板 */
-export async function appendBlisterPacks(
-  medicationId: string,
-  count: number,
-): Promise<void> {
-  if (!Number.isFinite(count) || count <= 0) return;
-  await updateData((data) =>
-    appendBlisterPacksIn(data, medicationId, Math.round(count)),
-  );
-}
-
-/** 手动记一次服用：点孪生网格的某一格，记给指定用药人 */
-export async function consumeBlisterSlot(
-  slotId: string,
-  personId: string,
-): Promise<void> {
-  await updateData((data) => consumeBlisterSlotIn(data, slotId, personId));
-}
-
-/** 标记槽位损坏 / 遗失 */
-export async function voidBlisterSlot(slotId: string): Promise<void> {
-  await updateData((data) => voidBlisterSlotIn(data, slotId));
-}
-
-/** 恢复槽位为未服用（void / 历史消耗格） */
-export async function restoreBlisterSlot(slotId: string): Promise<void> {
-  await updateData((data) => restoreBlisterSlotIn(data, slotId));
-}
-
-/** 撤销一次服用：连带恢复槽位、回补库存、回退提醒 */
-export async function undoUsage(usageId: string): Promise<void> {
-  await updateData((data) => undoUsageIn(data, usageId));
+        },
+        tx,
+      );
+    }
+    await deleteUsage(usageId, tx);
+  });
 }
 
 // ─── 药品 CRUD ────────────────────────────────────────────
@@ -1307,17 +811,18 @@ export async function addMedication(
         }
       : null),
   };
-  await updateData((data) => {
-    const next: AppData = {
-      ...data,
-      medications: [medication, ...data.medications],
-    };
-    if (!blister) return next;
-    return openBlisterTwinIn(next, medication.id, {
-      rows: blister.rows,
-      cols: blister.cols,
-      packCount,
-    });
+  await mutate(async (tx) => {
+    await insertMedication(medication, tx);
+    if (!blister) return;
+    const built = planTwinBuild(
+      medication,
+      { rows: blister.rows, cols: blister.cols, packCount },
+      genId,
+      nowIso,
+    );
+    for (const pack of built.packs) await insertPack(pack, tx);
+    await insertSlots(built.slots, tx);
+    await updateMedicationRow(medication.id, built.patch, tx);
   });
   return medication;
 }
@@ -1326,31 +831,33 @@ export async function updateMedication(
   id: string,
   patch: Partial<Omit<Medication, "id" | "createdAt">>,
 ): Promise<void> {
-  await updateData((data) => ({
-    ...data,
-    medications: data.medications.map((m) =>
-      m.id === id ? { ...m, ...patch, updatedAt: nowIso() } : m,
-    ),
-  }));
+  await mutate(async (tx) => {
+    await updateMedicationRow(id, { ...patch, updatedAt: nowIso() }, tx);
+  });
 }
 
 /** 删除药品：级联删除配置、提醒与泡罩孪生；服用记录作为历史永久保留 */
 export async function deleteMedication(id: string): Promise<void> {
-  await updateData((data) => {
-    const planIds = new Set(
-      data.plans.filter((p) => p.medicationId === id).map((p) => p.id),
-    );
-    const packIds = new Set(
-      data.packs.filter((p) => p.medicationId === id).map((p) => p.id),
-    );
-    return {
-      ...data,
-      medications: data.medications.filter((m) => m.id !== id),
-      plans: data.plans.filter((p) => p.medicationId !== id),
-      reminders: data.reminders.filter((r) => !planIds.has(r.planId)),
-      packs: data.packs.filter((p) => p.medicationId !== id),
-      blisterSlots: data.blisterSlots.filter((s) => !packIds.has(s.packId)),
-    };
+  await mutate(async (tx) => {
+    const [ownPlans, ownPacks] = await Promise.all([
+      listPlansForMedication(id, tx),
+      listPacksForMedication(id, tx),
+    ]);
+    if (ownPlans.length > 0) {
+      await deleteRemindersForPlans(
+        ownPlans.map((p) => p.id),
+        tx,
+      );
+    }
+    if (ownPacks.length > 0) {
+      await deleteSlotsForPacks(
+        ownPacks.map((p) => p.id),
+        tx,
+      );
+    }
+    await deletePlansForMedication(id, tx);
+    await deletePacksForMedication(id, tx);
+    await deleteMedicationRow(id, tx);
   });
 }
 
@@ -1366,22 +873,21 @@ export type PersonInput = {
 };
 
 export async function addPerson(input: PersonInput): Promise<Person> {
-  const now = nowIso();
-  const next = await updateData((data) => {
-    const person: Person = {
-      id: genId(),
-      name: input.name.trim(),
-      gender: input.gender,
-      age: input.age,
-      allergies: input.allergies ?? [],
-      underlyingConditions: input.underlyingConditions ?? [],
-      // 头像底色按姓名 hash 取色：同名同色，稳定，且不受他人增删影响
-      avatarColor: pickAvatarColor(input.name),
-      createdAt: now,
-    };
-    return { ...data, persons: [...data.persons, person] };
+  const person: Person = {
+    id: genId(),
+    name: input.name.trim(),
+    gender: input.gender,
+    age: input.age,
+    allergies: input.allergies ?? [],
+    underlyingConditions: input.underlyingConditions ?? [],
+    // 头像底色按姓名 hash 取色：同名同色，稳定，且不受他人增删影响
+    avatarColor: pickAvatarColor(input.name),
+    createdAt: nowIso(),
+  };
+  await mutate(async (tx) => {
+    await insertPerson(person, tx);
   });
-  return next.persons[next.persons.length - 1];
+  return person;
 }
 
 /**
@@ -1399,34 +905,25 @@ export async function updatePerson(
     underlyingConditions?: string[];
   },
 ): Promise<void> {
-  await updateData((data) => ({
-    ...data,
-    persons: data.persons.map((p) => {
-      if (p.id !== id) return p;
-      const updated: Person = { ...p };
-      if (patch.name !== undefined) updated.name = patch.name.trim();
-      if (patch.gender !== undefined) updated.gender = patch.gender;
-      if (patch.age !== undefined) updated.age = patch.age;
-      if (patch.allergies !== undefined) updated.allergies = patch.allergies;
-      if (patch.underlyingConditions !== undefined)
-        updated.underlyingConditions = patch.underlyingConditions;
-      return updated;
-    }),
-  }));
+  await mutate(async (tx) => {
+    const values = definedValues(patch);
+    if (values.name !== undefined) values.name = values.name.trim();
+    await updatePersonRow(id, values, tx);
+  });
 }
 
 /** 删除用药人：级联删除配置和提醒；服用记录作为历史永久保留 */
 export async function deletePerson(id: string): Promise<void> {
-  await updateData((data) => {
-    const planIds = new Set(
-      data.plans.filter((p) => p.personId === id).map((p) => p.id),
-    );
-    return {
-      ...data,
-      persons: data.persons.filter((p) => p.id !== id),
-      plans: data.plans.filter((p) => p.personId !== id),
-      reminders: data.reminders.filter((r) => !planIds.has(r.planId)),
-    };
+  await mutate(async (tx) => {
+    const ownPlans = await listPlansForPerson(id, tx);
+    if (ownPlans.length > 0) {
+      await deleteRemindersForPlans(
+        ownPlans.map((p) => p.id),
+        tx,
+      );
+    }
+    await deletePlansForPerson(id, tx);
+    await deletePersonRow(id, tx);
   });
 }
 
@@ -1439,16 +936,16 @@ type PlanInput = Omit<MedicationPlan, "id" | "createdAt" | "updatedAt">;
 type PlanPatch = Partial<Omit<MedicationPlan, "id" | "createdAt">>;
 
 export async function addPlan(input: PlanInput): Promise<MedicationPlan> {
-  const now = nowIso();
   const plan: MedicationPlan = {
     ...input,
     id: genId(),
-    createdAt: now,
-    updatedAt: now,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
   };
-  await updateData((data) =>
-    syncRemindersIn({ ...data, plans: [...data.plans, plan] }),
-  );
+  await mutate(async (tx) => {
+    await insertPlan(plan, tx);
+    await regeneratePlanReminders(plan, tx);
+  });
   return plan;
 }
 
@@ -1458,25 +955,25 @@ export async function addPlan(input: PlanInput): Promise<MedicationPlan> {
  * 已服用/已跳过/已漏服的记录作为历史保留。
  */
 export async function updatePlan(id: string, patch: PlanPatch): Promise<void> {
-  await updateData((data) => {
-    const plans = data.plans.map((p) =>
-      p.id === id ? { ...p, ...patch, updatedAt: nowIso() } : p,
-    );
-    if (!plans.some((p) => p.id === id)) return data;
-    const reminders = data.reminders.filter(
-      (r) => !(r.planId === id && r.status === "pending"),
-    );
-    return syncRemindersIn({ ...data, plans, reminders });
+  await mutate(async (tx) => {
+    const current = await getPlan(id, tx);
+    if (!current) return;
+    const merged: MedicationPlan = {
+      ...current,
+      ...definedValues(patch),
+      updatedAt: nowIso(),
+    };
+    await updatePlanRow(id, merged, tx);
+    await regeneratePlanReminders(merged, tx);
   });
 }
 
 /** 删除配置：删除其提醒；服用记录作为历史永久保留 */
 export async function deletePlan(id: string): Promise<void> {
-  await updateData((data) => ({
-    ...data,
-    plans: data.plans.filter((p) => p.id !== id),
-    reminders: data.reminders.filter((r) => r.planId !== id),
-  }));
+  await mutate(async (tx) => {
+    await deleteRemindersForPlans([id], tx);
+    await deletePlanRow(id, tx);
+  });
 }
 
 /**
@@ -1484,7 +981,7 @@ export async function deletePlan(id: string): Promise<void> {
  *
  * 「为一位家人一次配多种药」会同时写好几笔配置。逐笔调 addPlan / updatePlan 的话，
  * 每笔都会触发一次全量通知重排（先 cancelAll 再逐条重排），选四种药就闪四次；
- * 这里合成一次写库 + 一次 syncRemindersIn，语义与逐笔调用完全一致。
+ * 这里合成一次事务 + 一次通知重排，语义与逐笔调用完全一致。
  */
 export async function applyPlanChanges(changes: {
   add?: PlanInput[];
@@ -1496,166 +993,75 @@ export async function applyPlanChanges(changes: {
   const remove = changes.remove ?? [];
   if (add.length === 0 && update.length === 0 && remove.length === 0) return;
   const now = nowIso();
-  const updatedIds = new Set(update.map((u) => u.id));
-  const removedIds = new Set(remove);
-  await updateData((data) => {
+  await mutate(async (tx) => {
     const created = add.map((input) => ({
       ...input,
       id: genId(),
       createdAt: now,
       updatedAt: now,
     }));
-    const plans = [
-      ...data.plans
-        .filter((p) => !removedIds.has(p.id))
-        .map((p) => {
-          const patch = update.find((u) => u.id === p.id)?.patch;
-          return patch ? { ...p, ...patch, updatedAt: now } : p;
-        }),
-      ...created,
-    ];
-    // 被改的配置：尚未处理的提醒作废，交给 syncRemindersIn 按新配置重生成
-    // （已服用 / 已跳过 / 已漏服作为历史保留，同 updatePlan）；
-    // 被删的配置连提醒一起走（同 deletePlan）
-    const reminders = data.reminders.filter(
-      (r) =>
-        !removedIds.has(r.planId) &&
-        !(updatedIds.has(r.planId) && r.status === "pending"),
-    );
-    return syncRemindersIn({ ...data, plans, reminders });
-  });
-}
+    for (const plan of created) await insertPlan(plan, tx);
 
-// ─── 提醒处理（核心闭环） ─────────────────────────────────
-
-/**
- * 已服用：生成服用记录并扣减库存。
- * 待服用和漏服状态都可以补记（漏服补记会标记 late）。
- */
-export async function takeReminder(id: string): Promise<void> {
-  const takenAt = nowIso();
-  await updateData((data) => {
-    const reminder = data.reminders.find((r) => r.id === id);
-    if (
-      !reminder ||
-      (reminder.status !== "pending" && reminder.status !== "missed")
-    ) {
-      return data;
+    const updatedPlans: MedicationPlan[] = [];
+    for (const item of update) {
+      const current = await getPlan(item.id, tx);
+      if (!current) continue;
+      const merged: MedicationPlan = {
+        ...current,
+        ...definedValues(item.patch),
+        updatedAt: now,
+      };
+      await updatePlanRow(item.id, merged, tx);
+      updatedPlans.push(merged);
     }
-    const medication = data.medications.find(
-      (m) => m.id === reminder.medicationId,
+
+    // 被删的配置连提醒一起走（同 deletePlan）
+    if (remove.length > 0) {
+      await deleteRemindersForPlans(remove, tx);
+      for (const id of remove) await deletePlanRow(id, tx);
+    }
+
+    // 被改的配置：尚未处理的提醒作废，交给按配置重生成（已处理的作为历史保留）
+    for (const plan of updatedPlans) {
+      await deletePendingRemindersForPlan(plan.id, tx);
+    }
+    const today = todayKey();
+    const range = generationWindow(today);
+    const windowReminders = await listRemindersInRange(
+      range.from,
+      range.to,
+      tx,
     );
-    const person = data.persons.find((p) => p.id === reminder.personId);
-    const t = getTranslator();
-    const usage: MedicationUsage = {
-      id: genId(),
-      reminderId: reminder.id,
-      planId: reminder.planId,
-      medicationId: reminder.medicationId,
-      personId: reminder.personId,
-      personName: person?.name ?? t("status.deletedPerson"),
-      medicationName: medication?.name ?? t("status.deletedMedication"),
-      time: reminder.time,
-      amount: reminder.doseAmount,
-      late: reminder.status === "missed",
-      takenAt,
-      createdAt: takenAt,
-    };
-    // 板装孪生：按泡罩顺序消耗槽位。槽位不足时 consumeSlotsIn 原样返回，
-    // 库存照扣 —— 服药闭环不因孪生数据不完整而阻断
-    return consumeSlotsIn(
-      {
-        ...data,
-        reminders: data.reminders.map((r) =>
-          r.id === id
-            ? { ...r, status: "taken" as const, resolvedAt: takenAt }
-            : r,
-        ),
-        usages: [usage, ...data.usages],
-        medications: data.medications.map((m) =>
-          m.id === reminder.medicationId
-            ? {
-                ...m,
-                remainingQuantity: Math.max(
-                  0,
-                  m.remainingQuantity - reminder.doseAmount,
-                ),
-                updatedAt: takenAt,
-              }
-            : m,
-        ),
-      },
-      reminder.medicationId,
-      reminder.doseAmount,
-      { usageId: usage.id, consumedAt: takenAt, consumedBy: usage.personName },
-    );
+    const changesToInsert = planReminderSync({
+      plans: [...created, ...updatedPlans],
+      windowReminders,
+      pending: [],
+      today,
+      now: new Date(),
+      newId: genId,
+      nowIso,
+    });
+    await insertReminders(changesToInsert.toInsert, tx);
   });
-}
-
-/**
- * 稍后提醒：把通知推迟 minutes 分钟后再次提醒，不改变提醒状态。
- * 重复设置以最后一次为准；`snoozedReminder(id)` 判断推迟是否仍然生效。
- *
- * minutes 省略时取设置里的 `snoozeMinutes`（设置页可改），所以调用方
- * 只需要传 id —— 间隔是全局偏好，不该在每个界面各写一个默认值。
- */
-export async function snoozeReminder(
-  id: string,
-  minutes?: number,
-): Promise<void> {
-  await updateData((data) => {
-    const delay = minutes ?? data.settings.snoozeMinutes;
-    const until = new Date(Date.now() + delay * 60 * 1000).toISOString();
-    return {
-      ...data,
-      reminders: data.reminders.map((r) =>
-        r.id === id && (r.status === "pending" || r.status === "missed")
-          ? { ...r, snoozedUntil: until }
-          : r,
-      ),
-    };
-  });
-}
-
-/** 该提醒是否处于「稍后提醒」中（推迟时刻还没到） */
-export function snoozedReminder(
-  reminder: Reminder,
-  now: Date = new Date(),
-): boolean {
-  if (!reminder.snoozedUntil) return false;
-  return new Date(reminder.snoozedUntil).getTime() > now.getTime();
-}
-
-/** 跳过本次提醒（待服用和漏服都可以标记为跳过），不扣减库存 */
-export async function skipReminder(id: string): Promise<void> {
-  const resolvedAt = nowIso();
-  await updateData((data) => ({
-    ...data,
-    reminders: data.reminders.map((r) =>
-      r.id === id && (r.status === "pending" || r.status === "missed")
-        ? { ...r, status: "skipped" as const, resolvedAt }
-        : r,
-    ),
-  }));
 }
 
 // ─── 设置偏好 ─────────────────────────────────────────────
 
-/** 更新设置偏好。走 updateData，写完由 postMutationHook 触发通知重排。 */
+/** 更新设置偏好。写完由 postMutationHook 触发通知重排。 */
 export async function updateSettings(patch: Partial<Settings>): Promise<void> {
-  await updateData((data) => {
+  await mutate(async (tx) => {
+    const current = await getSettings(tx);
     // 免打扰成对出现：只改一端等于禁用，统一补齐成 null
-    const quietStart = patch.quietStart ?? data.settings.quietStart;
-    const quietEnd = patch.quietEnd ?? data.settings.quietEnd;
-    return {
-      ...data,
-      settings: {
-        ...data.settings,
-        ...patch,
+    const quietStart = patch.quietStart ?? current.quietStart;
+    const quietEnd = patch.quietEnd ?? current.quietEnd;
+    await saveSettings(
+      {
+        ...definedValues(patch),
         quietStart: quietStart && quietEnd ? quietStart : null,
         quietEnd: quietStart && quietEnd ? quietEnd : null,
       },
-    };
+      tx,
+    );
   });
 }
 
@@ -1667,127 +1073,230 @@ export async function setQuietHours(
   await updateSettings({ quietStart: start, quietEnd: end });
 }
 
-// ─── 统计（纯函数，供「我的」页本周概览使用） ─────────────
-
-/** 一周服药统计：服药率 + 按时数 + 漏服数 */
-export type WeekStats = {
-  /** 服药率 0–100，整数 */
-  adherence: number;
-  /** 按时服用次数（status === "taken"） */
-  taken: number;
-  /** 漏服次数（status === "missed"） */
-  missed: number;
-  /** 本周应服总次数（所有非 pending 之外都算，pending 计入应服） */
-  planned: number;
-};
-
-/** 本周起始日（周一）的日期 key。ISO 周以周一为首日 */
-export function weekStartKey(today: string = todayKey()): string {
-  const [y, m, d] = today.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  // getDay(): 周日=0，转成「周一=0」再回退
-  const offset = (date.getDay() + 6) % 7;
-  return addDays(today, -offset);
-}
+// ─── 通知调度数据 ─────────────────────────────────────────
 
 /**
- * 统计从 `from`（含）到 `to`（含）的服药情况。
+ * 通知调度所需的全部数据（按需加载，不再整份读入内存）。
  *
- * 纯函数：不碰数据库，输入输出都是数字，方便后续补单元测试。
- * 「应服」= 该区间内所有提醒（pending 也算），
- * 「按时」= 已服用，「漏服」= 已判漏服，跳过既不计按时也不计漏服。
+ * `history` 是漏服连击判定的输入：它必须覆盖「从最近一次提醒往回数」的
+ * 完整视野，所以取整个保留窗口（与旧版全量 reminders 等价），仍然是有界查询。
  */
-export function weekStats(
-  reminders: Reminder[],
-  from: string,
-  to: string,
-): WeekStats {
-  const inRange = reminders.filter((r) => r.date >= from && r.date <= to);
-  const taken = inRange.filter((r) => r.status === "taken").length;
-  const missed = inRange.filter((r) => r.status === "missed").length;
-  const planned = inRange.length;
+export type ScheduleData = {
+  settings: Settings;
+  /** 待处理提醒（调度对象） */
+  pending: Reminder[];
+  /** 漏服连击判定用的提醒历史（保留窗口内） */
+  history: Reminder[];
+  medications: Map<string, Medication>;
+  persons: Map<string, Person>;
+};
+
+export async function loadScheduleData(): Promise<ScheduleData> {
+  const today = todayKey();
+  const range = generationWindow(today);
+  const [settings, pending, history] = await Promise.all([
+    getSettings(),
+    listPendingReminders(),
+    listRemindersInRange(addDays(today, -REMINDER_KEEP_DAYS), range.to),
+  ]);
+  const medicationIds = new Set(pending.map((r) => r.medicationId));
+  const personIds = new Set([
+    ...pending.map((r) => r.personId),
+    ...history.map((r) => r.personId),
+  ]);
+  const [medicationRows, personRows] = await Promise.all([
+    listMedicationsByIds([...medicationIds]),
+    listPersonsByIds([...personIds]),
+  ]);
   return {
-    adherence: planned > 0 ? Math.round((taken / planned) * 100) : 0,
-    taken,
-    missed,
-    planned,
+    settings,
+    pending,
+    history,
+    medications: new Map(medicationRows.map((m) => [m.id, m])),
+    persons: new Map(personRows.map((p) => [p.id, p])),
   };
 }
 
+// ─── 查询 Hook ────────────────────────────────────────────
+
+export type QueryState<T> = {
+  data: T;
+  /** 首屏加载标志。加载没结束时不显示 empty 态（界面四态约定） */
+  loading: boolean;
+  reload: () => void;
+};
+
 /**
- * 找出「连续漏服达到阈值」的成员。
+ * 按需查询：loader 里只读这一屏要的数据。
  *
- * 纯函数：按成员分组后，从最近的提醒往回数连续 missed 的条数，
- * 一旦遇到 taken / skipped / pending 就中断 —— pending 也中断，
- * 因为「还没到点的剂量」不代表中间断过。
+ * `deps` 是 loader 依赖的值（如日期），变化即自动重查；`reload` 供
+ * `useFocusEffect` 在页面重新聚焦时手动刷新。loader 抛错时保留上一份
+ * 数据并结束 loading —— 屏幕走 empty / error 态而不是白屏。
  *
- * 返回达到 `threshold` 的成员 id 集合；threshold ≤ 0 表示不提醒（设置里关闭）。
+ * `loading` 只是**首屏**加载标志：聚焦刷新 / deps 变化都不翻牌，否则屏幕
+ * 会在每次 reload 时闪一下空态。并发请求用序号防乱序（只认最后一次）。
  */
-export function missedStreaks(
-  reminders: Reminder[],
-  threshold: number,
-): Set<string> {
-  const result = new Set<string>();
-  if (threshold <= 0) return result;
-
-  // 最新的排在前面，倒序扫 = 从现在往回数
-  const byPerson = new Map<string, Reminder[]>();
-  for (const reminder of reminders) {
-    const list = byPerson.get(reminder.personId);
-    if (list) list.push(reminder);
-    else byPerson.set(reminder.personId, [reminder]);
-  }
-
-  for (const [personId, list] of byPerson) {
-    // oxlint-disable-next-line unicorn/no-array-sort
-    list.sort((a, b) =>
-      `${b.date}|${b.time}`.localeCompare(`${a.date}|${a.time}`),
-    );
-    let streak = 0;
-    for (const reminder of list) {
-      if (reminder.status === "missed") {
-        streak += 1;
-        if (streak >= threshold) {
-          result.add(personId);
-          break;
-        }
-      } else if (reminder.status !== "pending") {
-        // 已服用或已跳过 → 连续记录被打断
-        streak = 0;
-      } else {
-        // 未来待服用不计入，也不打断（今天还没到的剂量不算"断过"）
-        break;
-      }
-    }
-  }
-  return result;
-}
-
-// ─── React Hook ───────────────────────────────────────────
-
-export function useAppData() {
-  const [data, setData] = useState<AppData>(EMPTY_DATA);
+function useQuery<T>(
+  loader: () => Promise<T>,
+  deps: DependencyList,
+  initial: T,
+): QueryState<T> {
+  const [data, setData] = useState<T>(initial);
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false);
+  const seqRef = useRef(0);
 
-  const reload = useCallback(async () => {
-    const raw = await readData();
-    const synced = syncRemindersIn(raw);
-    if (synced !== raw) {
-      await writeData(synced);
-      setData(synced);
-    } else {
-      setData(raw);
-    }
-    setLoading(false);
-  }, []);
+  const load = useCallback(() => {
+    const seq = (seqRef.current += 1);
+    let cancelled = false;
+    if (!loadedRef.current) setLoading(true);
+    // async IIFE 而不是 promise 链：then/catch 链会撞 promise 插件的
+    // always-return / no-callback-in-promise，可读性也更直白
+    void (async () => {
+      try {
+        const result = await loader();
+        // 只认最后一次请求：卸载 / deps 变化取消了它，或有更新的请求在飞，
+        // 旧响应直接丢弃（否则聚焦刷新会把自动重查的结果覆盖成旧数据）
+        if (!cancelled && seq === seqRef.current) setData(result);
+      } catch (error) {
+        // 读失败保留上一份数据：屏幕走 empty / error 态而不是白屏
+        console.warn("数据读取失败", error);
+      }
+      if (!cancelled && seq === seqRef.current) {
+        loadedRef.current = true;
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // deps 由各 Hook 的入参决定，loader 是每次渲染新建的闭包，
+    // 不能进依赖数组（否则每次渲染都重查）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 
-  // 首次挂载时从 SQLite 载入数据 —— 这正是 effect 的用途（与外部系统同步）。
-  // reload() 是 async，setState 发生在 await 之后的微任务里，并非同步调用，
+  // 首次挂载与 deps 变化时从 SQLite 载入 —— 这正是 effect 的用途（与外部系统同步）。
+  // load() 是 async，setState 发生在 await 之后的微任务里，并非同步调用，
   // 不会引发级联渲染；react/set-state-in-effect 看不穿 async 边界，此处为误报
   // （oxlint 行内禁用对该规则无效，故在 .oxlintrc.json 用 overrides 关闭）。
   useEffect(() => {
-    reload();
-  }, [reload]);
+    const cancel = load();
+    return cancel;
+  }, [load]);
 
-  return { ...data, loading, reload };
+  const reload = useCallback(() => {
+    load();
+  }, [load]);
+
+  return { data, loading, reload };
+}
+
+/** 先同步提醒（幂等）再读：提醒类查询的统一入口 */
+async function syncThen<T>(read: () => Promise<T>): Promise<T> {
+  await syncReminders();
+  return read();
+}
+
+// ─── 按屏幕的查询 Hook ────────────────────────────────────
+
+/** 药品全集：药品库列表、首页库存速览、各表单的选项都靠它 */
+export function useMedications(): QueryState<Medication[]> {
+  return useQuery(listMedications, [], []);
+}
+
+export function usePersons(): QueryState<Person[]> {
+  return useQuery(listPersons, [], []);
+}
+
+/** 用药配置全集：库存估算（stockSummary）要按药聚合全部生效配置 */
+export function usePlans(): QueryState<MedicationPlan[]> {
+  return useQuery(listPlans, [], []);
+}
+
+export function useSettings(): QueryState<Settings> {
+  return useQuery(getSettings, [], DEFAULT_SETTINGS);
+}
+
+export function useMedication(
+  id: string | undefined,
+): QueryState<Medication | null> {
+  return useQuery(async () => (id ? getMedication(id) : null), [id], null);
+}
+
+export function usePerson(id: string | undefined): QueryState<Person | null> {
+  return useQuery(async () => (id ? getPerson(id) : null), [id], null);
+}
+
+export function usePlan(
+  id: string | undefined,
+): QueryState<MedicationPlan | null> {
+  return useQuery(async () => (id ? getPlan(id) : null), [id], null);
+}
+
+/** 某一天的提醒（首页今天 / 服药记录按日期翻页） */
+export function useRemindersForDate(date: string): QueryState<Reminder[]> {
+  return useQuery(() => syncThen(() => listRemindersForDate(date)), [date], []);
+}
+
+/** 未处理的提醒（pending / missed）：首页牌堆 */
+export function useOpenReminders(): QueryState<Reminder[]> {
+  return useQuery(() => syncThen(listOpenReminders), [], []);
+}
+
+/** 保留窗口内的提醒历史：「我的」页本周概览与漏服徽章 */
+export function useReminderHistory(): QueryState<Reminder[]> {
+  return useQuery(
+    () =>
+      syncThen(async () => {
+        const today = todayKey();
+        return listRemindersInRange(
+          addDays(today, -REMINDER_KEEP_DAYS),
+          addDays(today, GENERATE_AHEAD_DAYS - 1),
+        );
+      }),
+    [],
+    [],
+  );
+}
+
+/** 最近 limit 条服用记录（导出报表） */
+export function useRecentUsages(limit: number): QueryState<MedicationUsage[]> {
+  return useQuery(() => listRecentUsages(limit), [limit], []);
+}
+
+/** 某药品的服用记录（孪生页解析槽位来源） */
+export function useUsagesForMedication(
+  id: string | undefined,
+): QueryState<MedicationUsage[]> {
+  return useQuery(
+    async () => (id ? listUsagesForMedication(id) : []),
+    [id],
+    [],
+  );
+}
+
+/** 某药品的板（孪生页 / 详情页 / 药品表单的孪生判定） */
+export function usePacksForMedication(
+  id: string | undefined,
+): QueryState<BlisterPack[]> {
+  return useQuery(async () => (id ? listPacksForMedication(id) : []), [id], []);
+}
+
+/** 某药品的全部槽位（孪生页网格 / 详情页孪生概览） */
+export function useSlotsForMedication(
+  id: string | undefined,
+): QueryState<BlisterSlot[]> {
+  return useQuery(async () => (id ? listSlotsForMedication(id) : []), [id], []);
+}
+
+export function usePlansForMedication(
+  id: string | undefined,
+): QueryState<MedicationPlan[]> {
+  return useQuery(async () => (id ? listPlansForMedication(id) : []), [id], []);
+}
+
+export function usePlansForPerson(
+  id: string | undefined,
+): QueryState<MedicationPlan[]> {
+  return useQuery(async () => (id ? listPlansForPerson(id) : []), [id], []);
 }

@@ -36,7 +36,7 @@ import {
   setQuietHours,
   timeToDate,
   updateSettings,
-  useAppData,
+  useSettings,
 } from "@/lib/store";
 
 /** 免打扰的默认区间：22:00–07:00（跨零点） */
@@ -72,7 +72,8 @@ export function Settings() {
   const { t, language, setLanguage } = useI18n();
   const picker = pickerFormat(language);
   const exportReport = useMedicationExport();
-  const { settings, reload } = useAppData();
+  // 设置是单行表：这一屏只读这一份偏好
+  const { data: settings, reload } = useSettings();
   const [permissionGranted, setPermissionGranted] = useState(true);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showQuietHours, setShowQuietHours] = useState(false);

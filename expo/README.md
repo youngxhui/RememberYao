@@ -35,9 +35,15 @@ src/
   screens/
     home/                  首页实现：巨型日期、成员筛选、导轨时间线、库存速览、提醒卡堆叠
   lib/
-    store.ts               数据层：实体、AsyncStorage 持久化、提醒生成与状态机
+    entities.ts            领域层：实体类型、常量与纯函数（日期 / 库存 / 孪生 / 统计）
+    store.ts               数据层：写操作编排（读所需 → 纯函数决策 → 事务写差异）、
+                           提醒同步、按屏幕的查询 Hook、通知调度数据
     notifications.ts       通知层：权限、调度、操作按钮、响应处理
     onboarding.ts          引导页“已看过”标记
+  db/
+    schema.ts              SQLite 表定义（Drizzle）
+    client.ts              开库 + 版本不符即整库重建
+    repo.ts                仓储层：按实体 / 按查询的读写 + 事务，行 ↔ 实体映射
   hooks/
     use-onboarding-gate.ts 首次启动引导页门禁
   components/              通用组件（头像、进度条、服药时间线、提醒卡堆叠、Tab 栏等）
@@ -53,6 +59,14 @@ maestro/                   端到端测试
 - `MedicationPlan` 用药配置：药品 × 用药人 × 剂量 × 每日时间 × 起止日期 × 启用开关
 - `Reminder` 提醒：由配置按天生成（提前 7 天），状态 `pending → taken / skipped / missed`；`snoozedUntil` 记录「稍后提醒」的推迟时刻
 - `MedicationUsage` 服用记录：永久保留（含名称快照），删除药品或用药人不清除历史
+
+## 数据层
+
+本地 SQLite（`expo-sqlite` + Drizzle），**按实体、按需读写**：屏幕经 `store.ts` 的
+查询 Hook 只读自己那份数据（`useMedications` / `useRemindersForDate` / `useMedication(id)` …），
+写操作是一个事务只改改动到的行（`repo.ts` 的 granular 函数 + `withTransaction`）。
+提醒生成 / 库存扣减 / 孪生建板是纯函数（`entities.ts` 与 `store.ts`）。详见
+[docs/conventions/database.md](docs/conventions/database.md)。
 
 ## 提醒生命周期
 

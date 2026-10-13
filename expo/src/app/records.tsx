@@ -6,13 +6,42 @@ import { DoseTimeline } from "@/components/dose-timeline";
 import { ProgressBar } from "@/components/progress-bar";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, type Language } from "@/i18n";
-import { addDays, todayKey, useAppData } from "@/lib/store";
+import {
+  addDays,
+  todayKey,
+  useMedications,
+  usePersons,
+  useRemindersForDate,
+} from "@/lib/store";
 
 export default function RecordsScreen() {
   const theme = useTheme();
   const { language, t } = useI18n();
-  const { reminders, medications, persons, reload } = useAppData();
   const [date, setDate] = useState(todayKey());
+  // 按日期读当天的提醒，药品 / 成员只读这一屏要的集合
+  const {
+    data: reminders,
+    loading: remindersLoading,
+    reload: reloadReminders,
+  } = useRemindersForDate(date);
+  const {
+    data: medications,
+    loading: medicationsLoading,
+    reload: reloadMedications,
+  } = useMedications();
+  const {
+    data: persons,
+    loading: personsLoading,
+    reload: reloadPersons,
+  } = usePersons();
+  // 首屏加载没结束时不显示 empty 态（界面四态约定）：日期栏照常渲染，
+  // 统计卡与时间线等数据就绪
+  const loading = remindersLoading || medicationsLoading || personsLoading;
+  const reload = useCallback(() => {
+    reloadReminders();
+    reloadMedications();
+    reloadPersons();
+  }, [reloadReminders, reloadMedications, reloadPersons]);
 
   useFocusEffect(
     useCallback(() => {
@@ -21,12 +50,7 @@ export default function RecordsScreen() {
   );
 
   const today = todayKey();
-  const dayReminders = reminders
-    .filter((r) => r.date === date)
-    // Hermes 没有 ES2023 的 toSorted()（运行时是 undefined，会红屏）；
-    // 上游是 filter 产物，原地排序不会改动 store 数据
-    // oxlint-disable-next-line unicorn/no-array-sort
-    .sort((a, b) => a.time.localeCompare(b.time));
+  const dayReminders = reminders;
 
   const taken = dayReminders.filter((r) => r.status === "taken").length;
   const missed = dayReminders.filter((r) => r.status === "missed").length;
@@ -69,7 +93,7 @@ export default function RecordsScreen() {
               />
             </Row>
 
-            {total > 0 ? (
+            {!loading && total > 0 ? (
               <Column
                 spacing={10}
                 style={{
@@ -100,14 +124,16 @@ export default function RecordsScreen() {
               </Column>
             ) : null}
 
-            <DoseTimeline
-              reminders={dayReminders}
-              medications={medications}
-              persons={persons}
-              interactive={date === today}
-              onChanged={reload}
-              emptyText={t("records.empty")}
-            />
+            {!loading ? (
+              <DoseTimeline
+                reminders={dayReminders}
+                medications={medications}
+                persons={persons}
+                interactive={date === today}
+                onChanged={reload}
+                emptyText={t("records.empty")}
+              />
+            ) : null}
           </Column>
         </ScrollView>
       </Host>

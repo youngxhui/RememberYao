@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useCallback } from "react";
 import {
   Pressable as RNPressable,
@@ -17,7 +17,12 @@ import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import { sendTestNotification } from "@/lib/notifications";
-import { useAppData } from "@/lib/store";
+import {
+  useMedications,
+  useOpenReminders,
+  usePersons,
+  usePlans,
+} from "@/lib/store";
 import { withAlpha } from "@/utils/color";
 
 /**
@@ -30,14 +35,36 @@ export default function PlaygroundScreen() {
   const router = useRouter();
   const t = useTranslation();
   const insets = useSafeAreaInsets();
-  const { medications, persons, plans, reminders, loading, reload } =
-    useAppData();
-
-  useFocusEffect(
-    useCallback(() => {
-      reload();
-    }, [reload]),
-  );
+  // 按需读取：调试屏陈列药品档案与牌堆，各取自己那份
+  const {
+    data: medications,
+    loading: medicationsLoading,
+    reload: reloadMedications,
+  } = useMedications();
+  const {
+    data: persons,
+    loading: personsLoading,
+    reload: reloadPersons,
+  } = usePersons();
+  const {
+    data: plans,
+    loading: plansLoading,
+    reload: reloadPlans,
+  } = usePlans();
+  const {
+    data: reminders,
+    loading: remindersLoading,
+    reload: reloadReminders,
+  } = useOpenReminders();
+  const loading =
+    medicationsLoading || personsLoading || plansLoading || remindersLoading;
+  // 牌堆里标记服用后刷新这一屏的查询（写操作已落库，重读即可）
+  const reload = useCallback(() => {
+    reloadMedications();
+    reloadPersons();
+    reloadPlans();
+    reloadReminders();
+  }, [reloadMedications, reloadPersons, reloadPlans, reloadReminders]);
 
   const entries = medications.map((medication) =>
     archiveEntryFromMedication(medication, t),

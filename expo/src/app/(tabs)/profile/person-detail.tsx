@@ -21,7 +21,9 @@ import {
   deletePerson,
   medicationUnitLabel,
   planStatusLabel,
-  useAppData,
+  useMedications,
+  usePerson,
+  usePlansForPerson,
   type Medication,
   type MedicationPlan,
 } from "@/lib/store";
@@ -45,7 +47,28 @@ export default function PersonDetailScreen() {
   const theme = useTheme();
   const t = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { persons, medications, plans, loading, reload } = useAppData();
+  // 按需读取：这一屏只要这位用药人、他的配置，以及配置行里要显示的药名
+  const {
+    data: person,
+    loading: personLoading,
+    reload: reloadPerson,
+  } = usePerson(id);
+  const {
+    data: plans,
+    loading: plansLoading,
+    reload: reloadPlans,
+  } = usePlansForPerson(id);
+  const {
+    data: medications,
+    loading: medicationsLoading,
+    reload: reloadMedications,
+  } = useMedications();
+  const loading = personLoading || plansLoading || medicationsLoading;
+  const reload = useCallback(() => {
+    reloadPerson();
+    reloadPlans();
+    reloadMedications();
+  }, [reloadPerson, reloadPlans, reloadMedications]);
   const [confirmDeletePerson, setConfirmDeletePerson] = useState(false);
 
   useFocusEffect(
@@ -55,7 +78,7 @@ export default function PersonDetailScreen() {
     }, [reload]),
   );
 
-  // 首屏还在读 SQLite：persons 是空的，直接渲染会闪一下「用药人不存在」
+  // 首屏还在读 SQLite：直接渲染会闪一下「用药人不存在」
   if (loading) {
     return (
       <>
@@ -66,8 +89,6 @@ export default function PersonDetailScreen() {
       </>
     );
   }
-
-  const person = persons.find((p) => p.id === id);
 
   if (!person) {
     return (
@@ -90,7 +111,7 @@ export default function PersonDetailScreen() {
     );
   }
 
-  const personPlans = plans.filter((p) => p.personId === person.id);
+  const personPlans = plans;
 
   // 基本信息行：只列已填写的项，未填项不占位（性别/年龄/过敏/基础病都可选）
   const basicRows: { label: string; value: string }[] = [];

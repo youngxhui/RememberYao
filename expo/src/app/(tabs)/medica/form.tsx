@@ -42,7 +42,9 @@ import {
   medicationTypeLabel,
   medicationUnitLabel,
   updateMedication,
-  useAppData,
+  useMedication,
+  usePersons,
+  usePacksForMedication,
   type MedicationCategory,
   type MedicationInput,
   type MedicationType,
@@ -75,12 +77,14 @@ export default function MedicationFormScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditing = Boolean(id);
-  const { medications, persons, packs, loading } = useAppData();
-  const existing = id ? medications.find((m) => m.id === id) : undefined;
+  // 按需读取：编辑态只要这味药 + 它有没有建孪生；成员名单给「还没添加成员」提示用
+  const { data: medication, loading: medicationLoading } = useMedication(id);
+  const { data: packs, loading: packsLoading } = usePacksForMedication(id);
+  const { data: persons, loading: personsLoading } = usePersons();
+  const loading = medicationLoading || packsLoading || personsLoading;
+  const existing = medication ?? undefined;
   /** 这台药已经建了泡罩孪生：包装形式锁死、规格只影响后续新板 */
-  const hasTwin = existing
-    ? packs.some((p) => p.medicationId === existing.id)
-    : false;
+  const hasTwin = existing ? packs.length > 0 : false;
 
   // 两列字段的固定宽度：卡片内可用宽减去列间距再对半。universal style 没有
   // flex，等分只能按实测内容宽算（同 profile 的三等分统计卡）
@@ -144,7 +148,7 @@ export default function MedicationFormScreen() {
     if (!id) return;
     if (filledRef.current || loading) return;
     filledRef.current = true;
-    const current = medications.find((m) => m.id === id);
+    const current = medication;
     if (current) {
       name.value = current.name;
       specification.value = current.specification;
@@ -165,7 +169,7 @@ export default function MedicationFormScreen() {
     }
     setLoaded(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, medications, loading]);
+  }, [id, medication, loading]);
 
   const save = async () => {
     if (!name.value.trim()) {

@@ -185,9 +185,9 @@ export const blisterSlots = sqliteTable(
  * 设置偏好：单行表（`id` 恒为 "singleton"）。
  *
  * 单独一张表而不是挂到任何业务表上：它是全局偏好，不属于某个药品或成员；
- * 全量快照的 `replaceAll` 对单行表也天然幂等。
+ * 仓储层的 `saveSettings` 对单行表天然幂等（upsert）。
  * 每列都带默认值，写库时不给值也不会是 NULL；这些默认值同时是
- * `store.ts` 里 `DEFAULT_SETTINGS` 的单一来源，改一处要同步另一处。
+ * `src/lib/entities.ts` 里 `DEFAULT_SETTINGS` 的单一来源，改一处要同步另一处。
  */
 export const settings = sqliteTable("settings", {
   /** 恒为 "singleton"，保证表里只有一行 */

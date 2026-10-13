@@ -49,7 +49,12 @@ import {
   todayKey,
   undoUsage,
   voidBlisterSlot,
-  useAppData,
+  useMedication,
+  usePersons,
+  usePacksForMedication,
+  usePlansForMedication,
+  useSlotsForMedication,
+  useUsagesForMedication,
   type BlisterPack,
   type BlisterSlot,
   type Medication,
@@ -100,23 +105,66 @@ function buildPillLook(medication: Medication): PillLook {
  * 都是 RN 视图，这是组件本身的契约，不是绕路。
  *
  * 未开启孪生的板装药（存量数据）在这一屏承载开启表单：填规格 → 按当前
- * 剩余量补历史消耗格 → 立即可用。分配算法见 store.ts 的 openBlisterTwinIn。
+ * 剩余量补历史消耗格 → 立即可用。分配算法见 store.ts 的 planTwinBuild。
  */
 export function MedicationTwin() {
   const t = useTranslation();
   const theme = useTheme();
   const { language } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // 按需读取：孪生页只要这味药、它的板 / 槽位 / 配置 / 服用记录，以及成员名单
   const {
-    medications,
-    persons,
-    plans,
-    packs,
-    blisterSlots,
-    usages,
-    loading,
-    reload,
-  } = useAppData();
+    data: medication,
+    loading: medicationLoading,
+    reload: reloadMedication,
+  } = useMedication(id);
+  const {
+    data: packs,
+    loading: packsLoading,
+    reload: reloadPacks,
+  } = usePacksForMedication(id);
+  const {
+    data: blisterSlots,
+    loading: slotsLoading,
+    reload: reloadSlots,
+  } = useSlotsForMedication(id);
+  const {
+    data: plans,
+    loading: plansLoading,
+    reload: reloadPlans,
+  } = usePlansForMedication(id);
+  const {
+    data: usages,
+    loading: usagesLoading,
+    reload: reloadUsages,
+  } = useUsagesForMedication(id);
+  const {
+    data: persons,
+    loading: personsLoading,
+    reload: reloadPersons,
+  } = usePersons();
+  const loading =
+    medicationLoading ||
+    packsLoading ||
+    slotsLoading ||
+    plansLoading ||
+    usagesLoading ||
+    personsLoading;
+  const reload = useCallback(() => {
+    reloadMedication();
+    reloadPacks();
+    reloadSlots();
+    reloadPlans();
+    reloadUsages();
+    reloadPersons();
+  }, [
+    reloadMedication,
+    reloadPacks,
+    reloadSlots,
+    reloadPlans,
+    reloadUsages,
+    reloadPersons,
+  ]);
 
   const [selectedSeq, setSelectedSeq] = useState(1);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
@@ -139,7 +187,7 @@ export function MedicationTwin() {
     }, [reload]),
   );
 
-  // 首屏还在读 SQLite：此时 medications 是空的，直接渲染会闪一下「药品不存在」
+  // 首屏还在读 SQLite：直接渲染会闪一下「药品不存在」
   if (loading) {
     return (
       <>
@@ -149,7 +197,6 @@ export function MedicationTwin() {
     );
   }
 
-  const medication = medications.find((m) => m.id === id);
   if (!medication) {
     return (
       <>

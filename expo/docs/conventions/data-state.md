@@ -2,15 +2,17 @@
 
 ## 单点原则
 
-所有状态与持久化集中在 `src/lib/store.ts`，通知集中在 `src/lib/notifications.ts`。**屏幕永远不直接碰 AsyncStorage。**
+所有状态与持久化集中在 `src/lib/store.ts`（编排）+ `src/db/repo.ts`（读写），通知集中在 `src/lib/notifications.ts`。**屏幕永远不直接碰 SQLite。**
 
 数据流：
 
 ```
-屏幕  →  useAppData()         读
-屏幕  →  store 的写操作        写
+屏幕  →  useXxx() 查询 Hook      读（只读这一屏要的）
+屏幕  →  store 的写操作          写（一个事务，只写改动到的行）
 写操作完成  →  setPostMutationHook  →  syncNotificationsWithStore()
 ```
+
+实体定义、常量与纯函数在 `src/lib/entities.ts`，store 原样再导出，屏幕的 import 路径不变。
 
 ## 实体
 
@@ -30,29 +32,50 @@
 
 ## 读取
 
-```tsx
-const { medications, persons, plans, reminders, usages, loading, reload } = useAppData();
+按屏幕选 Hook，不要图省事一次拉全集：
 
-useFocusEffect(useCallback(() => { reload(); }, [reload]));
+```tsx
+const { data: medications, loading, reload } = useMedications();
+const { data: reminders } = useRemindersForDate(date);
+const { data: medication } = useMedication(id);
 ```
 
 屏幕在 `useFocusEffect` 里调 `reload()` 刷新，不要自己起 `useEffect` 拉数据。
 
+| Hook | 读什么 |
+| --- | --- |
+| `useMedications` / `usePersons` / `usePlans` | 全集（这几张表小，且屏幕本来就要按集合聚合） |
+| `useMedication(id)` / `usePerson(id)` / `usePlan(id)` | 单个实体 |
+| `useRemindersForDate(date)` / `useOpenReminders()` / `useReminderHistory()` | 按日期 / 未处理 / 保留窗口 |
+| `usePlansForMedication(id)` / `usePlansForPerson(id)` | 按外键 |
+| `usePacksForMedication(id)` / `useSlotsForMedication(id)` / `useUsagesForMedication(id)` | 孪生三张表 |
+| `useSettings()` / `useRecentUsages(limit)` | 单行设置 / 最近服用记录 |
+
 `loading` 是**首屏**加载标志。首屏加载没结束时不显示 empty 态（见 [ui-design.md](./ui-design.md#界面四态)）。
+
+提醒类查询读数据前会先跑 `syncReminders()`（幂等，有变更才落库），所以界面看到的
+漏服判定、补生成的提醒始终是最新的。
 
 ## 写入
 
-写操作统一走 `updateData(mutator)` 这类入口，落盘通过 `writeQueue` 串行化，避免并发写覆盖。磁盘写入失败时保留内存态并在下次变更时重试，不丢用户操作。
+写操作统一走 store 导出的 `addXxx` / `updateXxx` / `deleteXxx` / `takeReminder` 等入口。
+每个入口内部是**一个事务**（`mutate()` → `withTransaction`）：
 
-**任何写操作后必须通过 `setPostMutationHook` 触发 `syncNotificationsWithStore()` 重排通知**。改 store 时不要绕过这个钩子 —— 绕过它会出现"改了吃药时间但通知还是老时间"的静默 bug。
+1. 在事务里只读这一操作用到的行；
+2. 纯函数算出新状态（`planReminderSync` / `planTwinBuild` / `planPackAppend`）；
+3. 只写改动到的行（insert / update / delete）；
+4. 事务提交后由 `setPostMutationHook` 触发 `syncNotificationsWithStore()` 重排通知。
+
+写操作经写队列串行，磁盘失败整体回滚并记日志，不丢用户操作、不留半份数据。
+**改 store 时不要绕过通知重排钩子** —— 绕过它会出现"改了吃药时间但通知还是老时间"的静默 bug。
 
 ## 纯函数
 
-`store.ts` 里的提醒生成、库存扣减、状态迁移是**纯函数**。新增逻辑尽量保持纯函数形态：
+`src/lib/entities.ts` 与 `store.ts` 里的提醒生成、库存扣减、状态迁移是**纯函数**。新增逻辑尽量保持纯函数形态：
 
-- 输入输出明确，不碰 `AsyncStorage`、不发通知、不调 `setState`。
+- 输入输出明确，不碰 SQLite、不发通知、不调 `setState`。
 - 便于后续补单元测试（这是当前待办里优先级最高的一项）。
-- 反例：`migrateLegacy()` 直接读 AsyncStorage，是迁移用的，不属于业务纯函数。
+- 现有纯函数：`planReminderSync`（提醒补生成 + 漏服判定）、`planTwinBuild` / `planPackAppend`（孪生建板 / 补板）、`stockSummary`、`weekStats`、`missedStreaks`、`blisterSummary`、`nextFullSlots`。
 
 ## 日期与时间
 
@@ -89,7 +112,7 @@ pending ──→ taken    已服用
 
 ### 提醒生命周期
 
-1. 配置保存后生成「今天起 7 天」的提醒，并调度本地通知。
+1. 配置保存后生成「今天起 7 天」的提醒（只补缺失的），并调度本地通知。
 2. 到点推送；通知栏可直接「已服用 / 跳过」。
 3. 修改配置的时间/剂量或停用：废弃该配置**未处理**的提醒并按新配置重新生成，已处理的记录保留。
 4. App 回前台（`AppState === "active"`）兜底同步一次 —— 见 `src/app/_layout.tsx`。
@@ -103,6 +126,7 @@ pending ──→ taken    已服用
 - `initNotifications()` 在根布局启动时调用一次。
 - `addNotificationResponseListener()` 返回的订阅必须 remove，见 `_layout.tsx` 的 cleanup。
 - 用户在通知栏点了「已服用」时，走的是和界面点击同一套写操作，保证库存扣减与记录一致。
+- 调度数据经 `loadScheduleData()` 按需加载：设置 + 待处理提醒 + 漏服连击判定所需的提醒历史（保留窗口内）+ 这些提醒引用的药品 / 用药人。不整份读应用数据。
 
 ## 库存
 
@@ -167,7 +191,7 @@ maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 →
 | `no-unused-vars` | `store.ts` `migrateLegacy` | 删除确认无用的迁移死代码 |
 | `no-unused-vars` | `persons.tsx` `Avatar` 导入 | 删除无用导入 |
 | `no-unused-vars` | `home/index.tsx` | 将已有进度、通知与库存组件接回页面，而不是删除实现 |
-| `react(set-state-in-effect)` | `store.ts` `useAppData` | 误报，按文件关闭并注明原因 |
+| `react(set-state-in-effect)` | `store.ts` 查询 Hook 的首次载入 | 误报，按文件关闭并注明原因 |
 | `react(immutability)` | 使用 universal `useNativeState` 的文件 | 误报，按文件关闭并注明原因 |
 | `promise(always-return)` | `notifications.ts`、`use-onboarding-gate.ts` | 补全回调返回值 |
 | `unicorn(no-array-sort)` | `home` / `records` | 保持原地 `.sort()` + 行内禁用：**Hermes 没有 `toSorted()`**，按规则改过去会 `TypeError` 红屏（用 app 实际链接的 hermes 二进制实测 `typeof Array.prototype.toSorted === "undefined"`），上游是 `filter()` 产物，原地排序不改 store |
