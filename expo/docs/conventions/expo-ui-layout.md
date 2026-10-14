@@ -38,7 +38,7 @@
 - 整屏是 Reanimated 手势 / `BlurView` / `expo-linear-gradient` 组合（提醒卡堆叠）；
 - 需要横向嵌套滚动、按下反馈、`Pressable` 级别的 testID。
 
-现状：`src/app/(tabs)/playground`（整屏 Reanimated 手势组件）。这类屏幕要在文件头注释
+现状：`src/app/playground`（整屏 Reanimated 手势组件）。这类屏幕要在文件头注释
 写清「为什么不是 Host」，避免后来者以为漏改了。图标走 `expo-symbols` 的
 `src/components/symbol-icon.tsx`（Android 需另配 Material 图标）。
 
@@ -274,7 +274,7 @@ type MeasuredWidth = {
 
 ## 10. 当前项目参考实现
 
-- `src/app/(tabs)/playground`：整屏纯 RN 的例子（Reanimated 提醒卡堆叠手势、横向 chip 滚动）。
+- `src/app/playground`：整屏纯 RN 的例子（Reanimated 提醒卡堆叠手势、横向 chip 滚动）。
 - `src/screens/home`、`src/screens/profile`：Expo UI 为主的整屏（`Host` + 原生 `ScrollView`）。universal style 没有 flex，通栏行靠 `Spacer flexible` 撑开，宽度取值都是第 4 节的 `useExpoUiContentWidth` hook（`src/hooks/use-expo-ui-content-width.ts`）。
   - 首页有两块 island，都靠 `containerWidth` 喂实测宽度：`ReminderCardStackExpoUI`（Reanimated 绝对位移）与 `StockPanelExpoUI`（行内药名 `flex: 1`）。屏幕左右边距统一挂在外层 `Column` 的 `paddingHorizontal` 上，两块的 `islandWidth` 就等于同一个值。
   - 我的页的 island 是 Mini Archive（`MiniArchiveExpoUI`）与成员卡头像（`ListItem` 的 leading 槽自行 `RNHostView` 托管）；三等分统计卡按实测内容宽度算固定卡宽。

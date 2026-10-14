@@ -61,7 +61,7 @@ maestro test maestro/dashboard.yaml     # 首页（今日）冒烟：引导页 �
 
 ### UI
 
-1. **优先用 `@expo/ui`**，它渲染的是真原生视图（iOS SwiftUI / Android Jetpack Compose）。不要默认退回 RN 的 `View`/`Text`/`Switch`/`Picker`，不要用 `@gorhom/bottom-sheet` 或 Reanimated 手搓 sheet。**唯一稳定的例外是 `flex`** —— universal `style` 没有 flex 语义，依赖 `flex: 1` 撑开/伸缩的子树（导轨连接线、行内文字、Reanimated 绝对定位的牌堆）整块留成 `RNHostView` island，不要逐块桥接。**例外**：整屏核心视觉都在 RN 布局上下文里时（整屏 Reanimated 手势组件、BlurView 组合）才用纯 RN 写整屏并在文件头注释说明理由 —— 现状见 `src/app/(tabs)/playground`。混合写法（Expo UI 为主、RN 只留 island）见 `src/screens/home`、`src/screens/profile`。
+1. **优先用 `@expo/ui`**，它渲染的是真原生视图（iOS SwiftUI / Android Jetpack Compose）。不要默认退回 RN 的 `View`/`Text`/`Switch`/`Picker`，不要用 `@gorhom/bottom-sheet` 或 Reanimated 手搓 sheet。**唯一稳定的例外是 `flex`** —— universal `style` 没有 flex 语义，依赖 `flex: 1` 撑开/伸缩的子树（导轨连接线、行内文字、Reanimated 绝对定位的牌堆）整块留成 `RNHostView` island，不要逐块桥接。**例外**：整屏核心视觉都在 RN 布局上下文里时（整屏 Reanimated 手势组件、BlurView 组合）才用纯 RN 写整屏并在文件头注释说明理由 —— 现状见 `src/app/playground`。混合写法（Expo UI 为主、RN 只留 island）见 `src/screens/home`、`src/screens/profile`。
 2. **`@expo/ui/swift-ui` 是 iOS-only，`@expo/ui/jetpack-compose` 是 Android-only**。导入**原生视图组件**（`DatePicker`/`TabView`/`Switch`）到另一端会抛 `Unable to get view config` 崩溃；导入 **modifier 工厂**（`frame`/`buttonStyle`）不崩但会被静默忽略，导致布局失效。平台专属组件必须放进 `.ios.tsx` / `.android.tsx`（放 `src/components/`，**不能放 `app/`**），或用 `process.env.EXPO_OS` 守卫。已有 universal / community 组件时直接使用（如 `DateTimePicker`）；确需平台隔离的能力统一从 `@/components/native-layout` 导入，oxlint 会以 error 拦截直接跨平台导入。**但先确认 universal 层真的做不到**（读 `node_modules/@expo/ui/src/universal/<组件>/types.d.ts`）：同一件 UI 在两端可能根本不是同一个组件（分段筛选：iOS 是 `pickerStyle('segmented')`，Android 是 `SingleChoiceSegmentedButtonRow`），但拆平台文件无法静态验证、且两端控件承载能力不同（segmented 到 4 段以上就废了，menu 菜单不会）——**universal 能满足就用 universal**。详见 [ui-design.md](docs/conventions/ui-design.md#平台专属组件隔离最重要)。
 3. **`Host` 永远从 `@expo/ui` 根导入**，不要从平台子包拿。
 4. 必须在 Expo UI 树里用 RN 视图时，用 `RNHostView` 包裹。
@@ -129,16 +129,16 @@ maestro test maestro/dashboard.yaml     # 首页（今日）冒烟：引导页 �
 ```
 src/
   app/                    # 只放路由
-    _layout.tsx           ThemeProvider + 根 Stack（index / (tabs) / onboarding / records）+ 通知初始化/同步
+    _layout.tsx           ThemeProvider + 根 Stack（index / (tabs) / onboarding / records / playground）+ 通知初始化/同步
     index.tsx             分流：未看过引导页 → onboarding，否则 → 首页
     onboarding.tsx        首次启动引导页：放在 tab 组之外，全屏无 tab 栏
     records.tsx           服药记录：按日期查历史与当日服药率（界面待完善）；不占 tab 位，路径仍是 /records
+    playground/           调试屏：tab 组之外，无 tab 入口，从代码 push /playground
     (tabs)/
       _layout.tsx         AppTabs（NativeTabs），trigger name 用组内相对路由名
       home/               今日：只有路由，实现见 src/screens/home（Expo UI 为主 + 三块 RN island）
       medica/             药品：index（只有路由）+ detail / form
       profile/            我的：index（只有路由）+ persons / person-detail / plan-form / language / settings
-      playground/         调试屏：只有 __DEV__ 构建才在 tab 栏里出现
   screens/
     home/                 首页实现：index（Expo UI 为主：大字日期 / 成员筛选 Picker / 通知横幅 / 区块标题）+ stock-panel（库存速览，RN island）
     medica/               药品库实现：index（Expo UI 为主：副标题 + 数量徽章 / 药品卡）+ filter-row（分类 chip 横滑，RN island）

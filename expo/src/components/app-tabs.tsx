@@ -4,8 +4,10 @@ import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 
 // 由 src/app/(tabs)/_layout.tsx 渲染，trigger name 用组内相对路由名。
-// tab 数量以 design/ 设计稿为准：生产 3 个（首页 / 药品 / 我的）。playground 是内部调试屏，
-// 用 __DEV__ 包住只在 debug 构建出现；__DEV__ 进程内恒定，不算「运行时增删 tab」。
+// tab 数量以 design/ 设计稿为准：3 个（首页 / 药品 / 我的）。
+// playground 是内部调试屏，已移出 (tabs) 组（src/app/playground）——
+// 组内没声明 Trigger 的目录会被 router.replace 弹回初始 tab（AGENTS.md 第 12 条），
+// 想要路由可达就不能留在组里；它没有 tab 入口，需要时从代码 push /playground。
 export default function AppTabs() {
   // tab 栏与业务区共用同一套 token：激活色走 primary，底色跟页面 canvas 齐平，
   // 否则纯白 tab 栏贴在 canvas 页面上会明显断开（background 是系统级纯白/纯黑）
@@ -42,18 +44,6 @@ export default function AppTabs() {
           md="person"
         />
       </NativeTabs.Trigger>
-
-      {__DEV__ ? (
-        <NativeTabs.Trigger name="playground" testID="playground-tab">
-          <NativeTabs.Trigger.Label>
-            {t("tab.playground")}
-          </NativeTabs.Trigger.Label>
-          <NativeTabs.Trigger.Icon
-            sf={{ default: "hammer", selected: "hammer.fill" }}
-            md="construction"
-          />
-        </NativeTabs.Trigger>
-      ) : null}
     </NativeTabs>
   );
 }

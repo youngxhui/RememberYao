@@ -162,7 +162,7 @@ maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 →
 
 约定：
 
-- Tab trigger 的 `testID` 命名 `<tab名>-tab`（`home-tab` / `medica-tab` / `profile-tab` / `playground-tab`），配置在 `src/components/app-tabs.tsx`。`playground-tab` 只在 debug 构建存在。
+- Tab trigger 的 `testID` 命名 `<tab名>-tab`（`home-tab` / `medica-tab` / `profile-tab`），配置在 `src/components/app-tabs.tsx`。playground 调试屏已移出 (tabs) 组，没有 tab trigger。
 - 新增可交互的关键控件（按钮、列表项）按需加 `testID`，否则 Maestro 只能靠文案定位，文案一改测试就断。
 - **断言优先用 testID**，只有真正渲染出来的业务文案才用文本匹配。
 - **`@expo/ui` 的 `Text` 是例外：`testID` 在 iOS 上静默失效**。`TextView.body` 只调了 `applyModifiers`，漏掉 `applyAccessibilityIdentifier`（见 `node_modules/@expo/ui/ios/TextView.swift`），而 `UIBaseView.body` 是调了的。实测：`Column`/`Row`/`Button`/`ListItem`/`TextInput`/`Picker`/`Switch`/`ScrollView` 都正常，只有 `Text` 不行。给 `Text` 加 testID 不报错也不生效，只能按文案断言。其余组件均已实机验证可用。

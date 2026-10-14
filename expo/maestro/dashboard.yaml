@@ -46,8 +46,8 @@ appId: top.youngxhui.rememberyao.k3f9
 - assertVisible:
     id: "home-member-picker"
     optional: true
-# 底部 tab 栏在（生产构建 3 个：home / medica / profile；
-# Maestro 跑的是 debug 构建，末尾多一个 playground-tab）
+# 底部 tab 栏 3 个：home / medica / profile。playground 调试屏已移出 (tabs) 组，
+# tab 栏里不再出现（路由保留，从代码 push /playground 可达）
 - assertVisible:
     id: "medica-tab"
 - assertVisible:

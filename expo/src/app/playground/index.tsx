@@ -13,7 +13,7 @@ import {
   archiveEntryFromMedication,
 } from "@/components/mini-archive";
 import { ReminderCardStack } from "@/components/reminder-card-stack";
-import { BottomTabInset, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import { sendTestNotification } from "@/lib/notifications";
@@ -81,10 +81,11 @@ export default function PlaygroundScreen() {
         <RNScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
-            // 本屏 headerShown: false，内容从 y=0 起排。不手动避开顶部的话
-            // 第一块会落进状态栏 —— 那块区域的点击由系统接管，按钮永远按不到
+            // 本屏在根 Stack 里且 headerShown: false，内容从 y=0 起排。不手动避开
+            // 顶部的话第一块会落进状态栏 —— 那块区域的点击由系统接管，按钮永远按不到。
+            // 底部跟安全区走：调试屏已不在 tab 组内，没有 tab 栏要避让
             paddingTop: insets.top + Spacing.two,
-            paddingBottom: BottomTabInset + Spacing.five,
+            paddingBottom: insets.bottom + Spacing.five,
           }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}

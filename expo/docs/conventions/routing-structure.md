@@ -126,7 +126,7 @@ import { NativeTabs } from "expo-router/native-tabs";
 - 需要给 Maestro 用的 trigger 加 `testID`，命名规范 `<tab名>-tab`（见 [data-state.md](./data-state.md#maestro-测试)）。
 - 主题色通过 `backgroundColor` / `tintColor` / `indicatorColor` 从 `Colors` 传入，不要在 tab 里硬编码。
 - **只有 `_layout.tsx` 里声明了 `Trigger` 的路由才进 tab 栏**。expo-router 内部按 `descriptor.routeSource === "layout"` 过滤（`useVisibleTabsWithRedirect`），所以 `(tabs)/` 下没声明 Trigger 的目录不会变成 tab —— 但它同样**跳不过去**：一旦成为焦点路由，expo-router 会 `router.replace()` 回初始 tab。想让某个页面「不占 tab 位置但仍可 push」，必须把它移出 `(tabs)` 组（见下面的 `records`）。
-- **生产环境的 tab 数量跟着设计稿走**（当前 3 个：首页 / 药品 / 我的，对齐 `design/*.html` 的 tabbar）。调试页用 `__DEV__` 包 `Trigger`：playground 只在 debug 构建出现。`__DEV__` 进程内恒定，所以不违反「tab 必须静态」；别改成运行时 state 控制，那会让 tab 栏重挂载、丢页面状态。
+- **生产环境的 tab 数量跟着设计稿走**（当前 3 个：首页 / 药品 / 我的，对齐 `design/*.html` 的 tabbar），tab 必须静态声明；别改成运行时 state 控制，那会让 tab 栏重挂载、丢页面状态。内部调试屏 playground 已移出 (tabs) 组（`src/app/playground`）—— 组内没声明 `Trigger` 的目录虽然不显示成 tab，但会被 `router.replace` 弹回初始 tab，想保留路由就得移出组外；它没有 tab 入口，需要时从代码 `push('/playground')`。
 
 ## 全屏页（引导页等）不要放进 tab 组
 
@@ -191,12 +191,12 @@ src/app/
   index.tsx              分流：未看过引导页 → onboarding，否则 → 首页
   onboarding.tsx         首次启动引导页：tab 组之外，全屏无 tab 栏
   records.tsx            服药记录：按日期查历史与当日服药率（tab 组之外，从「我的」push）
+  playground/            调试屏：tab 组之外，无 tab 入口，从代码 push /playground
   (tabs)/
     _layout.tsx          AppTabs（NativeTabs）
     home/                今日：进度、用药时间线、库存速览
     medica/              药品：列表 / detail / form
     profile/             我的：persons / plan-form / person-detail
-    playground/          调试页：只有 __DEV__ 构建才在 tab 栏里出现
 ```
 
 每个 tab 目录下都有自己的 `_layout.tsx` 定义该 tab 的 stack。

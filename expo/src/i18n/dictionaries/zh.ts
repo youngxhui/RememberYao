@@ -20,7 +20,7 @@ export const zh = {
     home: "首页",
     medica: "药品",
     profile: "我的",
-    // 仅 debug 构建出现的调试页，保留英文术语便于和代码里的 playground 目录对上
+    // 调试页（已不在 tab 栏，位于 src/app/playground），保留英文术语便于和目录对上
     playground: "Playground",
   },
   onboarding: {
