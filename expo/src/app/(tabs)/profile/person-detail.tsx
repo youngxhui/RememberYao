@@ -21,9 +21,9 @@ import {
   deletePerson,
   medicationUnitLabel,
   planStatusLabel,
+  SELF_PERSON_ID,
   useMedications,
   usePerson,
-  usePersons,
   usePlansForPerson,
   type Medication,
   type MedicationPlan,
@@ -64,16 +64,15 @@ export default function PersonDetailScreen() {
     loading: medicationsLoading,
     reload: reloadMedications,
   } = useMedications();
-  const { data: allPersons, loading: personsLoading } = usePersons();
-  const loading =
-    personLoading || plansLoading || medicationsLoading || personsLoading;
+  const loading = personLoading || plansLoading || medicationsLoading;
   const reload = useCallback(() => {
     reloadPerson();
     reloadPlans();
     reloadMedications();
   }, [reloadPerson, reloadPlans, reloadMedications]);
-  // 一位成员都不留会让用药配置无从挂靠：默认的「自己」至少保住一个
-  const isLastMember = allPersons.length <= 1;
+  // 「自己」是 App 的默认用户（账号本体），不是家庭成员，不能删；
+  // 家庭成员则随便删 —— 删光了也只是家庭区块回到空态，「自己」还在
+  const isSelf = person?.id === SELF_PERSON_ID;
   const [confirmDeletePerson, setConfirmDeletePerson] = useState(false);
 
   useFocusEffect(
@@ -294,8 +293,8 @@ export default function PersonDetailScreen() {
               {/* 删除是危险操作：不用主题色的 borderedProminent（填充/描边都会
                   带主色），改纯文字按钮 + 危险色文字。文字色必须靠 children 里的
                   Text 显式给 —— label 的文字色跟按钮样式的 tint 走，压不住。
-                  只剩一位成员时不给删：用药配置要挂靠在用药人上，删光就无处可挂 */}
-              {isLastMember ? (
+                  「自己」是 App 的默认用户，不是家庭成员，不给删 */}
+              {isSelf ? (
                 <Text
                   textStyle={{
                     fontSize: 13,
@@ -303,7 +302,7 @@ export default function PersonDetailScreen() {
                     textAlign: "center",
                   }}
                 >
-                  {t("person.lastMemberHint")}
+                  {t("person.selfLockedHint")}
                 </Text>
               ) : (
                 <Button

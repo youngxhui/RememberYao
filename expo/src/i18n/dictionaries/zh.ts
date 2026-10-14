@@ -272,8 +272,8 @@ export const zh = {
     addMemberButton: "添加家庭成员",
     /** 默认用药人的名字：首次启动自动创建，不必先加成员再配药 */
     defaultName: "自己",
-    /** 删除最后一个成员时的说明：一位都不留会让配置无从挂靠 */
-    lastMemberHint: "至少保留一位用药人",
+    /** 「自己」是 App 的默认用户（账号本体），不是家庭成员，不能删 */
+    selfLockedHint: "这是 App 的默认用户，不能删除",
     gender: "性别",
     genderMale: "男",
     genderFemale: "女",
@@ -371,6 +371,8 @@ export const zh = {
     onTime: "按时",
     missed: "漏服",
     plannedCount: "应服 {count} 次",
+    /** 「自己」是 App 的默认用户，独立于家庭成员单独一块 */
+    selfTitle: "我的用药",
     familyTitle: "家庭成员",
     addMember: "添加家庭成员",
     badgeOk: "正常",

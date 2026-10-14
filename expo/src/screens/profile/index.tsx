@@ -20,6 +20,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import {
   missedStreaks,
+  SELF_PERSON_ID,
   todayKey,
   usePersons,
   usePlans,
@@ -114,6 +115,15 @@ export function Profile() {
     [reminders],
   );
   const planCounts = useMemo(() => enabledPlanCounts(plans), [plans]);
+  // 「自己」是 App 的默认用户（将来账号体系里的账号本体），不属于家庭成员：
+  // 单独一块放在家庭区块上方，家庭成员只列后来添加的人
+  const { self, familyMembers } = useMemo(() => {
+    const found = persons.find((p) => p.id === SELF_PERSON_ID);
+    return {
+      self: found,
+      familyMembers: persons.filter((p) => p.id !== SELF_PERSON_ID),
+    };
+  }, [persons]);
 
   // 三等分统计卡：卡宽 = 内容宽 − 两侧屏幕边距 − 两条卡片缝，再三等分
   const statCardWidth = Math.floor(
@@ -168,8 +178,17 @@ export function Profile() {
               <WeekOverview stats={stats} cardWidth={statCardWidth} />
             )}
 
+            {/* 「自己」独立于家庭成员：App 的默认用户，不占家庭名额 */}
+            {loading || !self ? null : (
+              <SelfSection
+                person={self}
+                planCount={planCounts.get(self.id) ?? 0}
+                tone={memberTone(self.id, planCounts, watching)}
+              />
+            )}
+
             <FamilySection
-              persons={persons}
+              persons={familyMembers}
               loading={loading}
               planCounts={planCounts}
               watching={watching}
@@ -300,6 +319,46 @@ function StatCard({
       >
         {label}
       </Text>
+    </Column>
+  );
+}
+
+/**
+ * 「自己」区块：App 的默认用户，只有一张卡、没有添加入口。
+ * 卡点进去是同一位用药人的详情（用药配置都在里面），与家庭成员详情同屏不同权：
+ * 自己不能删除（删了 App 就没有默认用户了）。
+ */
+function SelfSection({
+  person,
+  planCount,
+  tone,
+}: {
+  person: Person;
+  planCount: number;
+  tone: MemberTone;
+}) {
+  const t = useTranslation();
+  const router = useRouter();
+
+  return (
+    <Column
+      spacing={Spacing.two}
+      style={{ paddingTop: Spacing.four, paddingHorizontal: Spacing.screen }}
+    >
+      <SectionTitle title={t("profile.selfTitle")} />
+      <Column spacing={Spacing.cardGap}>
+        <MemberCard
+          person={person}
+          planCount={planCount}
+          tone={tone}
+          onPress={() => {
+            router.push({
+              pathname: "/(tabs)/profile/person-detail",
+              params: { id: person.id },
+            });
+          }}
+        />
+      </Column>
     </Column>
   );
 }
