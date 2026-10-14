@@ -2,12 +2,15 @@ import {
   Button,
   Column,
   Host,
+  Row,
   ScrollView,
+  Spacer,
+  Text,
   TextInput,
   useNativeState,
 } from "@expo/ui";
-import { Stack, useRouter } from "expo-router";
-import { useState } from "react";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 
 import { MemberAvatar } from "@/components/avatar";
 import {
@@ -26,7 +29,13 @@ import {
 import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
-import { addPerson, pickAvatarColor, type Gender } from "@/lib/store";
+import {
+  addPerson,
+  pickAvatarColor,
+  updatePerson,
+  usePerson,
+  type Gender,
+} from "@/lib/store";
 
 /** 年龄的合理区间：超出按填错处理，不进库（老人 100+ 也放得过，误敲的 0/999 拦掉） */
 const AGE_MIN = 1;
@@ -55,7 +64,9 @@ function parseAge(raw: string): number | null | undefined {
 }
 
 /**
- * 添加家庭成员：只负责「新建」—— 成员列表在「我的」首页的家庭区，这里不重复展示。
+ * 用药人表单：新建（从「我的」的家庭区块进入）与编辑基本信息（从用药人详情进入）
+ * 同一个屏，路由参数 `id` 区分 —— 与 plan-form / medica-form 的「新建/编辑同屏」
+ * 同一套模式。编辑覆盖全部家庭成员与默认用户「自己」（改名也走这里）。
  *
  * 排版与添加药品（`src/app/(tabs)/medica/form.tsx`）共用 `@/components/form` 的
  * 基元：`ScrollView` + 分区卡片（label 在上、控件收在圆角描边盒子里）。原来这里
@@ -70,6 +81,11 @@ export default function PersonsScreen() {
   const router = useRouter();
   const theme = useTheme();
   const t = useTranslation();
+  const params = useLocalSearchParams<{ id?: string }>();
+  const isEditing = Boolean(params.id);
+  const { data: editingPerson, loading: personLoading } = usePerson(params.id);
+  // 编辑态等 SQLite 载入再渲染：直接渲染会把回填闪成空表单
+  const loading = isEditing && personLoading;
   const [nameError, setNameError] = useState(false);
   const [ageError, setAgeError] = useState(false);
   // 头像预览用的 React 镜像：useNativeState 在原生端不触发 React 重渲染，
@@ -82,7 +98,21 @@ export default function PersonsScreen() {
   const allergies = useNativeState("");
   const conditions = useNativeState("");
 
-  const add = async () => {
+  // 数据就绪后只回填一次：filledRef 防着用户已经开始改又被覆盖
+  const filledRef = useRef(false);
+  useEffect(() => {
+    if (filledRef.current || !isEditing || loading || !editingPerson) return;
+    filledRef.current = true;
+    name.value = editingPerson.name;
+    setNamePreview(editingPerson.name);
+    setGender(editingPerson.gender ?? "");
+    if (editingPerson.age != null) age.value = String(editingPerson.age);
+    allergies.value = editingPerson.allergies.join("、");
+    conditions.value = editingPerson.underlyingConditions.join("、");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing, loading, editingPerson]);
+
+  const save = async () => {
     if (!name.value.trim()) {
       setNameError(true);
       return;
@@ -92,13 +122,20 @@ export default function PersonsScreen() {
       setAgeError(true);
       return;
     }
-    const person = await addPerson({
+    const values = {
       name: name.value,
       gender: gender || undefined,
       age: parsedAge,
       allergies: splitTags(allergies.value),
       underlyingConditions: splitTags(conditions.value),
-    });
+    };
+    if (isEditing && params.id) {
+      await updatePerson(params.id, values);
+      // 详情页靠 useFocusEffect 重读，返回即刷新
+      router.back();
+      return;
+    }
+    const person = await addPerson(values);
     // 清空表单，方便连续添加
     name.value = "";
     setNamePreview("");
@@ -115,10 +152,40 @@ export default function PersonsScreen() {
   // 预览将要分配的头像底色：与 store.addPerson 同一套按姓名 hash 取色
   const previewColor = pickAvatarColor(namePreview);
 
+  // 编辑态数据未就绪 / 用药人已不存在：不给空表单，也不给保存
+  if (loading) {
+    return (
+      <>
+        <Stack.Screen.BackButton displayMode="minimal" />
+        <Host style={{ flex: 1 }} />
+      </>
+    );
+  }
+
+  if (isEditing && !editingPerson) {
+    return (
+      <>
+        <Stack.Screen.BackButton displayMode="minimal" />
+        <Host style={{ flex: 1 }}>
+          {/* 同详情页的居中写法：HStack + 弹性 Spacer 才能把文案压到中线 */}
+          <Row alignment="center" style={{ paddingTop: 120 }}>
+            <Spacer flexible />
+            <Text textStyle={{ color: theme.textSecondary }}>
+              {t("person.notFound")}
+            </Text>
+            <Spacer flexible />
+          </Row>
+        </Host>
+      </>
+    );
+  }
+
   return (
     <>
       <Stack.Screen.BackButton displayMode="minimal" />
-      <Stack.Title large>{t("person.addMember")}</Stack.Title>
+      <Stack.Title large>
+        {isEditing ? t("person.editTitle") : t("person.addMember")}
+      </Stack.Title>
       <Host seedColor={theme.primary} style={{ flex: 1 }}>
         <ScrollView
           showsIndicators={false}
@@ -134,7 +201,11 @@ export default function PersonsScreen() {
               paddingBottom: BottomTabInset + Spacing.four,
             }}
           >
-            <Subtitle text={t("person.formSubtitle")} />
+            <Subtitle
+              text={t(
+                isEditing ? "person.editSubtitle" : "person.formSubtitle",
+              )}
+            />
 
             <FormSection title={t("person.basicInfo")}>
               {/* 姓名是这一页的主字段：头像预览充当左侧锚点（不是文本标签），
@@ -223,10 +294,12 @@ export default function PersonsScreen() {
             </FormSection>
 
             <Button
-              testID="person-add-button"
-              label={t("person.addMemberButton")}
+              testID={isEditing ? "person-save-button" : "person-add-button"}
+              label={t(
+                isEditing ? "person.saveButton" : "person.addMemberButton",
+              )}
               onPress={() => {
-                void add();
+                void save();
               }}
               modifiers={nativeButtonModifiers({ fullWidth: true })}
             />

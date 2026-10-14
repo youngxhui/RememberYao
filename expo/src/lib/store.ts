@@ -937,7 +937,9 @@ export async function addPerson(input: PersonInput): Promise<Person> {
 /**
  * 更新用药人基础信息（含改名）。只覆盖传入的字段，未传的保持原值 ——
  * 注意 undefined 表示「不改」，与实体里「未填写也是 undefined」是两回事。
- * 目前 UI 只建不编辑，先备好数据层。
+ *
+ * 入口是用药人详情页的「编辑基本信息」（persons.tsx 带 id 参数的编辑态），
+ * 家庭成员与默认用户「自己」共用：自己改名后就不再跟随界面语言刷新默认名。
  */
 export async function updatePerson(
   id: string,

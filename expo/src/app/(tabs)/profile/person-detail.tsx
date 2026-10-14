@@ -290,6 +290,20 @@ export default function PersonDetailScreen() {
                 }}
                 modifiers={nativeButtonModifiers({ fullWidth: true })}
               />
+              {/* 改名 / 补基本信息：编辑屏与添加成员同一个表单（persons.tsx，
+                  id 参数区分新建与编辑）。默认用户「自己」也走这里 */}
+              <Button
+                testID="person-edit-button"
+                variant="outlined"
+                label={t("person.editButton")}
+                onPress={() => {
+                  router.push({
+                    pathname: "/(tabs)/profile/persons",
+                    params: { id: person.id },
+                  });
+                }}
+                modifiers={nativeButtonModifiers({ fullWidth: true })}
+              />
               {/* 删除是危险操作：不用主题色的 borderedProminent（填充/描边都会
                   带主色），改纯文字按钮 + 危险色文字。文字色必须靠 children 里的
                   Text 显式给 —— label 的文字色跟按钮样式的 tint 走，压不住。

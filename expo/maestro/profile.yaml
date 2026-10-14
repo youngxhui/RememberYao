@@ -65,6 +65,45 @@ appId: top.youngxhui.rememberyao.k3f9
 - assertVisible:
     id: "profile-add-member-button"
 
+# ── 编辑基本信息：默认用户「自己」也走 persons 屏的编辑态（id 参数）──
+- tapOn:
+    id: "profile-member-self"
+- extendedWaitUntil:
+    visible:
+      id: "person-edit-button"
+    timeout: 20000
+# 编辑入口在页面底部按钮列，先滚过去
+- scrollUntilVisible:
+    element:
+      id: "person-edit-button"
+    direction: DOWN
+- tapOn:
+    id: "person-edit-button"
+# 编辑态按已存值回填：姓名框里是「自己」，追加 ASCII 改名（CJK 键盘不可靠）
+- extendedWaitUntil:
+    visible:
+      id: "person-name-input"
+    timeout: 20000
+- tapOn:
+    id: "person-name-input"
+- inputText: "X"
+- scrollUntilVisible:
+    element:
+      id: "person-save-button"
+    direction: DOWN
+- tapOn:
+    id: "person-save-button"
+# 保存后返回详情页：大标题变成新名字（回填 + 更新生效）
+- extendedWaitUntil:
+    visible: "自己X"
+    timeout: 20000
+# 返回「我的」根页面继续后面的流程（返回键文案钉为「家庭成员」）
+- tapOn: "家庭成员"
+- extendedWaitUntil:
+    visible:
+      id: "profile-add-member-button"
+    timeout: 20000
+
 # ── 添加家庭成员 → persons 屏 ──
 - tapOn:
     id: "profile-add-member-button"
