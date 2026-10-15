@@ -1,6 +1,6 @@
 import { Button } from "@expo/ui";
 import { GlassContainer, GlassView } from "expo-glass-effect";
-import { LiquidGlassView, supportsNativeGlass } from "expo-liquid-glass-view";
+import { supportsNativeGlass } from "expo-liquid-glass-view";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -232,26 +232,6 @@ export default function PlaygroundScreen() {
                   ))}
                 </RNView>
 
-                {/* LiquidGlassView 的 ILiquidGlassViewProps 不支持 testID，
-                    可交互控件的测试标识挂在外层 RNPressable 上 */}
-                <RNPressable
-                  testID="playground-glass-primary-button"
-                  onPress={() => {
-                    console.log("LiquidGlassView Button OnPress");
-                  }}
-                >
-                  <LiquidGlassView
-                    variant={variant}
-                    cornerRadius={24}
-                    tint={theme.primary}
-                    interactive
-                    style={styles.glassButton}
-                  >
-                    <RNText style={[styles.glassButtonLabel]}>
-                      确认服药 LiquidGlassView
-                    </RNText>
-                  </LiquidGlassView>
-                </RNPressable>
                 {/* glassView 版本 */}
                 <RNPressable
                   testID="playground-glass-primary-button"
@@ -262,24 +242,6 @@ export default function PlaygroundScreen() {
                   <GlassView isInteractive={true} style={styles.glassButton2}>
                     <RNText>确认服药 GlassView</RNText>
                   </GlassView>
-                </RNPressable>
-
-                <RNPressable
-                  testID="playground-glass-primary-button"
-                  onPress={() => {
-                    console.log("LiquidGlassView Button OnPress");
-                  }}
-                >
-                  <LiquidGlassView
-                    variant={variant}
-                    cornerRadius={24}
-                    interactive
-                    style={styles.glassButton}
-                  >
-                    <RNText style={[styles.glassButtonLabel]}>
-                      确认服药 LiquidGlassView
-                    </RNText>
-                  </LiquidGlassView>
                 </RNPressable>
               </RNView>
 
