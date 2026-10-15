@@ -91,11 +91,6 @@ export function Medica() {
       />
 
       <ScreenScaffold scroll={false}>
-        <View
-          style={{ paddingHorizontal: Spacing.screen, marginTop: Spacing.two }}
-        >
-          <FilterRow filter={filter} onSelect={setFilter} />
-        </View>
         <FlatList
           style={{ flex: 1 }}
           data={cards}
@@ -125,6 +120,16 @@ export function Medica() {
                 }
               />
             ) : undefined
+          }
+          ListHeaderComponent={
+            <View
+              style={{
+                paddingHorizontal: Spacing.screen,
+                marginTop: Spacing.two,
+              }}
+            >
+              <FilterRow filter={filter} onSelect={setFilter} />
+            </View>
           }
           contentContainerStyle={
             cards.length === 0
