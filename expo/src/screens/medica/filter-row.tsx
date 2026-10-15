@@ -1,4 +1,4 @@
-import { ScrollView as RNScrollView, View as RNView } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { GlassChip } from "@/components/glass-chip";
 import { Spacing } from "@/constants/theme";
@@ -22,9 +22,8 @@ const MEDICA_FILTERS: { key: MedicaFilter; label: Path }[] = [
 /**
  * 分类筛选：横向可滑动的胶囊行（design/medications.html 的 .chip-row）。
  *
- * RN ScrollView 自己就是原生横向滚动容器；chip 行排在内层横向 View 里，
- * 左右呼吸挂在外层 contentContainerStyle 的 paddingHorizontal 上（滚动时
- * 跟着内容走）：首颗 chip 不顶左边、滑到底时末颗 chip 与右缘之间也留得出呼吸。
+ * 关键：父容器是纵向 flex 时，横向 ScrollView 默认会被纵向拉伸，
+ * 所以这里显式 `alignSelf: "flex-start"` 让它按内容高度决定自身高度。
  */
 export function FilterRow({
   filter,
@@ -36,7 +35,7 @@ export function FilterRow({
   const t = useTranslation();
 
   return (
-    <RNScrollView
+    <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{
@@ -44,8 +43,9 @@ export function FilterRow({
         paddingVertical: Spacing.one,
         alignItems: "center",
       }}
+      style={{ alignSelf: "flex-start" }}
     >
-      <RNView
+      <View
         style={{ flexDirection: "row", gap: Spacing.two, alignItems: "center" }}
       >
         {MEDICA_FILTERS.map((item) => (
@@ -59,7 +59,7 @@ export function FilterRow({
             }}
           />
         ))}
-      </RNView>
-    </RNScrollView>
+      </View>
+    </ScrollView>
   );
 }

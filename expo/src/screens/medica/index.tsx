@@ -1,12 +1,7 @@
 import { useObserve } from "expo-observe";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Pressable as RNPressable,
-  Text as RNText,
-  View as RNView,
-  FlatList,
-} from "react-native";
+import { Pressable, Text, View, FlatList } from "react-native";
 
 import { ScreenScaffold } from "@/components/screen-scaffold";
 import { SymbolIcon } from "@/components/symbol-icon";
@@ -105,11 +100,10 @@ export function Medica() {
       />
 
       <ScreenScaffold scroll={false}>
-        <RNView style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
           <FilterRow filter={filter} onSelect={setFilter} />
           <FlatList
             style={{ flex: 1 }}
-            contentContainerStyle={{ flexGrow: 1 }}
             data={cards}
             keyExtractor={(item) => item.medication.id}
             renderItem={({ item }) => (
@@ -138,8 +132,13 @@ export function Medica() {
                 />
               ) : undefined
             }
+            contentContainerStyle={
+              cards.length === 0
+                ? { flexGrow: 1, justifyContent: "center" }
+                : undefined
+            }
           />
-        </RNView>
+        </View>
       </ScreenScaffold>
     </>
   );
@@ -168,7 +167,7 @@ function MedicationRow({
         : theme.textSecondary;
 
   return (
-    <RNPressable
+    <Pressable
       testID={`medica-card-${medication.id}`}
       onPress={onPress}
       accessibilityRole="button"
@@ -183,35 +182,35 @@ function MedicationRow({
         borderBottomColor: theme.border,
       })}
     >
-      <RNView style={{ flex: 1 }}>
-        <RNText style={{ fontSize: 17, fontWeight: "600", color: theme.text }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 17, fontWeight: "600", color: theme.text }}>
           {medication.name}
-        </RNText>
-        <RNText
+        </Text>
+        <Text
           style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}
         >
           {t("medication.metaLine", {
             type: medicationTypeLabel(medication.type, t),
             category: medicationCategoryLabel(medication.category, t),
           })}
-        </RNText>
-      </RNView>
-      <RNText
+        </Text>
+      </View>
+      <Text
         numberOfLines={1}
         style={{ fontSize: 15, color, fontWeight: "500" }}
       >
         {level === "unset"
           ? t("medication.stockUnset")
           : `${medication.remainingQuantity}/${medication.totalQuantity}`}
-      </RNText>
-    </RNPressable>
+      </Text>
+    </Pressable>
   );
 }
 
 /**
  * 空态：药箱清空 / 搜索无结果 / 分类无药 / 库存充足。
  *
- * RN 写法用外层 flex: 1 + alignItems/justifyContent center 居中，
+ * RN 写法用 flex + alignItems/justifyContent center 居中，
  * 禁止再用 Spacer flexible（Expo UI 产物，RN 树里不存在）。
  */
 function EmptyState({ body }: { body: Path }) {
@@ -220,12 +219,12 @@ function EmptyState({ body }: { body: Path }) {
   const router = useRouter();
 
   return (
-    <RNView
+    <View
       style={{
-        flex: 1,
         alignItems: "center",
         justifyContent: "center",
         padding: Spacing.three,
+        gap: Spacing.two,
       }}
     >
       <SymbolIcon
@@ -233,33 +232,31 @@ function EmptyState({ body }: { body: Path }) {
         size={56}
         color={withAlpha(theme.textSecondary, 0.4)}
       />
-      <RNText
+      <Text
         style={{
           fontSize: 17,
           fontWeight: "700",
           color: theme.textSecondary,
           textAlign: "center",
-          marginTop: Spacing.three,
         }}
       >
         {t("medication.emptyTitle")}
-      </RNText>
-      <RNText
+      </Text>
+      <Text
         style={{
           fontSize: 13,
           color: theme.textSecondary,
           textAlign: "center",
-          marginTop: Spacing.one,
         }}
       >
         {t(body)}
-      </RNText>
-      <RNPressable
+      </Text>
+      <Pressable
         onPress={() => {
           router.push("/(tabs)/medica/quick-add");
         }}
         style={({ pressed }) => ({
-          marginTop: Spacing.three,
+          marginTop: Spacing.two,
           paddingHorizontal: Spacing.three,
           paddingVertical: Spacing.two,
           borderRadius: Radius.card,
@@ -267,12 +264,12 @@ function EmptyState({ body }: { body: Path }) {
           backgroundColor: pressed ? theme.primarySoft : theme.primary,
         })}
       >
-        <RNText
+        <Text
           style={{ color: theme.onPrimary, fontSize: 15, fontWeight: "600" }}
         >
           {t("common.add")}
-        </RNText>
-      </RNPressable>
-    </RNView>
+        </Text>
+      </Pressable>
+    </View>
   );
 }
