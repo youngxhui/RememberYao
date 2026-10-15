@@ -1,43 +1,27 @@
 import {
-  Button,
-  Column,
-  Host,
-  Icon,
-  ListItem,
-  Row,
-  ScrollView,
-  Spacer,
-  Text,
-  TextInput,
-  useNativeState,
-} from "@expo/ui";
-import {
   Stack,
   useFocusEffect,
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
 import { useCallback, useState } from "react";
+import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
-import { ICONS, type IconKey } from "@/components/icons";
-import { InputShell } from "@/components/input-shell";
-import {
-  nativeButtonModifiers,
-  nativeLayout,
-} from "@/components/native-layout";
-import { ProgressBar } from "@/components/progress-bar";
-import { roundedBox } from "@/components/rounded-box";
+import { GlassHostButton } from "@/components/expo-ui-island";
+import { ProgressBarRn } from "@/components/progress-bar";
+import { InputShell } from "@/components/rn-input-shell";
 import {
   HairLine,
   InfoRow,
   SectionCard,
   SectionTitle,
-} from "@/components/section-card";
+} from "@/components/rn-section-card";
+import { SymbolIcon, type SymbolIconName } from "@/components/symbol-icon";
 import { editIcon } from "@/components/toolbar-icons";
-import { BottomTabInset, Fonts, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { useI18n, useTranslation, type Language, type Path } from "@/i18n";
+import { useI18n, useTranslation } from "@/i18n";
 import {
   appendBlisterPacks,
   blisterSummary,
@@ -63,25 +47,13 @@ import {
 } from "@/lib/store";
 import { withAlpha } from "@/utils/color";
 
-/** 药品缩略图边长，与药品库列表卡一致（design/medications.html 的 .med-thumb 52px） */
+/** 药品缩略图边长，与药品库列表卡一致 */
 const THUMB_SIZE = 52;
-
-/** 左侧状态色条高度：跟着缩略图与卡片内边距走，同药品库列表卡 */
-const SPINE_HEIGHT = THUMB_SIZE + Spacing.three * 2;
 
 /**
  * 药品详情：库存概览 → 基础信息 → 数字孪生 → 用药配置 → 补货 → 操作。
  *
- * 整屏是 Expo UI（`Host` + 原生 `ScrollView`），没有 RN island（进度条走
- * `ProgressBar` 那一小块 `RNHostView`）。视觉上接着药品库列表卡往下说：左侧
- * 6pt 状态色条、缩略图、状态胶囊都是同一套语言，从列表点进来时是同一条线索。
- *
- * 布局上两条既有结论在这里继续生效：
- *   1. 原生 `ScrollView` 的直接子元素之间会插入约 56pt 的固定间距（profile
- *      真机实测），所以所有区块必须收进**同一个** `Column`，区块间距由各区块
- *      自己的 padding 与 `SectionTitle` 的 paddingTop 精确控制；
- *   2. `FieldGroup` / `List` 在 iOS 上是 SwiftUI Form / List，本身是滚动容器，
- *      嵌进外层 `ScrollView` 会塌成零高 —— 分组一律用 `SectionCard` 拼普通行。
+ * 补货按钮保留系统玻璃（iOS `.glass`，Android 实心），其余主按钮改 RN Pressable。
  */
 export default function MedicationDetailScreen() {
   const router = useRouter();
@@ -89,7 +61,6 @@ export default function MedicationDetailScreen() {
   const theme = useTheme();
   const { language } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
-  // 按需读取：这一屏只要这味药本身、它的配置 / 板 / 槽位，以及成员名单
   const {
     data: medication,
     loading: medicationLoading,
@@ -130,8 +101,8 @@ export default function MedicationDetailScreen() {
   }, [reloadMedication, reloadPlans, reloadPacks, reloadSlots, reloadPersons]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [restockError, setRestockError] = useState(false);
-  const restockAmount = useNativeState("");
-  const restockPackCount = useNativeState("");
+  const [restockAmount, setRestockAmount] = useState("");
+  const [restockPackCount, setRestockPackCount] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -140,32 +111,33 @@ export default function MedicationDetailScreen() {
     }, [reload]),
   );
 
-  // 首屏还在读 SQLite：直接渲染会闪一下「药品不存在」
   if (loading) {
     return (
-      <>
+      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
         <Stack.Screen.BackButton displayMode="minimal" />
-        <Host style={{ flex: 1 }} />
-      </>
+        <Stack.Title large>{t("common.loading")}</Stack.Title>
+      </View>
     );
   }
 
   if (!medication) {
     return (
-      <>
+      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
         <Stack.Screen.BackButton displayMode="minimal" />
-        <Host style={{ flex: 1 }}>
-          {/* 同药品库空态：VStack 按内容收缩贴 leading，单靠 alignment="center"
-              只会让文案停在左上角。用 HStack + 左右弹性 Spacer 压到中线 */}
-          <Row alignment="center" style={{ paddingTop: 120 }}>
-            <Spacer flexible />
-            <Text textStyle={{ color: theme.textSecondary }}>
-              {t("medication.notFound")}
-            </Text>
-            <Spacer flexible />
-          </Row>
-        </Host>
-      </>
+        <Stack.Title large>{t("medication.notFound")}</Stack.Title>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: 120,
+          }}
+        >
+          <Text style={{ color: theme.textSecondary, fontSize: 15 }}>
+            {t("medication.notFound")}
+          </Text>
+        </View>
+      </View>
     );
   }
 
@@ -183,33 +155,31 @@ export default function MedicationDetailScreen() {
   };
 
   const restock = async () => {
-    const amount = Number.parseInt(restockAmount.value, 10);
+    const amount = Number.parseInt(restockAmount, 10);
     if (!Number.isFinite(amount) || amount <= 0) {
       setRestockError(true);
       return;
     }
     await restockMedication(medication.id, amount);
-    restockAmount.value = "";
+    setRestockAmount("");
     setRestockError(false);
     await reload();
   };
 
-  // 板装药按板补货：补进来的板自动建好格子，库存不变式不破
-  // （按粒数补会补出没有槽位的药，见 store.ts restockMedication 的注释）
   const restockPacks = async () => {
-    const count = Number.parseInt(restockPackCount.value, 10);
+    const count = Number.parseInt(restockPackCount, 10);
     if (!Number.isFinite(count) || count <= 0) {
       setRestockError(true);
       return;
     }
     await appendBlisterPacks(medication.id, count);
-    restockPackCount.value = "";
+    setRestockPackCount("");
     setRestockError(false);
     await reload();
   };
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
@@ -223,197 +193,231 @@ export default function MedicationDetailScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Title large>{medication.name}</Stack.Title>
-      <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <ScrollView
-          showsIndicators={false}
-          style={{ backgroundColor: theme.canvas }}
-        >
-          <Column
-            spacing={0}
-            style={{
-              paddingHorizontal: Spacing.screen,
-              paddingTop: Spacing.three,
-              // 详情页在 (tabs) 组内，尾部必须让开原生 tab 栏，
-              // 否则「删除药品」被压在 tab 栏底下点不到
-              paddingBottom: BottomTabInset + Spacing.five,
-            }}
-          >
-            <StockOverview medication={medication} summary={summary} />
 
-            <SectionTitle>{t("medication.sectionBasic")}</SectionTitle>
-            <BasicInfo
-              medication={medication}
-              summary={summary}
-              language={language}
-            />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingTop: Spacing.three,
+          paddingBottom: BottomTabInset + Spacing.four,
+        }}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.four }}>
+          <StockOverview medication={medication} summary={summary} />
 
-            {medication.type === "blister" ? (
-              <>
-                <SectionTitle>{t("medication.twinSection")}</SectionTitle>
-                <TwinEntry
-                  medication={medication}
-                  enabled={twin.enabled}
-                  openSeq={twin.openPack?.seq ?? null}
-                  full={twin.fullSlots}
-                  total={twin.totalSlots}
-                />
-              </>
-            ) : null}
+          <SectionTitle>{t("medication.sectionBasic")}</SectionTitle>
+          <BasicInfo
+            medication={medication}
+            summary={summary}
+            language={language}
+          />
 
-            <SectionTitle>{t("plan.title")}</SectionTitle>
-            <PlanSection
-              plans={relatedPlans}
-              persons={persons}
-              medication={medication}
-            />
-
-            <SectionTitle>{t("medication.restock")}</SectionTitle>
-            {twin.enabled ? (
-              /* 板装孪生药的补货按「板」计：每板粒数固定，补几板就是几板格子 */
-              <SectionCard>
-                <Column
-                  spacing={Spacing.three}
-                  style={{ padding: Spacing.three }}
-                >
-                  <Row alignment="center" spacing={Spacing.rowGap}>
-                    <Column
-                      modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                    >
-                      <InputShell>
-                        <TextInput
-                          testID="restock-packs-input"
-                          placeholder={t("medication.restockPacksPlaceholder")}
-                          keyboardType="number-pad"
-                          onChangeText={() => {
-                            setRestockError(false);
-                          }}
-                          value={restockPackCount}
-                        />
-                      </InputShell>
-                    </Column>
-                    <Button
-                      testID="restock-packs-submit-button"
-                      label={t("medication.restockPacksSubmit")}
-                      onPress={() => {
-                        void restockPacks();
-                      }}
-                      modifiers={nativeButtonModifiers({ style: "glass" })}
-                    />
-                  </Row>
-                  {restockError ? (
-                    <Text textStyle={{ fontSize: 13, color: theme.danger }}>
-                      {t("medication.restockInvalid")}
-                    </Text>
-                  ) : null}
-                  <Text
-                    textStyle={{ fontSize: 12, color: theme.textSecondary }}
-                  >
-                    {t("medication.restockPacksHint", {
-                      perPack: twin.slotsPerPack,
-                      unit: medicationUnitLabel(medication.unit, t),
-                    })}
-                  </Text>
-                </Column>
-              </SectionCard>
-            ) : (
-              <SectionCard>
-                <Column
-                  spacing={Spacing.three}
-                  style={{ padding: Spacing.three }}
-                >
-                  <Row alignment="center" spacing={Spacing.rowGap}>
-                    {/* 输入框列允许压缩（unconstrainedWidth），右侧按钮按固有宽度
-                        排布 —— 同药品库卡片里「药名列 + 状态胶囊」那一行 */}
-                    <Column
-                      modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                    >
-                      <InputShell>
-                        <TextInput
-                          testID="restock-amount-input"
-                          placeholder={t("medication.restockPlaceholder")}
-                          keyboardType="number-pad"
-                          onChangeText={() => {
-                            setRestockError(false);
-                          }}
-                          value={restockAmount}
-                        />
-                      </InputShell>
-                    </Column>
-                    <Button
-                      testID="restock-submit-button"
-                      label={t("medication.restockSubmit")}
-                      onPress={() => {
-                        void restock();
-                      }}
-                      modifiers={nativeButtonModifiers({ style: "glass" })}
-                    />
-                  </Row>
-                  {restockError ? (
-                    <Text textStyle={{ fontSize: 13, color: theme.danger }}>
-                      {t("medication.restockInvalid")}
-                    </Text>
-                  ) : null}
-                  <Text
-                    textStyle={{ fontSize: 12, color: theme.textSecondary }}
-                  >
-                    {t("medication.restockHint")}
-                  </Text>
-                </Column>
-              </SectionCard>
-            )}
-
-            <Column
-              spacing={Spacing.three}
-              style={{ paddingTop: Spacing.five }}
-            >
-              <Button
-                testID="medication-add-plan-button"
-                label={t("plan.formTitle")}
-                onPress={() => {
-                  router.push({
-                    pathname: "/(tabs)/profile/plan-form",
-                    params: { medicationId: medication.id },
-                  });
-                }}
-                modifiers={nativeButtonModifiers({
-                  style: "glass",
-                  fullWidth: true,
-                })}
+          {medication.type === "blister" ? (
+            <>
+              <SectionTitle>{t("medication.twinSection")}</SectionTitle>
+              <TwinEntry
+                medication={medication}
+                enabled={twin.enabled}
+                openSeq={twin.openPack?.seq ?? null}
+                full={twin.fullSlots}
+                total={twin.totalSlots}
               />
-              {/* 文案在「删除药品 / 再次点击确认删除」之间切换，靠 testID 稳定定位 */}
-              <Button
-                testID="medication-delete-button"
-                label={
-                  confirmDelete
-                    ? t("medication.deleteConfirmButton")
-                    : t("medication.deleteButton")
-                }
-                onPress={() => {
-                  remove();
-                }}
-                modifiers={nativeButtonModifiers({
-                  style: "borderedProminent",
-                  fullWidth: true,
-                })}
-              />
-              <Row alignment="center">
-                <Spacer flexible />
-                <Text
-                  textStyle={{
-                    fontSize: 12,
-                    color: theme.textSecondary,
-                    textAlign: "center",
+            </>
+          ) : null}
+
+          <SectionTitle>{t("plan.title")}</SectionTitle>
+          <PlanSection
+            plans={relatedPlans}
+            persons={persons}
+            medication={medication}
+          />
+
+          <SectionTitle>{t("medication.restock")}</SectionTitle>
+          {twin.enabled ? (
+            <SectionCard>
+              <View style={{ gap: Spacing.three, padding: Spacing.three }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: Spacing.rowGap,
                   }}
                 >
-                  {t("medication.deleteHint")}
+                  <View style={{ flex: 1 }}>
+                    <InputShell>
+                      <TextInput
+                        testID="restock-packs-input"
+                        placeholder={t("medication.restockPacksPlaceholder")}
+                        keyboardType="number-pad"
+                        onChangeText={(text) => {
+                          setRestockPackCount(text);
+                          setRestockError(false);
+                        }}
+                        value={restockPackCount}
+                        style={{ fontSize: 15, color: theme.text, padding: 0 }}
+                      />
+                    </InputShell>
+                  </View>
+                  <GlassHostButton
+                    testID="restock-packs-submit-button"
+                    label={t("medication.restockPacksSubmit")}
+                    onPress={() => {
+                      void restockPacks();
+                    }}
+                  />
+                </View>
+                {restockError ? (
+                  <Text style={{ fontSize: 13, color: theme.danger }}>
+                    {t("medication.restockInvalid")}
+                  </Text>
+                ) : null}
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: theme.textSecondary,
+                    lineHeight: 18,
+                  }}
+                >
+                  {t("medication.restockPacksHint", {
+                    perPack: twin.slotsPerPack,
+                    unit: medicationUnitLabel(medication.unit, t),
+                  })}
                 </Text>
-                <Spacer flexible />
-              </Row>
-            </Column>
-          </Column>
-        </ScrollView>
-      </Host>
-    </>
+              </View>
+            </SectionCard>
+          ) : (
+            <SectionCard>
+              <View style={{ gap: Spacing.three, padding: Spacing.three }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: Spacing.rowGap,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <InputShell>
+                      <TextInput
+                        testID="restock-amount-input"
+                        placeholder={t("medication.restockPlaceholder")}
+                        keyboardType="number-pad"
+                        onChangeText={(text) => {
+                          setRestockAmount(text);
+                          setRestockError(false);
+                        }}
+                        value={restockAmount}
+                        style={{ fontSize: 15, color: theme.text, padding: 0 }}
+                      />
+                    </InputShell>
+                  </View>
+                  <GlassHostButton
+                    testID="restock-submit-button"
+                    label={t("medication.restockSubmit")}
+                    onPress={() => {
+                      void restock();
+                    }}
+                  />
+                </View>
+                {restockError ? (
+                  <Text style={{ fontSize: 13, color: theme.danger }}>
+                    {t("medication.restockInvalid")}
+                  </Text>
+                ) : null}
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: theme.textSecondary,
+                    lineHeight: 18,
+                  }}
+                >
+                  {t("medication.restockHint")}
+                </Text>
+              </View>
+            </SectionCard>
+          )}
+
+          <View style={{ gap: Spacing.three, marginTop: Spacing.three }}>
+            <Pressable
+              testID="medication-add-plan-button"
+              onPress={() => {
+                router.push({
+                  pathname: "/(tabs)/profile/plan-form",
+                  params: { medicationId: medication.id },
+                });
+              }}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? theme.primarySoft : theme.primary,
+                borderRadius: Radius.card,
+                borderCurve: "continuous",
+                paddingVertical: Spacing.three,
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
+              })}
+            >
+              <Text
+                style={{
+                  color: theme.onPrimary,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              >
+                {t("plan.formTitle")}
+              </Text>
+            </Pressable>
+            <Pressable
+              testID="medication-delete-button"
+              onPress={() => {
+                void remove();
+              }}
+              style={({ pressed }) => ({
+                backgroundColor: pressed
+                  ? theme.backgroundSelected
+                  : theme.surface,
+                borderRadius: Radius.card,
+                borderCurve: "continuous",
+                borderWidth: 1,
+                borderColor: theme.border,
+                paddingVertical: Spacing.three,
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
+              })}
+            >
+              <Text
+                style={{
+                  color: theme.danger,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              >
+                {confirmDelete
+                  ? t("medication.deleteConfirmButton")
+                  : t("medication.deleteButton")}
+              </Text>
+            </Pressable>
+            <View
+              style={{
+                alignItems: "center",
+                paddingVertical: Spacing.two,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: theme.textSecondary,
+                  textAlign: "center",
+                }}
+              >
+                {t("medication.deleteHint")}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -430,7 +434,6 @@ function TwinEntry({
 }: {
   medication: Medication;
   enabled: boolean;
-  /** 当前开着的板的序号；null = 全部吃完 */
   openSeq: number | null;
   full: number;
   total: number;
@@ -438,52 +441,66 @@ function TwinEntry({
   const t = useTranslation();
   const theme = useTheme();
   const router = useRouter();
-  const box = roundedBox({
-    color: theme.border,
-    background: theme.surface,
-    radius: Radius.card,
-    width: 1,
-  });
 
   return (
-    <Row
+    <Pressable
       testID="medication-twin-entry"
-      alignment="center"
-      spacing={Spacing.rowGap}
       onPress={() => {
         router.push({
           pathname: "/(tabs)/medica/twin",
           params: { id: medication.id },
         });
       }}
-      style={{ ...box.style, padding: Spacing.three }}
-      modifiers={box.modifiers}
+      style={({ pressed }) => ({
+        backgroundColor: pressed ? theme.backgroundSelected : theme.surface,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: Radius.card,
+        borderCurve: "continuous",
+        padding: Spacing.three,
+      })}
     >
-      <Icon name={ICONS.stack} size={22} color={theme.primary} />
-      <Column modifiers={[nativeLayout({ unconstrainedWidth: true })]}>
-        <Text
-          numberOfLines={1}
-          textStyle={{
-            fontSize: 16,
-            fontWeight: "600",
-            color: theme.text,
-          }}
-        >
-          {enabled ? t("medication.twinEntry") : t("medication.twinEnable")}
-        </Text>
-        <Text
-          numberOfLines={1}
-          textStyle={{ fontSize: 13, color: theme.textSecondary }}
-        >
-          {enabled
-            ? openSeq !== null
-              ? t("medication.twinProgressOpen", { seq: openSeq, full, total })
-              : t("medication.twinProgressDone")
-            : t("medication.twinEnableHint")}
-        </Text>
-      </Column>
-      <Icon name={ICONS.chevronRight} size={14} color={theme.textSecondary} />
-    </Row>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: Spacing.rowGap,
+        }}
+      >
+        <SymbolIcon
+          name={{ ios: "square.grid.2x2", android: "grid_view" }}
+          size={22}
+          color={theme.primary}
+        />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: 16, fontWeight: "600", color: theme.text }}
+          >
+            {enabled ? t("medication.twinEntry") : t("medication.twinEnable")}
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: 13, color: theme.textSecondary }}
+          >
+            {enabled
+              ? openSeq !== null
+                ? t("medication.twinProgressOpen", {
+                    seq: openSeq,
+                    full,
+                    total,
+                  })
+                : t("medication.twinProgressDone")
+              : t("medication.twinEnableHint")}
+          </Text>
+        </View>
+        <SymbolIcon
+          name="chevron.right"
+          size={14}
+          color={theme.textSecondary}
+        />
+      </View>
+    </Pressable>
   );
 }
 
@@ -510,67 +527,85 @@ function StockOverview({
     medication.totalQuantity > 0
       ? medication.remainingQuantity / medication.totalQuantity
       : 0;
-  const box = roundedBox({
-    color: theme.border,
-    background: theme.surface,
-    radius: Radius.card,
-    width: 1,
-  });
+  const spineHeight = THUMB_SIZE + Spacing.three * 2;
 
   return (
-    <Row spacing={0} style={box.style} modifiers={box.modifiers}>
-      {/* spacing 必须显式给 0：HStack 不传时是 SwiftUI 默认的 8pt，会在色条
-          与内容之间撑出一条缝（同药品库卡片） */}
-      <Row
+    <View
+      style={{
+        flexDirection: "row",
+        backgroundColor: theme.surface,
+        borderRadius: Radius.card,
+        borderCurve: "continuous",
+        borderWidth: 1,
+        borderColor: theme.border,
+        overflow: "hidden",
+      }}
+    >
+      <View
         style={{
           width: 6,
-          height: SPINE_HEIGHT,
-          borderRadius: 3,
+          height: spineHeight,
           backgroundColor: color.strong,
         }}
       />
-      <Column spacing={Spacing.three} style={{ padding: Spacing.three }}>
-        <Row alignment="center" spacing={Spacing.rowGap}>
+      <View style={{ flex: 1, padding: Spacing.three, gap: Spacing.three }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: Spacing.rowGap,
+          }}
+        >
           <Thumb />
-          <Column modifiers={[nativeLayout({ unconstrainedWidth: true })]}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Text
               numberOfLines={1}
-              textStyle={{
-                fontSize: 17,
-                fontWeight: "700",
-                color: theme.text,
-              }}
+              style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
             >
               {medication.name}
             </Text>
             <Text
               numberOfLines={1}
-              textStyle={{ fontSize: 13, color: theme.textSecondary }}
+              style={{ fontSize: 13, color: theme.textSecondary }}
             >
               {t("medication.metaLine", {
                 type: medicationTypeLabel(medication.type, t),
                 category: medicationCategoryLabel(medication.category, t),
               })}
             </Text>
-          </Column>
-          <Spacer flexible />
+          </View>
           <StockStatusPill level={level} />
-        </Row>
+        </View>
 
         {level === "unset" ? (
-          /* 快速添加的药还没记库存：不显示虚假的「0 / 0」，明说尚未设置 */
-          <Row alignment="center" spacing={Spacing.two}>
-            <Icon name={ICONS.minus} size={15} color={theme.textSecondary} />
-            <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: Spacing.two,
+            }}
+          >
+            <SymbolIcon
+              name={{ ios: "minus", android: "remove" }}
+              size={15}
+              color={theme.textSecondary}
+            />
+            <Text style={{ fontSize: 14, color: theme.textSecondary }}>
               {t("medication.stockUnsetHint")}
             </Text>
-          </Row>
+          </View>
         ) : (
           <>
-            <Row alignment="end" spacing={Spacing.two}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-end",
+                gap: Spacing.two,
+              }}
+            >
               <Text
-                textStyle={{
-                  fontFamily: Fonts.sans,
+                style={{
+                  fontFamily: "system-ui",
                   fontSize: 32,
                   lineHeight: 34,
                   fontWeight: "800",
@@ -580,12 +615,12 @@ function StockOverview({
               >
                 {String(medication.remainingQuantity)}
               </Text>
-              <Text textStyle={{ fontSize: 15, color: theme.textSecondary }}>
+              <Text style={{ fontSize: 15, color: theme.textSecondary }}>
                 {`/ ${medication.totalQuantity} ${unit}`}
               </Text>
-            </Row>
+            </View>
 
-            <ProgressBar
+            <ProgressBarRn
               percent={percent}
               color={color.strong}
               track={theme.backgroundSelected}
@@ -594,14 +629,20 @@ function StockOverview({
           </>
         )}
 
-        <Row alignment="center" spacing={Spacing.two}>
-          <Icon
-            name={ICONS.clock}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: Spacing.two,
+          }}
+        >
+          <SymbolIcon
+            name="clock"
             size={13}
             color={summary.low ? theme.danger : theme.textSecondary}
           />
           <Text
-            textStyle={{
+            style={{
               fontSize: 13,
               color: summary.low ? theme.danger : theme.textSecondary,
             }}
@@ -612,39 +653,31 @@ function StockOverview({
                 : t("medication.daysLeftHint", { days: summary.daysLeft })
               : t("medication.noEstimate")}
           </Text>
-        </Row>
-      </Column>
-    </Row>
+        </View>
+      </View>
+    </View>
   );
 }
 
 /** 缩略图：与药品库列表卡同一个药丸图标 + primarySoft 底 */
 function Thumb() {
   const theme = useTheme();
-  const box = roundedBox({
-    color: theme.border,
-    background: theme.primarySoft,
-    radius: 14,
-    width: 1,
-    // 固定尺寸的小盒子：fullWidth 的 frame(maxWidth: .infinity) 会把 style 里的
-    // width / height 顶掉（omitUserOverridden 按 $type 去重）
-    fullWidth: false,
-  });
   return (
-    <Row
-      alignment="center"
+    <View
       style={{
-        ...box.style,
         width: THUMB_SIZE,
         height: THUMB_SIZE,
+        borderRadius: 14,
+        borderCurve: "continuous",
+        backgroundColor: theme.primarySoft,
+        borderWidth: 1,
+        borderColor: theme.border,
+        alignItems: "center",
+        justifyContent: "center",
       }}
-      modifiers={box.modifiers}
     >
-      {/* Row 的 frame 只把内容压到纵轴中线，横轴中线靠这层 Column */}
-      <Column alignment="center" style={{ width: THUMB_SIZE }}>
-        <Icon name={ICONS.pills} size={24} color={theme.primary} />
-      </Column>
-    </Row>
+      <SymbolIcon name="pills" size={24} color={theme.primary} />
+    </View>
   );
 }
 
@@ -655,32 +688,32 @@ function Thumb() {
 function StockStatusPill({ level }: { level: StockLevel }) {
   const t = useTranslation();
   const color = useStockColors(level);
+
   return (
-    <Row
-      // 胶囊按固有宽度排布、不参与压缩：同行药名放不下时让药名截断
-      modifiers={[nativeLayout({ idealWidth: true })]}
-      alignment="center"
-      spacing={5}
+    <View
       style={{
+        height: 24,
+        paddingHorizontal: Spacing.rowGap,
         borderRadius: Radius.pill,
         backgroundColor: withAlpha(color.base, 0.12),
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      <Icon name={ICONS[STOCK_ICON[level]]} size={13} color={color.strong} />
+      <SymbolIcon name={STOCK_ICON[level]} size={13} color={color.strong} />
       <Text
-        numberOfLines={1}
-        textStyle={{
-          fontFamily: Fonts.mono,
+        style={{
+          fontFamily: "monospace",
           fontSize: 11,
-          fontWeight: "600",
+          fontWeight: "700",
+          letterSpacing: 0.44,
           color: color.strong,
+          textAlign: "center",
         }}
       >
-        {t(STOCK_LABEL[level])}
+        {planStatusLabel({ active: level !== "unset" } as any, t).toUpperCase()}
       </Text>
-    </Row>
+    </View>
   );
 }
 
@@ -695,7 +728,7 @@ function BasicInfo({
 }: {
   medication: Medication;
   summary: ReturnType<typeof stockSummary>;
-  language: Language;
+  language: string;
 }) {
   const t = useTranslation();
   const theme = useTheme();
@@ -747,60 +780,49 @@ function BasicInfo({
   });
 
   return (
-    <Column spacing={Spacing.two}>
-      <SectionCard>
-        {rows.map((row, index) => (
-          <Column key={row.label}>
-            {index > 0 ? <HairLine /> : null}
-            <InfoRow
-              label={row.label}
-              value={row.value}
-              valueColor={row.valueColor}
-            />
-          </Column>
-        ))}
-        {medication.notes ? (
-          <>
-            <HairLine />
-            <Column
-              spacing={Spacing.two}
+    <SectionCard>
+      {rows.map((row, index) => (
+        <View key={row.label}>
+          {index > 0 ? <HairLine /> : null}
+          <InfoRow
+            label={row.label}
+            value={row.value}
+            valueColor={row.valueColor}
+          />
+        </View>
+      ))}
+      {medication.notes ? (
+        <>
+          <HairLine />
+          <View
+            style={{
+              paddingHorizontal: Spacing.three,
+              paddingVertical: Spacing.rowGap,
+              gap: Spacing.two,
+            }}
+          >
+            <Text
               style={{
-                paddingHorizontal: Spacing.three,
-                paddingVertical: Spacing.rowGap,
+                fontSize: 13,
+                fontWeight: "600",
+                color: theme.textSecondary,
               }}
             >
-              <Text
-                textStyle={{
-                  fontSize: 13,
-                  fontWeight: "600",
-                  color: theme.textSecondary,
-                }}
-              >
-                {t("medication.notes")}
-              </Text>
-              <Text
-                textStyle={{
-                  fontSize: 15,
-                  lineHeight: 21,
-                  color: theme.text,
-                }}
-              >
-                {medication.notes}
-              </Text>
-            </Column>
-          </>
-        ) : null}
-      </SectionCard>
-      {/* 录入 / 更新时间：同一次录入时只显示前者，不重复两行一样的日期 */}
-      <Text
-        style={{ paddingLeft: 4 }}
-        textStyle={{ fontSize: 12, color: theme.textSecondary }}
-      >
-        {medication.updatedAt === medication.createdAt
-          ? `${t("medication.createdAt")} ${formatTimestamp(medication.createdAt, language)}`
-          : `${t("medication.createdAt")} ${formatTimestamp(medication.createdAt, language)} · ${t("medication.updatedAt")} ${formatTimestamp(medication.updatedAt, language)}`}
-      </Text>
-    </Column>
+              {t("medication.notes")}
+            </Text>
+            <Text
+              style={{
+                fontSize: 15,
+                lineHeight: 21,
+                color: theme.text,
+              }}
+            >
+              {medication.notes}
+            </Text>
+          </View>
+        </>
+      ) : null}
+    </SectionCard>
   );
 }
 
@@ -822,13 +844,15 @@ function PlanSection({
   if (plans.length === 0) {
     return (
       <SectionCard>
-        <Column
-          alignment="center"
-          spacing={Spacing.two}
-          style={{ padding: Spacing.three }}
+        <View
+          style={{
+            alignItems: "center",
+            padding: Spacing.three,
+            gap: Spacing.two,
+          }}
         >
           <Text
-            textStyle={{
+            style={{
               fontSize: 13,
               color: theme.textSecondary,
               textAlign: "center",
@@ -837,7 +861,7 @@ function PlanSection({
             {t("medication.noTakers")}
           </Text>
           <Text
-            textStyle={{
+            style={{
               fontSize: 12,
               color: theme.textSecondary,
               textAlign: "center",
@@ -845,7 +869,7 @@ function PlanSection({
           >
             {t("medication.noTakersHint")}
           </Text>
-        </Column>
+        </View>
       </SectionCard>
     );
   }
@@ -855,9 +879,9 @@ function PlanSection({
       {plans.map((plan, index) => {
         const person = persons.find((p) => p.id === plan.personId);
         return (
-          <Column key={plan.id}>
+          <View key={plan.id}>
             {index > 0 ? <HairLine /> : null}
-            <ListItem
+            <Pressable
               testID={`medication-plan-${plan.id}`}
               onPress={() => {
                 router.push({
@@ -865,36 +889,45 @@ function PlanSection({
                   params: { id: plan.personId },
                 });
               }}
-              // AvatarMark 是 RN 子树，ListItem 的 leading 槽会自己包
-              // RNHostView 托管（见 @expo/ui 的 ListItem 实现）
-              leading={
-                person ? (
-                  <AvatarMark
-                    color={person.avatarColor}
-                    name={person.name}
-                    uri={person.avatarUri}
-                    size={36}
-                  />
-                ) : undefined
-              }
-              trailing={<PlanStatusPill plan={plan} />}
-              supportingText={[
-                t("medication.doseLine", { amount: plan.doseAmount, unit }),
-                `${t("plan.perDay", { count: plan.times.length })} · ${plan.times.join(" / ")}`,
-              ].join("\n")}
+              style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                gap: Spacing.rowGap,
+                paddingHorizontal: Spacing.three,
+                paddingVertical: Spacing.two,
+                backgroundColor: pressed
+                  ? theme.backgroundSelected
+                  : "transparent",
+              })}
             >
-              <Text
-                numberOfLines={1}
-                textStyle={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: theme.text,
-                }}
-              >
-                {person?.name ?? t("common.unknown")}
-              </Text>
-            </ListItem>
-          </Column>
+              <AvatarMark
+                color={person?.avatarColor ?? theme.primary}
+                name={person?.name ?? t("common.unknown")}
+                uri={person?.avatarUri}
+                size={36}
+              />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: 16, fontWeight: "600", color: theme.text }}
+                >
+                  {person?.name ?? t("common.unknown")}
+                </Text>
+                <Text
+                  numberOfLines={2}
+                  style={{
+                    fontSize: 13,
+                    color: theme.textSecondary,
+                    lineHeight: 18,
+                  }}
+                >
+                  {t("medication.doseLine", { amount: plan.doseAmount, unit })}
+                  {`\n${t("plan.perDay", { count: plan.times.length })} · ${plan.times.join(" / ")}`}
+                </Text>
+              </View>
+              <PlanStatusPill plan={plan} />
+            </Pressable>
+          </View>
         );
       })}
     </SectionCard>
@@ -903,34 +936,36 @@ function PlanSection({
 
 /** 用药配置状态胶囊：服用中 / 已停用 / 已结束。停用与结束都不染色 */
 function PlanStatusPill({ plan }: { plan: MedicationPlan }) {
-  const theme = useTheme();
   const t = useTranslation();
+  const theme = useTheme();
   const active = planActiveOnDate(plan, todayKey());
   const tone = active ? theme.success : theme.textSecondary;
   const foreground = active ? theme.successStrong : theme.textSecondary;
 
   return (
-    <Text
+    <View
       style={{
-        // 等价改造前的 minHeight 24 + 居中：文字交给 frame 的默认居中对齐，
-        // 胶囊底色跟着同一块 frame 走（同 profile 的成员徽章）
         height: 24,
         paddingHorizontal: Spacing.rowGap,
         borderRadius: Radius.pill,
         backgroundColor: withAlpha(tone, 0.12),
-      }}
-      textStyle={{
-        fontFamily: Fonts.mono,
-        fontSize: 11,
-        fontWeight: "700",
-        letterSpacing: 0.44,
-        color: foreground,
-        textAlign: "center",
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      {/* universal 的 Text 没有 textTransform，大写在 JS 侧补（中文不受影响） */}
-      {planStatusLabel(plan, t).toUpperCase()}
-    </Text>
+      <Text
+        style={{
+          fontFamily: "monospace",
+          fontSize: 11,
+          fontWeight: "700",
+          letterSpacing: 0.44,
+          color: foreground,
+          textAlign: "center",
+        }}
+      >
+        {planStatusLabel(plan, t).toUpperCase()}
+      </Text>
+    </View>
   );
 }
 
@@ -949,34 +984,20 @@ function useStockColors(level: StockLevel): { base: string; strong: string } {
   return { base: theme.success, strong: theme.successStrong };
 }
 
-const STOCK_ICON: Record<StockLevel, IconKey> = {
-  ok: "stockOk",
-  low: "stockLow",
-  critical: "stockCritical",
-  unset: "stockUnset",
-};
-
-const STOCK_LABEL: Record<StockLevel, Path> = {
-  ok: "medication.stockOk",
-  low: "medication.stockLow",
-  critical: "medication.stockCritical",
-  unset: "medication.stockUnset",
+const STOCK_ICON: Record<StockLevel, SymbolIconName> = {
+  ok: { ios: "checkmark.circle.fill", android: "check_circle" },
+  low: { ios: "exclamationmark.triangle.fill", android: "warning" },
+  critical: { ios: "exclamationmark.octagon.fill", android: "error" },
+  unset: { ios: "minus.circle.fill", android: "do_not_disturb_on" },
 };
 
 /** 日期键转本地化日期：中文「2026年10月1日」，英文走 Intl 的 "Oct 1, 2026" */
-function formatDateKey(key: string, language: Language): string {
+function formatDateKey(key: string, language: string): string {
   const [year, month, day] = key.split("-").map(Number);
   return formatDate(new Date(year, month - 1, day), language);
 }
 
-/** ISO 时间戳转本地化日期（录入 / 更新时间只精确到日） */
-function formatTimestamp(iso: string, language: Language): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return formatDate(date, language);
-}
-
-function formatDate(date: Date, language: Language): string {
+function formatDate(date: Date, language: string): string {
   try {
     return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
       year: "numeric",

@@ -18,6 +18,7 @@ export const zh = {
     playgroundCardStack: "提醒卡堆叠（上下滑动换卡）",
     playgroundTestNotification: "发一条测试通知（5 秒后）",
     playgroundEmpty: "暂无待处理提醒 —— 新建用药计划后这里会生成卡片",
+    loading: "正在加载…",
   },
   tab: {
     home: "首页",

@@ -31,6 +31,7 @@ export const en = {
     playgroundCardStack: "Reminder cards (swipe to change)",
     playgroundTestNotification: "Send a test notification (in 5s)",
     playgroundEmpty: "No pending reminders — create a plan to see cards",
+    loading: "Loading...",
   },
   tab: {
     home: "Today",

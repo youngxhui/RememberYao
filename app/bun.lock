@@ -9,6 +9,7 @@
         "@expo/ui": "~58.0.16",
         "@react-native-async-storage/async-storage": "2.2.0",
         "@react-native-community/datetimepicker": "^9.2.1",
+        "@shopify/flash-list": "^2.3.3",
         "drizzle-orm": "0.45.3",
         "expo": "~58.0.9",
         "expo-blur": "~58.0.3",
@@ -462,6 +463,8 @@
     "@react-native/normalize-colors": ["@react-native/normalize-colors@0.88.0-rc.4", "", {}, "sha512-MDD2OXJwccKSB7ceVFw+ZFf1lomWrQODbwsKYwAhuf8mTiOArAea1c2fRJ9zpPp9IZmi3O3wSfGRBKqWcBCNDA=="],
 
     "@react-native/virtualized-lists": ["@react-native/virtualized-lists@0.88.0-rc.4", "", { "dependencies": { "invariant": "^2.2.4", "nullthrows": "^1.1.1" }, "peerDependencies": { "@types/react": "^19.2.0", "react": "*", "react-native": "0.88.0-rc.4" }, "optionalPeers": ["@types/react"] }, "sha512-AJ5WW9HgmgihosnrkdgNqZPFXJ8KHjzZlEiqbcvsA/ZHsUC5XBeASnInCBybERm8kPRyB+uzWnMJj1Cip0RVHA=="],
+
+    "@shopify/flash-list": ["@shopify/flash-list@2.3.3", "", { "peerDependencies": { "@babel/runtime": "*", "react": "*", "react-native": "*" } }, "sha512-77MXV5YKMo3B3XZtgNXBaELZVQOE0bDcQxH4D/qf0i3o6YkZWBoHeR0CkFXZBdyoZqgvsUe3kkr0qhQE9lVqtg=="],
 
     "@sinclair/typebox": ["@sinclair/typebox@0.27.12", "", {}, "sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g=="],
 

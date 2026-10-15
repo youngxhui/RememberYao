@@ -1,7 +1,13 @@
 import { useObserve } from "expo-observe";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View, FlatList } from "react-native";
+import {
+  Pressable,
+  Text,
+  View,
+  FlatList,
+  type ListRenderItem,
+} from "react-native";
 
 import { SymbolIcon } from "@/components/symbol-icon";
 import { addIcon } from "@/components/toolbar-icons";
@@ -95,17 +101,19 @@ export function Medica() {
         style={{ flex: 1 }}
         data={cards}
         keyExtractor={(item) => item.medication.id}
-        renderItem={({ item }) => (
-          <MedicationRow
-            card={item}
-            onPress={() => {
-              router.push({
-                pathname: "/(tabs)/medica/detail",
-                params: { id: item.medication.id },
-              });
-            }}
-          />
-        )}
+        renderItem={
+          (({ item }: { item: CardModel }) => (
+            <MedicationRow
+              card={item}
+              onPress={() => {
+                router.push({
+                  pathname: "/(tabs)/medica/detail",
+                  params: { id: item.medication.id },
+                });
+              }}
+            />
+          )) as ListRenderItem<CardModel>
+        }
         ListHeaderComponent={
           <View
             style={{
