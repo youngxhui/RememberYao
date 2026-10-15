@@ -1,4 +1,4 @@
-import { ScrollView, View } from "react-native";
+import { FlatList } from "react-native";
 
 import { GlassChip } from "@/components/glass-chip";
 import { Spacing } from "@/constants/theme";
@@ -16,7 +16,8 @@ const MEDICA_FILTERS: { key: MedicaFilter; label: Path }[] = [
 ];
 
 /**
- * 横向 chip 行：外层 View 约束高度，避免 UIScrollView 在纵向 Yoga 里被拉满。
+ * 横向 chip 行：改用 FlatList 承载，避免 UIScrollView 在纵向 flex
+ * 容器里高度行为不可控。
  */
 export function FilterRow({
   filter,
@@ -28,36 +29,27 @@ export function FilterRow({
   const t = useTranslation();
 
   return (
-    <View style={{ alignSelf: "stretch" }}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: Spacing.screen,
-          paddingVertical: Spacing.one,
-          alignItems: "center",
-        }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            gap: Spacing.two,
-            alignItems: "center",
+    <FlatList
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingHorizontal: Spacing.screen,
+        alignItems: "center",
+        gap: Spacing.two,
+      }}
+      style={{ height: 44 }}
+      data={MEDICA_FILTERS}
+      keyExtractor={(item) => item.key}
+      renderItem={({ item }) => (
+        <GlassChip
+          testID={`medica-filter-${item.key}`}
+          label={t(item.label)}
+          active={filter === item.key}
+          onPress={() => {
+            onSelect(item.key);
           }}
-        >
-          {MEDICA_FILTERS.map((item) => (
-            <GlassChip
-              key={item.key}
-              testID={`medica-filter-${item.key}`}
-              label={t(item.label)}
-              active={filter === item.key}
-              onPress={() => {
-                onSelect(item.key);
-              }}
-            />
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+        />
+      )}
+    />
   );
 }
