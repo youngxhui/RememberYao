@@ -26,11 +26,6 @@ type CardModel = {
   level: StockLevel;
 };
 
-/**
- * 列表筛选：分类维度互斥，「库存不足」跨分类。
- * 搜索词与筛选维度同时生效（AND）—— 先按维度收窄，再按药名收窄。
- * 纯函数：结果只由入参决定，方便以后补单元测试。
- */
 export function buildMedicationCards(
   medications: Medication[],
   filter: MedicaFilter,
@@ -41,8 +36,6 @@ export function buildMedicationCards(
   for (const medication of medications) {
     const level = stockLevel(medication);
     if (filter === "low") {
-      // 「库存不足」只收真的偏低 / 告急；未设置库存（unset）不算 ——
-      // 快速添加的药还没记库存，不该被筛进「库存不足」
       if (level === "ok" || level === "unset") continue;
     } else if (filter !== "all" && medication.category !== filter) {
       continue;
@@ -67,8 +60,6 @@ export function Medica() {
     }, [reload]),
   );
 
-  // 深链可能直接落到本 tab：列表数据落地后记录一次可交互时刻。
-  // 同一会话里只有第一次调用生效，正常从首页进来的会话不会重复记
   useEffect(() => {
     if (!loading) markInteractive();
   }, [loading, markInteractive]);
@@ -144,10 +135,6 @@ export function Medica() {
   );
 }
 
-/**
- * 一行药。整行点击进详情。
- * 行内容只留三样：药名、`类型 · 分类`、行尾库存。
- */
 function MedicationRow({
   card,
   onPress,
@@ -207,12 +194,6 @@ function MedicationRow({
   );
 }
 
-/**
- * 空态：药箱清空 / 搜索无结果 / 分类无药 / 库存充足。
- *
- * RN 写法用 flex + alignItems/justifyContent center 居中，
- * 禁止再用 Spacer flexible（Expo UI 产物，RN 树里不存在）。
- */
 function EmptyState({ body }: { body: Path }) {
   const theme = useTheme();
   const t = useTranslation();
