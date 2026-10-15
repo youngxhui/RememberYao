@@ -1,4 +1,3 @@
-import { RNHostView } from "@expo/ui";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -347,21 +346,6 @@ export function MiniArchive({
         </Animated.ScrollView>
       </RNView>
     </RNView>
-  );
-}
-
-/**
- * 放进 Expo UI 页面时用这个。
- * 高度由 MiniArchive 内部 RN View 的固定尺寸提供，RNHostView 通过
- * matchContents 将 RN 子树的尺寸同步给 SwiftUI / Compose；不要再给
- * RNHostView 写百分比 style，跨平台适配层对 style 的支持并不一致。
- * 纯 RN 页面继续直接用 MiniArchive。
- */
-export function MiniArchiveExpoUI(props: MiniArchiveProps) {
-  return (
-    <RNHostView matchContents>
-      <MiniArchive {...props} />
-    </RNHostView>
   );
 }
 
