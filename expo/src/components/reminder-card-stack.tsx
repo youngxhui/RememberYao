@@ -1,4 +1,3 @@
-import { RNHostView } from "@expo/ui";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -861,14 +860,13 @@ function StackCard({
 }
 
 /**
- * Expo UI 导入使用
- * @param param0
- * @returns
+ * Expo UI 导入时用这个包装：把纯 RN 的 ReminderCardStack 挂进 RNHostView，
+ * 让 Host 的 matchContents 能测到它实际渲染宽度。
  */
 export function ReminderCardStackExpoUI(props: ReminderCardStackProps) {
   return (
-    <RNHostView matchContents>
+    <RNView>
       <ReminderCardStack {...props} />
-    </RNHostView>
+    </RNView>
   );
 }

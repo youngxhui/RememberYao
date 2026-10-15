@@ -1,6 +1,5 @@
-import { RNHostView } from "@expo/ui";
 import { useRouter } from "expo-router";
-import { Pressable, Text as RNText, View as RNView } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { SYMBOL_ICONS } from "@/components/icons";
 import { SymbolIcon } from "@/components/symbol-icon";
@@ -33,8 +32,6 @@ export function buildStockRows(
 ): StockRow[] {
   const rows: StockRow[] = [];
   for (const medication of medications) {
-    // 未设置库存的药不进速览：没有库存记录时「剩 0 天」是误导而非补药提醒
-    // （快速添加只建提醒、不填库存就是这种）
     if (stockLevel(medication) === "unset") continue;
     const summary = stockSummary(medication, plans);
     if (summary.daysLeft === null) continue;
@@ -48,7 +45,6 @@ export function buildStockRows(
       low: summary.low,
       percent,
     };
-    // 手写插入保持升序：Hermes 没有 toSorted()，规则不允许原地排序 store 数据
     let i = 0;
     while (i < rows.length && rows[i].daysLeft <= row.daysLeft) i += 1;
     rows.splice(i, 0, row);
@@ -60,15 +56,9 @@ export function buildStockRows(
 export type StockPanelProps = {
   medications: Medication[];
   plans: MedicationPlan[];
-  /** 岛内可用宽度（不含屏幕左右边距）。纯 RN 屏不传 */
-  containerWidth?: number;
 };
 
-export function StockPanel({
-  medications,
-  plans,
-  containerWidth,
-}: StockPanelProps) {
+export function StockPanel({ medications, plans }: StockPanelProps) {
   const theme = useTheme();
   const t = useTranslation();
   const { language } = useI18n();
@@ -77,15 +67,14 @@ export function StockPanel({
   const low = rows.filter((row) => row.low);
 
   return (
-    // 宽度显式给出去：每行的药名是 `flex: 1`，父容器宽度不定时它会被压成 0
-    <RNView style={{ gap: 10, width: containerWidth }}>
+    <View style={{ gap: Spacing.two }}>
       {rows.length === 0 ? (
-        <RNText style={{ color: theme.textSecondary, fontSize: 13 }}>
+        <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
           {t("home.stockListEmpty")}
-        </RNText>
+        </Text>
       ) : (
         rows.map((row) => (
-          <RNView
+          <View
             key={row.medication.id}
             style={{
               flexDirection: "row",
@@ -93,7 +82,7 @@ export function StockPanel({
               gap: Spacing.two,
             }}
           >
-            <RNText
+            <Text
               numberOfLines={1}
               style={{ flex: 1, color: theme.text, fontSize: 14 }}
             >
@@ -101,9 +90,9 @@ export function StockPanel({
                 row.medication.unit,
                 t,
               )}`}
-            </RNText>
+            </Text>
             <StockBar percent={row.percent} low={row.low} />
-            <RNText
+            <Text
               style={{
                 width: 72,
                 textAlign: "right",
@@ -115,28 +104,27 @@ export function StockPanel({
               }}
             >
               {t("home.daysLeft", { days: row.daysLeft })}
-            </RNText>
-          </RNView>
+            </Text>
+          </View>
         ))
       )}
 
       {low.length > 0 ? (
-        <RNView
+        <View
           style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: 12,
-            marginTop: Spacing.two,
+            gap: Spacing.three,
+            paddingHorizontal: Spacing.three,
+            paddingVertical: 14,
             backgroundColor: withAlpha(theme.danger, 0.05),
             borderWidth: 1,
             borderColor: withAlpha(theme.danger, 0.28),
             borderRadius: Radius.card,
             borderCurve: "continuous",
-            paddingHorizontal: Spacing.three,
-            paddingVertical: 14,
           }}
         >
-          <RNView
+          <View
             style={{
               width: 32,
               height: 32,
@@ -151,9 +139,9 @@ export function StockPanel({
               size={17}
               color={theme.dangerStrong}
             />
-          </RNView>
-          <RNView style={{ flex: 1, minWidth: 0 }}>
-            <RNText
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
               numberOfLines={1}
               style={{
                 color: theme.dangerStrong,
@@ -167,8 +155,8 @@ export function StockPanel({
                     count: low.length,
                   })
                 : t("home.lowOne", { name: low[0].medication.name })}
-            </RNText>
-            <RNText
+            </Text>
+            <Text
               numberOfLines={2}
               style={{
                 marginTop: 2,
@@ -180,8 +168,8 @@ export function StockPanel({
               {t("home.lowRunsOut", {
                 date: monthDay(addDays(todayKey(), low[0].daysLeft), language),
               })}
-            </RNText>
-          </RNView>
+            </Text>
+          </View>
           <Pressable
             testID="home-refill-button"
             accessibilityRole="button"
@@ -205,7 +193,7 @@ export function StockPanel({
               justifyContent: "center",
             })}
           >
-            <RNText
+            <Text
               style={{
                 color: theme.dangerStrong,
                 fontSize: 13,
@@ -213,11 +201,11 @@ export function StockPanel({
               }}
             >
               {t("home.restock")}
-            </RNText>
+            </Text>
           </Pressable>
-        </RNView>
+        </View>
       ) : null}
-    </RNView>
+    </View>
   );
 }
 
@@ -225,7 +213,7 @@ function StockBar({ percent, low }: { percent: number; low: boolean }) {
   const theme = useTheme();
   const clamped = Math.max(0, Math.min(1, percent));
   return (
-    <RNView
+    <View
       style={{
         width: 72,
         height: 4,
@@ -234,7 +222,7 @@ function StockBar({ percent, low }: { percent: number; low: boolean }) {
         overflow: "hidden",
       }}
     >
-      <RNView
+      <View
         style={{
           width: `${clamped * 100}%`,
           height: 4,
@@ -242,7 +230,7 @@ function StockBar({ percent, low }: { percent: number; low: boolean }) {
           backgroundColor: low ? theme.danger : theme.success,
         }}
       />
-    </RNView>
+    </View>
   );
 }
 
@@ -258,13 +246,4 @@ function monthDay(key: string, language: Language): string {
   } catch {
     return key;
   }
-}
-
-/** 放进 Expo UI 页面时用这个：行内药名靠 `flex: 1` 撑开，整块留成 RN island */
-export function StockPanelExpoUI(props: StockPanelProps) {
-  return (
-    <RNHostView matchContents>
-      <StockPanel {...props} />
-    </RNHostView>
-  );
 }
