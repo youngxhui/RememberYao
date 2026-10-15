@@ -1,8 +1,10 @@
-import { Column, Icon, Row, type IconName } from "@expo/ui";
+import { Column, Icon, Row } from "@expo/ui";
 
 import { roundedBox } from "@/components/rounded-box";
 import { Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+
+import { ICONS, type IconKey } from "./icons";
 
 /**
  * 通栏行右端的圆形图标按钮（design 的 .icon-btn：首页添加药品、我的页设置与「+」）。
@@ -22,7 +24,7 @@ export function RoundIconButton({
   testID: string;
   /** 无障碍朗读名（Android 映射 contentDescription） */
   label: string;
-  icon: IconName;
+  icon: IconKey;
   /** 按钮外框，圆形 */
   size: number;
   /** 图标边长，小于外框留出内边距 */
@@ -55,7 +57,7 @@ export function RoundIconButton({
           横轴中线要靠这层 Column（alignment=center → frame 横向居中） */}
       <Column alignment="center" style={{ width: size }}>
         <Icon
-          name={icon}
+          name={ICONS[icon]}
           size={iconSize}
           color={theme.text}
           accessibilityLabel={label}

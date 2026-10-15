@@ -1,16 +1,23 @@
 import { SymbolView } from "expo-symbols";
+import type { SymbolViewProps } from "expo-symbols";
 
 /**
- * 平台图标：iOS 走 SF Symbols。
+ * 平台图标封装：底层走 expo-symbols 的 SymbolView，两端各给一份图标名。
  *
- * 为什么不用 `@expo/ui` 的 `Icon`：它要求整棵树包在 `Host` 里，而首页是纯 RN 滚动屏
- * （时间线导轨要 flex 连接线、提醒卡是 Reanimated 手势），塞进原生树要靠 RNHostView
- * 逐块桥接，触摸链路和测量都更难保证。`expo-symbols` 的原生视图可以直接挂在 RN 树上。
+ * - iOS：SF Symbol 字符串。
+ * - Android：Material Symbols 字形名（expo-symbols 内置 symbols.json 的 key），
+ *   不是 @expo/material-symbols 的矢量图资源——SymbolView 在 Android 上是
+ *   用 font glyph 渲染的，不走矢量图路径。
  *
- * Android：`name` 目前只给了 iOS 的 SF Symbol，Android 端要补 Material 图标
- * （`name={{ ios, android: import('@expo/material-symbols/xxx.xml') }}`）。
- * 本项目的 Android 目录尚未生成，先记在 AGENTS.md 的 Android 待办里。
+ * `name` 可直接传 `{ ios, android }` 对象（同 SymbolView 原生 API），
+ * 也可以从 SYMBOL_ICONS 取语义键。
+ *
+ * 为什么不用 @expo/ui 的 Icon：首页 / 剂量导轨是纯 RN 滚动屏（时间线导轨要
+ * flex 连接线、提醒卡是 Reanimated 手势），塞进 Host 要靠 RNHostView 逐块桥接，
+ * 触摸链路和测量都更难保证。SymbolView 可以直接挂在 RN 树上。
  */
+type SymbolIconName = SymbolViewProps["name"];
+
 export function SymbolIcon({
   name,
   size = 16,
@@ -18,8 +25,7 @@ export function SymbolIcon({
   weight = "semibold",
   style,
 }: {
-  /** SF Symbol 名称 */
-  name: Parameters<typeof SymbolView>[0]["name"];
+  name: SymbolIconName;
   size?: number;
   color: string;
   weight?: "regular" | "medium" | "semibold" | "bold";

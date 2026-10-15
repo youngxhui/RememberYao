@@ -7,13 +7,15 @@ import {
   ScrollView,
   Spacer,
   Text,
-  type IconName,
 } from "@expo/ui";
+import { useObserve } from "expo-observe";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ICONS, type IconKey } from "@/components/icons";
 import { nativeLayout } from "@/components/native-layout";
 import { roundedBox } from "@/components/rounded-box";
+import { addIcon } from "@/components/toolbar-icons";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation, type Path } from "@/i18n";
@@ -68,6 +70,7 @@ export function Medica() {
   const router = useRouter();
   const theme = useTheme();
   const t = useTranslation();
+  const { markInteractive } = useObserve();
   const { data: medications, loading, reload } = useMedications();
   const [filter, setFilter] = useState<MedicaFilter>("all");
   const [query, setQuery] = useState("");
@@ -77,6 +80,12 @@ export function Medica() {
       reload();
     }, [reload]),
   );
+
+  // 深链可能直接落到本 tab：列表数据落地后记录一次可交互时刻。
+  // 同一会话里只有第一次调用生效，正常从首页进来的会话不会重复记
+  useEffect(() => {
+    if (!loading) markInteractive();
+  }, [loading, markInteractive]);
 
   const cards = useMemo(
     () => buildMedicationCards(medications, filter, query),
@@ -88,11 +97,12 @@ export function Medica() {
       <Stack.Title large>{t("medication.listTitle")}</Stack.Title>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
+          icon={addIcon}
+          accessibilityLabel={t("common.add")}
           onPress={() => {
-            router.push("/(tabs)/medica/form");
+            router.push("/(tabs)/medica/quick-add");
           }}
         >
-          <Stack.Toolbar.Icon sf="plus" />
           <Stack.Toolbar.Label>{t("common.add")}</Stack.Toolbar.Label>
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
@@ -145,7 +155,9 @@ export function buildMedicationCards(
   for (const medication of medications) {
     const level = stockLevel(medication);
     if (filter === "low") {
-      if (level === "ok") continue;
+      // 「库存不足」只收真的偏低 / 告急；未设置库存（unset）不算 ——
+      // 快速添加的药还没记库存，不该被筛进「库存不足」
+      if (level === "ok" || level === "unset") continue;
     } else if (filter !== "all" && medication.category !== filter) {
       continue;
     }
@@ -288,7 +300,7 @@ function Thumb() {
     >
       {/* Row 的 frame 只把内容压到纵轴中线，横轴中线靠这层 Column */}
       <Column alignment="center" style={{ width: THUMB_SIZE }}>
-        <Icon name="pills.fill" size={24} color={theme.primary} />
+        <Icon name={ICONS.pills} size={24} color={theme.primary} />
       </Column>
     </Row>
   );
@@ -320,7 +332,7 @@ function StockPill({
         paddingVertical: Spacing.one,
       }}
     >
-      <Icon name={STOCK_ICON[level]} size={13} color={color.strong} />
+      <Icon name={ICONS[STOCK_ICON[level]]} size={13} color={color.strong} />
       <Text
         numberOfLines={1}
         textStyle={{
@@ -357,7 +369,7 @@ function EmptyState({ body }: { body: Path }) {
         style={{ paddingTop: 60 }}
       >
         <Icon
-          name="bookmark"
+          name={ICONS.bookmark}
           size={56}
           color={withAlpha(theme.textSecondary, 0.4)}
           accessibilityLabel={t(body)}
@@ -384,7 +396,7 @@ function EmptyState({ body }: { body: Path }) {
         <Button
           label={t("common.add")}
           onPress={() => {
-            router.push("/(tabs)/medica/form");
+            router.push("/(tabs)/medica/quick-add");
           }}
           modifiers={[]}
         />
@@ -406,17 +418,22 @@ function useStockColors(level: StockLevel): { base: string; strong: string } {
   if (level === "low") {
     return { base: theme.warning, strong: theme.warningStrong };
   }
+  if (level === "unset") {
+    return { base: theme.textSecondary, strong: theme.textSecondary };
+  }
   return { base: theme.success, strong: theme.successStrong };
 }
 
-const STOCK_ICON: Record<StockLevel, IconName> = {
-  ok: "checkmark.circle.fill",
-  low: "exclamationmark.triangle.fill",
-  critical: "exclamationmark.octagon.fill",
+const STOCK_ICON: Record<StockLevel, IconKey> = {
+  ok: "stockOk",
+  low: "stockLow",
+  critical: "stockCritical",
+  unset: "stockUnset",
 };
 
 const STOCK_LABEL: Record<StockLevel, Path> = {
   ok: "medication.stockOk",
   low: "medication.stockLow",
   critical: "medication.stockCritical",
+  unset: "medication.stockUnset",
 };

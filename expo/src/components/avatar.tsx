@@ -1,20 +1,49 @@
 import { Column, Icon, Row, RNHostView, Text } from "@expo/ui";
+import { Image } from "expo-image";
 import { Text as RNText, View as RNView } from "react-native";
 
 import { Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
+import { ICONS } from "./icons";
+
 type AvatarProps = {
   color: string;
   name: string;
+  /** 头像照片的本地文件 URI；给了就用照片，没给退回「底色 + 姓名首字」 */
+  uri?: string;
   size?: number;
 };
 
 /**
- * 头像本体：圆形底色 + 姓名首字。纯 RN 视图，
+ * 头像本体：圆形底色 + 姓名首字，或圆形照片。纯 RN 视图，
  * 整屏纯 RN 的地方（如「我的」的家庭成员卡）直接用它。
  */
-export function AvatarMark({ color, name, size = 32 }: AvatarProps) {
+export function AvatarMark({ color, name, uri, size = 32 }: AvatarProps) {
+  if (uri) {
+    return (
+      // 圆角必须由这层 RN 容器裁（overflow: "hidden" + borderRadius），不能只指望
+      // expo-image 的 Image 自带圆角 —— 塞进 RNHostView 时不保险，真机上见过方图。
+      // 顺带用头像底色当加载中的占位，免得照片解码前露个空洞
+      <RNView
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+          overflow: "hidden",
+        }}
+      >
+        <Image
+          source={{ uri }}
+          style={{ width: size, height: size }}
+          contentFit="cover"
+          accessibilityLabel={name}
+        />
+      </RNView>
+    );
+  }
+
   return (
     <RNView
       style={{
@@ -49,10 +78,10 @@ export function AvatarMark({ color, name, size = 32 }: AvatarProps) {
  * 带崩（个人信息页实测：后面的分区卡片被顶出屏外）。固定尺寸的头像请用
  * `MemberAvatar`（纯原生实现，两屏共用同一颗头像）。
  */
-export function Avatar({ color, name, size = 32 }: AvatarProps) {
+export function Avatar({ color, name, uri, size = 32 }: AvatarProps) {
   return (
     <RNHostView style={{ width: size, height: size }}>
-      <AvatarMark color={color} name={name} size={size} />
+      <AvatarMark color={color} name={name} uri={uri} size={size} />
     </RNHostView>
   );
 }
@@ -66,10 +95,23 @@ export function Avatar({ color, name, size = 32 }: AvatarProps) {
  *
  * 添加成员表单的头像预览与个人信息页的大头像是同一个组件：同一个人的头像在
  * 两屏必须长得一模一样。
+ *
+ * 有照片时只能走 `RNHostView matchContents`：universal 层没有图片组件，而
+ * `matchContents` + 内部固定尺寸正是文档认可的 RN island 写法
+ * （docs/conventions/expo-ui-layout.md 第 3 节）。
  */
-export function MemberAvatar({ color, name, size = 64 }: AvatarProps) {
+export function MemberAvatar({ color, name, uri, size = 64 }: AvatarProps) {
   const theme = useTheme();
   const initial = name.trim().slice(0, 1);
+
+  if (uri) {
+    return (
+      <RNHostView matchContents>
+        <AvatarMark color={color} name={name} uri={uri} size={size} />
+      </RNHostView>
+    );
+  }
+
   return (
     <Row
       alignment="center"
@@ -77,7 +119,7 @@ export function MemberAvatar({ color, name, size = 64 }: AvatarProps) {
         width: size,
         height: size,
         borderRadius: Radius.pill,
-        backgroundColor: initial ? color : theme.primarySoft,
+        backgroundColor: initial ? color : undefined,
         borderWidth: initial ? 0 : 1,
         borderColor: theme.border,
       }}
@@ -96,7 +138,7 @@ export function MemberAvatar({ color, name, size = 64 }: AvatarProps) {
             {initial}
           </Text>
         ) : (
-          <Icon name="person" size={size * 0.5} color={theme.primary} />
+          <Icon name={ICONS.person} size={size * 0.5} color={theme.primary} />
         )}
       </Column>
     </Row>

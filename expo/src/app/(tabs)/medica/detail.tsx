@@ -10,7 +10,6 @@ import {
   Text,
   TextInput,
   useNativeState,
-  type IconName,
 } from "@expo/ui";
 import {
   Stack,
@@ -21,6 +20,7 @@ import {
 import { useCallback, useState } from "react";
 
 import { AvatarMark } from "@/components/avatar";
+import { ICONS, type IconKey } from "@/components/icons";
 import { InputShell } from "@/components/input-shell";
 import {
   nativeButtonModifiers,
@@ -34,6 +34,7 @@ import {
   SectionCard,
   SectionTitle,
 } from "@/components/section-card";
+import { editIcon } from "@/components/toolbar-icons";
 import { BottomTabInset, Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, useTranslation, type Language, type Path } from "@/i18n";
@@ -212,11 +213,12 @@ export default function MedicationDetailScreen() {
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
+          icon={editIcon}
+          accessibilityLabel={t("common.edit")}
           onPress={() => {
             router.push({ pathname: "/(tabs)/medica/form", params: { id } });
           }}
         >
-          <Stack.Toolbar.Icon sf="square.and.pencil" />
           <Stack.Toolbar.Label>{t("common.edit")}</Stack.Toolbar.Label>
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
@@ -457,7 +459,7 @@ function TwinEntry({
       style={{ ...box.style, padding: Spacing.three }}
       modifiers={box.modifiers}
     >
-      <Icon name="square.stack.3d.up.fill" size={22} color={theme.primary} />
+      <Icon name={ICONS.stack} size={22} color={theme.primary} />
       <Column modifiers={[nativeLayout({ unconstrainedWidth: true })]}>
         <Text
           numberOfLines={1}
@@ -480,7 +482,7 @@ function TwinEntry({
             : t("medication.twinEnableHint")}
         </Text>
       </Column>
-      <Icon name="chevron.right" size={14} color={theme.textSecondary} />
+      <Icon name={ICONS.chevronRight} size={14} color={theme.textSecondary} />
     </Row>
   );
 }
@@ -555,34 +557,46 @@ function StockOverview({
           <StockStatusPill level={level} />
         </Row>
 
-        <Row alignment="end" spacing={Spacing.two}>
-          <Text
-            textStyle={{
-              fontFamily: Fonts.sans,
-              fontSize: 32,
-              lineHeight: 34,
-              fontWeight: "800",
-              letterSpacing: -0.96,
-              color: theme.text,
-            }}
-          >
-            {String(medication.remainingQuantity)}
-          </Text>
-          <Text textStyle={{ fontSize: 15, color: theme.textSecondary }}>
-            {`/ ${medication.totalQuantity} ${unit}`}
-          </Text>
-        </Row>
+        {level === "unset" ? (
+          /* 快速添加的药还没记库存：不显示虚假的「0 / 0」，明说尚未设置 */
+          <Row alignment="center" spacing={Spacing.two}>
+            <Icon name={ICONS.minus} size={15} color={theme.textSecondary} />
+            <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
+              {t("medication.stockUnsetHint")}
+            </Text>
+          </Row>
+        ) : (
+          <>
+            <Row alignment="end" spacing={Spacing.two}>
+              <Text
+                textStyle={{
+                  fontFamily: Fonts.sans,
+                  fontSize: 32,
+                  lineHeight: 34,
+                  fontWeight: "800",
+                  letterSpacing: -0.96,
+                  color: theme.text,
+                }}
+              >
+                {String(medication.remainingQuantity)}
+              </Text>
+              <Text textStyle={{ fontSize: 15, color: theme.textSecondary }}>
+                {`/ ${medication.totalQuantity} ${unit}`}
+              </Text>
+            </Row>
 
-        <ProgressBar
-          percent={percent}
-          color={color.strong}
-          track={theme.backgroundSelected}
-          height={8}
-        />
+            <ProgressBar
+              percent={percent}
+              color={color.strong}
+              track={theme.backgroundSelected}
+              height={8}
+            />
+          </>
+        )}
 
         <Row alignment="center" spacing={Spacing.two}>
           <Icon
-            name="clock.fill"
+            name={ICONS.clock}
             size={13}
             color={summary.low ? theme.danger : theme.textSecondary}
           />
@@ -628,7 +642,7 @@ function Thumb() {
     >
       {/* Row 的 frame 只把内容压到纵轴中线，横轴中线靠这层 Column */}
       <Column alignment="center" style={{ width: THUMB_SIZE }}>
-        <Icon name="pills.fill" size={24} color={theme.primary} />
+        <Icon name={ICONS.pills} size={24} color={theme.primary} />
       </Column>
     </Row>
   );
@@ -654,7 +668,7 @@ function StockStatusPill({ level }: { level: StockLevel }) {
         paddingVertical: Spacing.one,
       }}
     >
-      <Icon name={STOCK_ICON[level]} size={13} color={color.strong} />
+      <Icon name={ICONS[STOCK_ICON[level]]} size={13} color={color.strong} />
       <Text
         numberOfLines={1}
         textStyle={{
@@ -858,6 +872,7 @@ function PlanSection({
                   <AvatarMark
                     color={person.avatarColor}
                     name={person.name}
+                    uri={person.avatarUri}
                     size={36}
                   />
                 ) : undefined
@@ -928,19 +943,24 @@ function useStockColors(level: StockLevel): { base: string; strong: string } {
   if (level === "low") {
     return { base: theme.warning, strong: theme.warningStrong };
   }
+  if (level === "unset") {
+    return { base: theme.textSecondary, strong: theme.textSecondary };
+  }
   return { base: theme.success, strong: theme.successStrong };
 }
 
-const STOCK_ICON: Record<StockLevel, IconName> = {
-  ok: "checkmark.circle.fill",
-  low: "exclamationmark.triangle.fill",
-  critical: "exclamationmark.octagon.fill",
+const STOCK_ICON: Record<StockLevel, IconKey> = {
+  ok: "stockOk",
+  low: "stockLow",
+  critical: "stockCritical",
+  unset: "stockUnset",
 };
 
 const STOCK_LABEL: Record<StockLevel, Path> = {
   ok: "medication.stockOk",
   low: "medication.stockLow",
   critical: "medication.stockCritical",
+  unset: "medication.stockUnset",
 };
 
 /** 日期键转本地化日期：中文「2026年10月1日」，英文走 Intl 的 "Oct 1, 2026" */

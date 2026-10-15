@@ -11,7 +11,6 @@ import {
   Text,
   TextInput,
   useNativeState,
-  type IconName,
   type ObservableState,
 } from "@expo/ui";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -23,6 +22,7 @@ import {
 } from "react-native";
 
 import { Chip } from "@/components/chip";
+import { ICONS, type IconKey } from "@/components/icons";
 import { InputShell } from "@/components/input-shell";
 import {
   nativeButtonModifiers,
@@ -346,7 +346,7 @@ export function MedicationTwin() {
                 {persons.length > 1 ? (
                   <Row alignment="center" spacing={Spacing.rowGap}>
                     <Icon
-                      name="person.2.fill"
+                      name={ICONS.persons}
                       size={18}
                       color={theme.textSecondary}
                     />
@@ -816,7 +816,7 @@ function SlotMark({ size, slot }: { size: number; slot: BlisterSlot }) {
   const tint = useMarkTint(mark.tone);
   return (
     <Icon
-      name={mark.icon}
+      name={ICONS[mark.icon]}
       size={Math.max(9, Math.round(size * 0.42))}
       color={tint}
     />
@@ -835,11 +835,11 @@ function useMarkTint(tone: MarkTone): string {
 }
 
 /** 槽位 → 坑里的标记。纯函数：只读状态，颜色由 useMarkTint 从 theme 取 */
-function slotMark(slot: BlisterSlot): { icon: IconName; tone: MarkTone } {
+function slotMark(slot: BlisterSlot): { icon: IconKey; tone: MarkTone } {
   if (slot.status === "void") return { icon: "xmark", tone: "danger" };
   return slot.usageId
-    ? { icon: "checkmark", tone: "success" }
-    : { icon: "minus", tone: "neutral" };
+    ? { icon: "check", tone: "success" }
+    : { icon: "minusSlot", tone: "neutral" };
 }
 
 /**

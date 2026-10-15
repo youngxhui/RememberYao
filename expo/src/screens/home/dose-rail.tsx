@@ -7,6 +7,7 @@ import {
   toneColors,
   type StatusTone,
 } from "@/components/dose-timeline";
+import { SYMBOL_ICONS } from "@/components/icons";
 import { SymbolIcon } from "@/components/symbol-icon";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -158,18 +159,16 @@ function railPalette(tone: StatusTone, theme: ReturnType<typeof useTheme>) {
   }
 }
 
-type SymbolName = Parameters<typeof SymbolIcon>[0]["name"];
-
 /** 导轨节点图标：待服用是空心点，其余状态用实心圆 + 符号 */
-function nodeIcon(tone: StatusTone): SymbolName | null {
+function nodeIcon(tone: StatusTone): keyof typeof SYMBOL_ICONS | null {
   switch (tone) {
     case "success":
-      return "checkmark.circle";
+      return "checkCircle";
     case "warning":
     case "danger":
-      return "alarm";
+      return "alarmRail";
     case "neutral":
-      return "xmark.circle";
+      return "xmarkCircle";
     default:
       return null;
   }
@@ -392,7 +391,7 @@ function DoseRow({
           >
             {nodeName ? (
               <SymbolIcon
-                name={nodeName}
+                name={SYMBOL_ICONS[nodeName]}
                 size={12}
                 weight="bold"
                 color={
@@ -446,7 +445,11 @@ function DoseRow({
               justifyContent: "center",
             }}
           >
-            <SymbolIcon name="pills.fill" size={17} color={palette.iconColor} />
+            <SymbolIcon
+              name={SYMBOL_ICONS.pillsRail}
+              size={17}
+              color={palette.iconColor}
+            />
           </RNView>
 
           <RNView style={{ flex: 1, minWidth: 0 }}>
@@ -583,10 +586,10 @@ function CheckButton({
         : null;
   const icon =
     meta.tone === "success"
-      ? "checkmark"
+      ? SYMBOL_ICONS.check
       : meta.tone === "neutral"
-        ? "xmark"
-        : "checkmark";
+        ? SYMBOL_ICONS.xmark
+        : SYMBOL_ICONS.check;
 
   return (
     <Pressable
@@ -744,7 +747,7 @@ function GapRow({
               }}
             >
               <SymbolIcon
-                name="chevron.down"
+                name={SYMBOL_ICONS.chevronDownRail}
                 size={10}
                 weight="bold"
                 color={theme.textSecondary}

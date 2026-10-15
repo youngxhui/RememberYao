@@ -1,18 +1,25 @@
 import {
+  Button,
   Column,
   Host,
   Icon,
-  Picker,
   Row,
   ScrollView,
   Spacer,
   Text,
 } from "@expo/ui";
-import { Stack, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useObserve } from "expo-observe";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Linking } from "react-native";
 
+import { ICONS } from "@/components/icons";
+import {
+  nativeButtonModifiers,
+  nativeLayout,
+} from "@/components/native-layout";
 import { ReminderCardStackExpoUI } from "@/components/reminder-card-stack";
+import { memberFilterIcon } from "@/components/toolbar-icons";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useExpoUiContentWidth } from "@/hooks/use-expo-ui-content-width";
 import { useOnboardingGate } from "@/hooks/use-onboarding-gate";
@@ -32,12 +39,6 @@ import {
 } from "@/lib/store";
 import { StockPanelExpoUI } from "@/screens/home/stock-panel";
 
-/**
- * `Picker` 里代表「全部」的哨兵值 —— `selectedValue` 不接受 null。
- * store 的 id 形如 `<时间戳>-<随机 base36>`，这个带下划线的前缀不可能撞上。
- */
-const ALL_PERSONS = "__all__";
-
 /** 星期几的本地化名字交给 Intl，Hermes 自带完整 ICU */
 function weekdayName(date: Date, locale: string): string {
   try {
@@ -48,12 +49,12 @@ function weekdayName(date: Date, locale: string): string {
 }
 
 /**
- * 首页（今天）：巨型日期 + 家庭成员筛选 + 提醒卡堆叠 + 库存速览。
+ * 首页（今天）：巨型日期 + 工具栏右上角的家庭成员筛选 + 提醒卡堆叠 + 药品库存。
  * 视觉基准 = design/today.html。
  *
  * 整屏跑在 `Host` + 原生 `ScrollView` 里（Expo UI 为主），两块 RN island：
  *   1. 提醒卡堆叠（`ReminderCardStackExpoUI`）：Reanimated + BlurView 的手势组件；
- *   2. 库存速览（`StockPanelExpoUI`）：行内药名靠 `flex: 1` 撑开。
+ *   2. 药品库存（`StockPanelExpoUI`）：行内药名靠 `flex: 1` 撑开。
  *
  * 两块都靠 `useExpoUiContentWidth` 实测内容区宽度后经 `containerWidth` 喂进去 ——
  * matchContents 下 RN 自测拿不到父级宽度，牌堆位移会直接塌掉。
@@ -62,7 +63,9 @@ function weekdayName(date: Date, locale: string): string {
 export function Home() {
   const theme = useTheme();
   const t = useTranslation();
+  const router = useRouter();
   const checkingOnboarding = useOnboardingGate();
+  const { markInteractive } = useObserve();
   // 按需读取：这一屏只要未处理提醒 + 药品 + 成员 + 配置（库存估算用）
   const {
     data: medications,
@@ -99,6 +102,12 @@ export function Home() {
   } = useExpoUiContentWidth();
   // null = 全部成员；选中某人时提醒卡堆叠收窄到这个人
   const [personId, setPersonId] = useState<string | null>(null);
+  // 选中的人可能在「我的」里被删掉：按当前成员集合收敛，被删的人自动退回
+  // 「全部」—— 否则工具栏标签找不到对应成员，提醒也被过虑成空列表
+  const activePersonId =
+    personId !== null && persons.some((person) => person.id === personId)
+      ? personId
+      : null;
 
   useFocusEffect(
     useCallback(() => {
@@ -106,12 +115,18 @@ export function Home() {
     }, [reload]),
   );
 
+  // 冷启动的主落点。加载期间本屏返回 null，所以「可交互」押在数据落地、
+  // 内容真正画出来这一刻 —— 这也是 splash 背后那波首次读取的终点
+  useEffect(() => {
+    if (!checkingOnboarding && !loading) markInteractive();
+  }, [checkingOnboarding, loading, markInteractive]);
+
   const stackReminders = useMemo(
     () =>
-      personId === null
+      activePersonId === null
         ? reminders
-        : reminders.filter((r) => r.personId === personId),
-    [personId, reminders],
+        : reminders.filter((r) => r.personId === activePersonId),
+    [activePersonId, reminders],
   );
 
   // 首屏加载没结束时不渲染内容，避免空列表闪一下再刷出来
@@ -124,6 +139,12 @@ export function Home() {
   return (
     <>
       <Stack.Title large>{t("home.title")}</Stack.Title>
+      {/* 成员筛选常驻系统导航栏右上角：不随内容滚走，也不必占内容区高度 */}
+      <MemberFilterToolbar
+        persons={persons}
+        personId={activePersonId}
+        onSelect={setPersonId}
+      />
       <Host
         seedColor={theme.primary}
         style={{ flex: 1 }}
@@ -146,33 +167,41 @@ export function Home() {
           >
             <HeroHeader />
 
-            <NotificationBanner />
+            {medications.length === 0 ? (
+              <FirstRunEmpty
+                onAdd={() => {
+                  router.push("/(tabs)/medica/quick-add");
+                }}
+              />
+            ) : (
+              <>
+                <NotificationBanner />
 
-            <MemberFilter
-              persons={persons}
-              personId={personId}
-              onSelect={setPersonId}
-            />
+                {stackReminders.length > 0 ? (
+                  <ReminderCardStackExpoUI
+                    reminders={stackReminders}
+                    medications={medications}
+                    persons={persons}
+                    plans={plans}
+                    containerWidth={islandWidth}
+                    onChanged={reload}
+                  />
+                ) : (
+                  <NoScheduleToday />
+                )}
 
-            <ReminderCardStackExpoUI
-              reminders={stackReminders}
-              medications={medications}
-              persons={persons}
-              plans={plans}
-              containerWidth={islandWidth}
-              onChanged={reload}
-            />
-
-            <Column spacing={Spacing.two}>
-              <SectionTitle title={t("home.stockTitle")} />
-              {loading ? null : (
-                <StockPanelExpoUI
-                  medications={medications}
-                  plans={plans}
-                  containerWidth={islandWidth}
-                />
-              )}
-            </Column>
+                <Column spacing={Spacing.two}>
+                  <SectionTitle title={t("home.stockListTitle")} />
+                  {loading ? null : (
+                    <StockPanelExpoUI
+                      medications={medications}
+                      plans={plans}
+                      containerWidth={islandWidth}
+                    />
+                  )}
+                </Column>
+              </>
+            )}
           </Column>
         </ScrollView>
       </Host>
@@ -233,15 +262,20 @@ function HeroHeader() {
 }
 
 /**
- * 家庭成员筛选：把时间线与牌堆收窄到某个人。
+ * 家庭成员筛选：把提醒卡堆叠收窄到某个人。
  *
- * 用 `@expo/ui` 的 `Picker`（`appearance="menu"` → 原生下拉菜单），不是分段控件：
- * 成员数量不定，`pickerStyle('segmented')` 到 4 段以上每段会被压成细条，
- * 菜单则无论几家人都只占一行、选项还能纵向滚动。
+ * 放在系统工具栏右上角（`placement="right"`）而不是内容区里 —— 导航栏常驻、
+ * 不随内容滚动，筛选状态随时可见可改。原生 iOS 版同样是导航栏右侧的
+ * `UIMenu`（图标用 `line.3.horizontal.decrease.circle`），两端对齐。
+ * 用 `Stack.Toolbar.Menu`（原生下拉菜单）而不是分段控件：成员数量不定，
+ * `pickerStyle('segmented')` 到 4 段以上每段会被压成细条，菜单则无论几家
+ * 人都只占一格、选项还能纵向滚动。选中项由 `isOn` 打勾。
  *
- * 「全部」用哨兵值占位：`selectedValue` 只接受 string/number，不接受 null。
+ * 只有一家以上成员才挂上去：单成员时筛选没有意义，导航栏也不留空按钮。
+ * 工具栏按钮拿不到 `testID`（见 docs/conventions/data-state.md），只能靠
+ * `accessibilityLabel` 与菜单项文案定位。
  */
-function MemberFilter({
+function MemberFilterToolbar({
   persons,
   personId,
   onSelect,
@@ -250,34 +284,48 @@ function MemberFilter({
   personId: string | null;
   onSelect: (id: string | null) => void;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
   if (persons.length <= 1) return null;
 
+  // iOS 上图标优先、label 只供无障碍朗读；两端图标分别走 SF Symbol 与
+  // Material Symbols（src/components/toolbar-icons.ts）。选中某人时换成他的
+  // 头像照片（工具栏图标槽只收图片源，正合照片；没有照片才退回通用图标）
+  const selectedPerson = persons.find((person) => person.id === personId);
+  const selectedName = selectedPerson?.name ?? t("home.all");
+
   return (
-    // 必须显式 center：Row 默认是 start（iOS 映射成 HStack 的 .top），
-    // 18pt 的图标会被顶到原生菜单 Picker（约 34pt 高的胶囊）的上沿而不是圆心。
-    <Row alignment="center" spacing={Spacing.rowGap}>
-      <Icon
-        name="person.2.fill"
-        size={18}
-        color={theme.textSecondary}
+    <Stack.Toolbar placement="right">
+      <Stack.Toolbar.Menu
+        icon={
+          selectedPerson?.avatarUri
+            ? { uri: selectedPerson.avatarUri }
+            : memberFilterIcon
+        }
         accessibilityLabel={t("home.member")}
-      />
-      <Picker<string>
-        testID="home-member-picker"
-        appearance="menu"
-        selectedValue={personId ?? ALL_PERSONS}
-        onValueChange={(value) => {
-          onSelect(value === ALL_PERSONS ? null : value);
-        }}
+        title={t("home.member")}
       >
-        <Picker.Item label={t("home.all")} value={ALL_PERSONS} />
+        <Stack.Toolbar.Label>{selectedName}</Stack.Toolbar.Label>
+        <Stack.Toolbar.MenuAction
+          isOn={personId === null}
+          onPress={() => {
+            onSelect(null);
+          }}
+        >
+          {t("home.all")}
+        </Stack.Toolbar.MenuAction>
         {persons.map((person) => (
-          <Picker.Item key={person.id} label={person.name} value={person.id} />
+          <Stack.Toolbar.MenuAction
+            key={person.id}
+            isOn={personId === person.id}
+            onPress={() => {
+              onSelect(person.id);
+            }}
+          >
+            {person.name}
+          </Stack.Toolbar.MenuAction>
         ))}
-      </Picker>
-    </Row>
+      </Stack.Toolbar.Menu>
+    </Stack.Toolbar>
   );
 }
 
@@ -317,7 +365,7 @@ function NotificationBanner() {
       }}
     >
       <Icon
-        name="bell.slash.fill"
+        name={ICONS.bellSlash}
         size={18}
         color={theme.danger}
         accessibilityLabel={t("home.notificationOff")}
@@ -356,5 +404,109 @@ function SectionTitle({ title }: { title: string }) {
     <Text textStyle={{ fontSize: 17, fontWeight: "600", color: theme.text }}>
       {title}
     </Text>
+  );
+}
+
+/**
+ * 首次使用的首页空状态：一句价值主张 + 一个主操作 + 底部一句隐私承诺。
+ *
+ * 刻意不罗列药品库 / 图表 / 库存等在用户还没获得价值前看不懂的功能（产品方案
+ * 第二节）：刚下载 App 的用户手里拿着一盒药，首页只需回答「怎么迈出第一步」。
+ */
+function FirstRunEmpty({ onAdd }: { onAdd: () => void }) {
+  const theme = useTheme();
+  const t = useTranslation();
+  return (
+    <Column
+      alignment="center"
+      spacing={Spacing.three}
+      // 显式撑满：universal style 无 flex，通栏的空态要靠 fullWidth 才能让
+      // 内部 alignment="center" 在整宽里居中、主按钮也才是通栏（同 FormSection）
+      modifiers={[nativeLayout({ fullWidth: true })]}
+      style={{ paddingTop: Spacing.five }}
+    >
+      <Column
+        alignment="center"
+        style={{
+          width: 120,
+          height: 120,
+          borderRadius: 32,
+        }}
+      >
+        <Spacer flexible />
+        <Icon name={ICONS.medkit} size={56} color={theme.primary} />
+        <Spacer flexible />
+      </Column>
+      <Text
+        textStyle={{
+          fontSize: 22,
+          fontWeight: "800",
+          color: theme.text,
+          textAlign: "center",
+        }}
+      >
+        {t("home.emptyTitle")}
+      </Text>
+      <Text
+        textStyle={{
+          fontSize: 14,
+          lineHeight: 20,
+          color: theme.textSecondary,
+          textAlign: "center",
+        }}
+      >
+        {t("home.emptyBody")}
+      </Text>
+      <Button
+        testID="home-empty-add-button"
+        label={t("home.emptyAction")}
+        onPress={onAdd}
+        modifiers={nativeButtonModifiers({ fullWidth: true })}
+      />
+      <Text
+        textStyle={{
+          fontSize: 12,
+          color: theme.textSecondary,
+          textAlign: "center",
+        }}
+      >
+        {t("home.privacyNote")}
+      </Text>
+    </Column>
+  );
+}
+
+/** 有药品、但今天没有待处理提醒时的占位（区别于首次使用的空状态） */
+function NoScheduleToday() {
+  const theme = useTheme();
+  const t = useTranslation();
+  return (
+    <Column
+      alignment="center"
+      spacing={Spacing.two}
+      modifiers={[nativeLayout({ fullWidth: true })]}
+      style={{ paddingVertical: Spacing.five }}
+    >
+      <Icon name={ICONS.calendar} size={40} color={theme.textSecondary} />
+      <Text
+        textStyle={{
+          fontSize: 15,
+          fontWeight: "600",
+          color: theme.textSecondary,
+          textAlign: "center",
+        }}
+      >
+        {t("home.noSchedule")}
+      </Text>
+      <Text
+        textStyle={{
+          fontSize: 13,
+          color: theme.textSecondary,
+          textAlign: "center",
+        }}
+      >
+        {t("home.noScheduleHint")}
+      </Text>
+    </Column>
   );
 }

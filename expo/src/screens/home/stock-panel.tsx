@@ -2,6 +2,7 @@ import { RNHostView } from "@expo/ui";
 import { useRouter } from "expo-router";
 import { Pressable, Text as RNText, View as RNView } from "react-native";
 
+import { SYMBOL_ICONS } from "@/components/icons";
 import { SymbolIcon } from "@/components/symbol-icon";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -9,6 +10,7 @@ import { useI18n, useTranslation, type Language } from "@/i18n";
 import {
   addDays,
   medicationUnitLabel,
+  stockLevel,
   stockSummary,
   todayKey,
   type Medication,
@@ -31,6 +33,9 @@ export function buildStockRows(
 ): StockRow[] {
   const rows: StockRow[] = [];
   for (const medication of medications) {
+    // 未设置库存的药不进速览：没有库存记录时「剩 0 天」是误导而非补药提醒
+    // （快速添加只建提醒、不填库存就是这种）
+    if (stockLevel(medication) === "unset") continue;
     const summary = stockSummary(medication, plans);
     if (summary.daysLeft === null) continue;
     const percent =
@@ -74,12 +79,6 @@ export function StockPanel({
   return (
     // 宽度显式给出去：每行的药名是 `flex: 1`，父容器宽度不定时它会被压成 0
     <RNView style={{ gap: 10, width: containerWidth }}>
-      <RNText
-        style={{ color: theme.textSecondary, fontSize: 17, fontWeight: "600" }}
-      >
-        {t("home.stockListTitle")}
-      </RNText>
-
       {rows.length === 0 ? (
         <RNText style={{ color: theme.textSecondary, fontSize: 13 }}>
           {t("home.stockListEmpty")}
@@ -148,7 +147,7 @@ export function StockPanel({
             }}
           >
             <SymbolIcon
-              name="exclamationmark.triangle.fill"
+              name={SYMBOL_ICONS.stockWarning}
               size={17}
               color={theme.dangerStrong}
             />

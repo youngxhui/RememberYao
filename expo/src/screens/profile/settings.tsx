@@ -13,15 +13,11 @@ import {
 } from "@expo/ui";
 import Constants from "expo-constants";
 import { Stack, useFocusEffect } from "expo-router";
-import {
-  useCallback,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
+import { ICONS, type IconKey } from "@/components/icons";
 import { NativeDatePicker } from "@/components/native-date-picker";
-import { Fonts, Radius, Spacing } from "@/constants/theme";
+import { Fonts, Spacing } from "@/constants/theme";
 import { useMedicationExport } from "@/hooks/use-medication-export";
 import { useTheme } from "@/hooks/use-theme";
 import { LANGUAGE_LABELS, LANGUAGES, pickerFormat, useI18n } from "@/i18n";
@@ -42,8 +38,6 @@ import {
 /** 免打扰的默认区间：22:00–07:00（跨零点） */
 const DEFAULT_QUIET_START = "22:00";
 const DEFAULT_QUIET_END = "07:00";
-
-type SettingIconName = ComponentProps<typeof Icon>["name"];
 
 /**
  * 设置页：通用 / 提醒 / 数据 / 关于 四组。
@@ -136,7 +130,7 @@ export function Settings() {
           {/* ── 提醒 ── */}
           <FieldGroup.Section title={t("settings.sectionReminder")}>
             <SettingRow
-              icon="bell.fill"
+              icon="bell"
               label={t("settings.notificationsTitle")}
               sub={t("settings.notificationsSub")}
               trailing={
@@ -158,7 +152,7 @@ export function Settings() {
               </Text>
             ) : null}
             <SettingRow
-              icon="alarm.fill"
+              icon="alarm"
               label={t("settings.snoozeTitle")}
               sub={t("settings.snoozeSub")}
               disabled={!settings.notificationsEnabled}
@@ -185,7 +179,7 @@ export function Settings() {
                   以前是「开关 + 时间选择器」两行，开关一变行数就跳，列表会错位 */}
             <SettingRow
               testID="settings-quiet-row"
-              icon="moon.fill"
+              icon="moon"
               label={t("settings.quietTitle")}
               sub={t("settings.quietSub")}
               disabled={!settings.notificationsEnabled}
@@ -203,7 +197,7 @@ export function Settings() {
               }
             />
             <SettingRow
-              icon="speaker.wave.2.fill"
+              icon="speaker"
               label={t("settings.soundTitle")}
               sub={t("settings.soundSub")}
               disabled={!settings.notificationsEnabled}
@@ -219,7 +213,7 @@ export function Settings() {
               }
             />
             <SettingRow
-              icon="exclamationmark.triangle.fill"
+              icon="stockLow"
               label={t("settings.notifyMissedTitle")}
               sub={t("settings.notifyMissedSub", {
                 count: DEFAULT_SETTINGS.missedAlertStreak,
@@ -244,7 +238,7 @@ export function Settings() {
           <FieldGroup.Section title={t("settings.sectionData")}>
             <SettingRow
               testID="settings-export-row"
-              icon="square.and.arrow.down"
+              icon="download"
               label={t("settings.exportTitle")}
               sub={t("settings.exportSubtitle")}
               onPress={() => {
@@ -257,7 +251,7 @@ export function Settings() {
           <FieldGroup.Section title={t("settings.sectionAbout")}>
             <SettingRow
               testID="settings-privacy-row"
-              icon="checkmark.shield.fill"
+              icon="shield"
               label={t("settings.privacyTitle")}
               sub={t("settings.privacySub")}
               onPress={() => {
@@ -266,7 +260,7 @@ export function Settings() {
               trailing={<Chevron />}
             />
             <SettingRow
-              icon="info.circle.fill"
+              icon="info"
               label={t("settings.version")}
               trailing={
                 <Text
@@ -423,7 +417,7 @@ function SettingRow({
   disabled,
   testID,
 }: {
-  icon: SettingIconName;
+  icon: IconKey;
   label: string;
   sub?: string;
   trailing?: ReactNode;
@@ -485,21 +479,9 @@ function SettingRow({
 }
 
 /** 行首图标：36px 品牌色底块 + 18px 线性图标（design 的 .setting-icon） */
-function SettingIcon({ name }: { name: SettingIconName }) {
+function SettingIcon({ name }: { name: IconKey }) {
   const theme = useTheme();
-  return (
-    <Icon
-      name={name}
-      size={18}
-      color={theme.primary}
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: Radius.tile,
-        backgroundColor: theme.primarySoft,
-      }}
-    />
-  );
+  return <Icon name={ICONS[name]} size={18} color={theme.primary} />;
 }
 
 /** 行尾的等宽数值 + 展开箭头（design 的 .setting-action） */
@@ -523,5 +505,7 @@ function ValueAndChevron({ text }: { text: string }) {
 
 function Chevron() {
   const theme = useTheme();
-  return <Icon name="chevron.down" size={14} color={theme.textSecondary} />;
+  return (
+    <Icon name={ICONS.chevronDown} size={14} color={theme.textSecondary} />
+  );
 }
