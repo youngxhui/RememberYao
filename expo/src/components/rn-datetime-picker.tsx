@@ -2,10 +2,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { useState } from "react";
-import { Platform, Text } from "react-native";
-
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
+import { Platform } from "react-native";
 
 export type RnDateTimePickerProps = {
   value: Date;
@@ -37,8 +34,7 @@ export function RnDateTimePicker({
   testID,
   onValueChange,
 }: RnDateTimePickerProps) {
-  const theme = useTheme();
-  const [open, setOpen] = useState(false);
+  const [_, setOpen] = useState(false);
 
   const handleChange = (event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === "android" && event.type === "dismissed") {
@@ -65,58 +61,15 @@ export function RnDateTimePicker({
         : { display: "spinner" as const }),
   };
 
-  const showNativePicker = open || Platform.OS !== "ios";
-
   return (
     <>
-      {!showNativePicker ? (
-        <Text
-          testID={testID}
-          onPress={() => {
-            setOpen(true);
-          }}
-          style={{
-            backgroundColor: theme.backgroundElement,
-            borderRadius: Radius.pill,
-            paddingHorizontal: Spacing.three,
-            paddingVertical: Spacing.two,
-            fontSize: 15,
-            fontWeight: "600",
-            color: accentColor ?? theme.text,
-          }}
-        >
-          {formatValue(value, mode, locale, is24Hour)}
-        </Text>
-      ) : null}
-      {showNativePicker ? (
-        <DateTimePicker
-          testID={testID}
-          value={value}
-          onChange={handleChange}
-          {...pickerOptions}
-        />
-      ) : null}
+      <DateTimePicker
+        testID={testID}
+        value={value}
+        onChange={handleChange}
+        {...pickerOptions}
+      />
+      )
     </>
   );
-}
-
-/** 胶囊上显示的当前值：格式跟 App 语言走，不跟系统 locale */
-function formatValue(
-  value: Date,
-  mode: "date" | "time",
-  locale?: string,
-  is24Hour?: boolean,
-) {
-  if (mode === "time") {
-    return new Intl.DateTimeFormat(locale, {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: is24Hour === undefined ? undefined : !is24Hour,
-    }).format(value);
-  }
-  return new Intl.DateTimeFormat(locale, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(value);
 }
