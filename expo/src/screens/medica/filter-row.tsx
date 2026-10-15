@@ -1,11 +1,10 @@
-import { Row, ScrollView } from "@expo/ui";
+import { ScrollView as RNScrollView } from "react-native";
 
-import { Chip } from "@/components/chip";
+import { GlassChip } from "@/components/glass-chip";
 import { Spacing } from "@/constants/theme";
 import { useTranslation, type Path } from "@/i18n";
 import type { MedicationCategory } from "@/lib/store";
 
-/** 药品库的筛选维度。`all` / `low` 是跨分类的两个快捷项，其余是用途分类 */
 export type MedicaFilter = "all" | "low" | MedicationCategory;
 
 /**
@@ -23,15 +22,9 @@ const MEDICA_FILTERS: { key: MedicaFilter; label: Path }[] = [
 /**
  * 分类筛选：横向可滑动的胶囊行（design/medications.html 的 .chip-row）。
  *
- * 用 universal `ScrollView direction="horizontal"`（两端都是原生滚动容器），不写
- * `RNHostView` island：chip 行不需要 flex，横向滚动也能交给原生容器，少一块 island
- * 就少一处「宿主实测宽度 → 喂进 RN 子树」的边界（原来那版要把
- * `useExpoUiContentWidth()` 的实测值减去屏幕边距再传进来）。两端垂直方向不同的
- * 原生滚动容器由系统按手势方向仲裁，真机上横滑、竖滑互不干扰。
- *
- * 5 个 chip 加间距约 440pt，比内容区（屏宽 − 2×`Spacing.screen`）宽，所以必须横滑。
- * 屏幕左右边距挂在内层 `Row` 自己的 `paddingHorizontal` 上（滚动时跟着内容走）：
- * 首颗 chip 不顶左边、滑到底时末颗 chip 与右缘之间也留得出这段呼吸。
+ * RN ScrollView 自己就是原生横向滚动容器，chip 行不随内容滚动。
+ * 左右呼吸挂在内层 contentContainerStyle 的 paddingHorizontal 上（滚动时
+ * 跟着内容走）：首颗 chip 不顶左边、滑到底时末颗 chip 与右缘之间也留得出呼吸。
  */
 export function FilterRow({
   filter,
@@ -43,26 +36,26 @@ export function FilterRow({
   const t = useTranslation();
 
   return (
-    <ScrollView direction="horizontal" showsIndicators={false}>
-      <Row
-        spacing={Spacing.two}
-        style={{
-          paddingHorizontal: Spacing.screen,
-          paddingVertical: Spacing.one,
-        }}
-      >
-        {MEDICA_FILTERS.map((item) => (
-          <Chip
-            key={item.key}
-            testID={`medica-filter-${item.key}`}
-            label={t(item.label)}
-            active={filter === item.key}
-            onPress={() => {
-              onSelect(item.key);
-            }}
-          />
-        ))}
-      </Row>
-    </ScrollView>
+    <RNScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingHorizontal: Spacing.screen,
+        paddingVertical: Spacing.one,
+        gap: Spacing.two,
+      }}
+    >
+      {MEDICA_FILTERS.map((item) => (
+        <GlassChip
+          key={item.key}
+          testID={`medica-filter-${item.key}`}
+          label={t(item.label)}
+          active={filter === item.key}
+          onPress={() => {
+            onSelect(item.key);
+          }}
+        />
+      ))}
+    </RNScrollView>
   );
 }

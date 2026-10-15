@@ -1,6 +1,7 @@
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+
 import { DoseTimeline } from "@/components/dose-timeline";
 import { ProgressBarRn } from "@/components/progress-bar";
 import { ScreenScaffold, Padded } from "@/components/screen-scaffold";
