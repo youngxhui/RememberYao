@@ -318,6 +318,7 @@ export default function MedicationDetailScreen() {
                     onPress={() => {
                       void restock();
                     }}
+                    tintColor={theme.primary}
                   />
                 </View>
                 {restockError ? (
@@ -342,6 +343,7 @@ export default function MedicationDetailScreen() {
             <GlassHostButton
               testID="medication-add-plan-button"
               label={t("plan.formTitle")}
+              tintColor={theme.primary}
               onPress={() => {
                 router.push({
                   pathname: "/(tabs)/profile/plan-form",
