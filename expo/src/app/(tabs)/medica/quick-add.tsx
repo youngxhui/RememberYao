@@ -1,28 +1,13 @@
-import {
-  Button,
-  Column,
-  Host,
-  Row,
-  ScrollView,
-  Spacer,
-  Text,
-  TextInput,
-  useNativeState,
-  type ObservableState,
-} from "@expo/ui";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
+import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
 
-import { MemberAvatar } from "@/components/avatar";
-import { ChipField, Field, FormSection, Subtitle } from "@/components/form";
-import { InputShell } from "@/components/input-shell";
+import { AvatarMark } from "@/components/avatar";
+import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { NativeDatePicker } from "@/components/native-date-picker";
-import {
-  nativeButtonModifiers,
-  nativeLayout,
-} from "@/components/native-layout";
-import { roundedBox } from "@/components/rounded-box";
-import { BottomTabInset, Fonts, Radius, Spacing } from "@/constants/theme";
+import { ChipField, Field, FormSection, Subtitle } from "@/components/rn-form";
+import { InputShell } from "@/components/rn-input-shell";
+import { BottomTabInset, Spacing, Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n, useTranslation } from "@/i18n";
 import { requestNotificationPermission } from "@/lib/notifications";
@@ -68,23 +53,18 @@ export default function QuickAddScreen() {
   const t = useTranslation();
   const { language } = useI18n();
   const picker = pickerFormat(language);
-  // 已有药品用于「从已有药品选择」与「同名复用」；成员用于取默认的「自己」
   const { data: medications, loading: medicationsLoading } = useMedications();
   const { data: persons } = usePersons();
 
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
-  // 药名的 React 镜像：useNativeState 的写异步排到 UI 线程，「下一步」是否可用、
-  // 同名匹配要同步读，故额外留一份（同 medica/form.tsx 给规格预览用的镜像）
   const [nameText, setNameText] = useState("");
-  const name = useNativeState("");
   const [freq, setFreq] = useState(1);
   const [times, setTimes] = useState<string[]>(defaultTimes(1));
 
   const self = persons.find((p) => p.id === SELF_PERSON_ID) ?? persons[0];
   const personId = self?.id ?? SELF_PERSON_ID;
   const trimmedName = nameText.trim();
-  // 同名（忽略首尾空格与大小写）即复用：不为同一味药建两条档案，只新增一次服药时间
   const matched = medications.find(
     (m) => m.name.trim().toLowerCase() === trimmedName.toLowerCase(),
   );
@@ -112,7 +92,6 @@ export default function QuickAddScreen() {
     try {
       let medicationId: string;
       if (matched) {
-        // 复用已有药品：只新增一条用药配置，不重复建档
         await addPlan({
           medicationId: matched.id,
           personId,
@@ -132,7 +111,6 @@ export default function QuickAddScreen() {
         });
         medicationId = created.medication.id;
       }
-      // 数据已落库，此刻才请求通知权限；被拒也继续（回首页后有横幅引导）
       await requestNotificationPermission();
       if (completeLater) {
         router.replace({
@@ -155,116 +133,196 @@ export default function QuickAddScreen() {
         : t("quickAdd.title3");
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Title large>{stepTitle}</Stack.Title>
-      <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <ScrollView
-          showsIndicators={false}
-          style={{ backgroundColor: theme.canvas }}
-        >
-          <Column
-            spacing={Spacing.four}
-            style={{
-              paddingHorizontal: Spacing.screen,
-              paddingVertical: Spacing.three,
-              paddingBottom: BottomTabInset + Spacing.four,
-            }}
-          >
-            {step === 1 ? (
-              <StepName
-                name={name}
-                onChangeName={(value) => {
-                  name.value = value;
-                  setNameText(value);
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingTop: Spacing.three,
+          paddingBottom: BottomTabInset + Spacing.four,
+        }}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.four }}>
+          {step === 1 ? (
+            <StepName
+              name={nameText}
+              onChangeName={setNameText}
+              onPickExisting={(medication) => {
+                setNameText(medication.name);
+                setStep(2);
+              }}
+              medications={medications}
+              loading={medicationsLoading}
+            />
+          ) : null}
+
+          {step === 2 ? (
+            <StepSchedule
+              freq={freq}
+              times={times}
+              picker={picker}
+              accentColor={theme.primary}
+              onChangeFreq={changeFreq}
+              onChangeTime={changeTime}
+            />
+          ) : null}
+
+          {step === 3 ? (
+            <StepConfirm
+              name={trimmedName}
+              matched={matched}
+              freq={freq}
+              times={times}
+              unit={unit}
+              personName={self?.name ?? t("person.defaultName")}
+              personColor={self?.avatarColor ?? theme.primary}
+              personPhoto={self?.avatarUri}
+            />
+          ) : null}
+
+          {step === 1 ? (
+            <Pressable
+              testID="quick-add-next-button"
+              onPress={() => {
+                setStep(2);
+              }}
+              disabled={!trimmedName}
+              style={({ pressed }) => ({
+                backgroundColor: pressed
+                  ? theme.primarySoft
+                  : !trimmedName
+                    ? theme.textSecondary
+                    : theme.primary,
+                borderRadius: Radius.card,
+                borderCurve: "continuous",
+                paddingVertical: Spacing.three,
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
+                opacity: !trimmedName ? 0.5 : 1,
+              })}
+            >
+              <Text
+                style={{
+                  color: theme.onPrimary,
+                  fontSize: 15,
+                  fontWeight: "600",
                 }}
-                onPickExisting={(medication) => {
-                  name.value = medication.name;
-                  setNameText(medication.name);
-                  setStep(2);
-                }}
-                medications={medications}
-                loading={medicationsLoading}
-              />
-            ) : null}
+              >
+                {t("quickAdd.next")}
+              </Text>
+            </Pressable>
+          ) : null}
 
-            {step === 2 ? (
-              <StepSchedule
-                freq={freq}
-                times={times}
-                picker={picker}
-                accentColor={theme.primary}
-                onChangeFreq={changeFreq}
-                onChangeTime={changeTime}
-              />
-            ) : null}
-
-            {step === 3 ? (
-              <StepConfirm
-                name={trimmedName}
-                matched={matched}
-                freq={freq}
-                times={times}
-                unit={unit}
-                personName={self?.name ?? t("person.defaultName")}
-                personColor={self?.avatarColor ?? theme.primary}
-                personPhoto={self?.avatarUri}
-              />
-            ) : null}
-
-            {step === 1 ? (
-              <Button
+          {step === 2 ? (
+            <View style={{ gap: Spacing.three }}>
+              <Pressable
                 testID="quick-add-next-button"
-                label={t("quickAdd.next")}
-                disabled={!trimmedName}
                 onPress={() => {
-                  setStep(2);
+                  setStep(3);
                 }}
-                modifiers={nativeButtonModifiers({ fullWidth: true })}
-              />
-            ) : null}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed ? theme.primarySoft : theme.primary,
+                  borderRadius: Radius.card,
+                  borderCurve: "continuous",
+                  paddingVertical: Spacing.three,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 44,
+                })}
+              >
+                <Text
+                  style={{
+                    color: theme.onPrimary,
+                    fontSize: 15,
+                    fontWeight: "600",
+                  }}
+                >
+                  {t("quickAdd.next")}
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="quick-add-back-button"
+                onPress={() => {
+                  setStep(1);
+                }}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed
+                    ? theme.backgroundSelected
+                    : theme.surface,
+                  borderRadius: Radius.card,
+                  borderCurve: "continuous",
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  paddingVertical: Spacing.three,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 44,
+                })}
+              >
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 15,
+                    fontWeight: "600",
+                  }}
+                >
+                  {t("quickAdd.back")}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
 
-            {step === 2 ? (
-              <Column spacing={Spacing.three}>
-                <Button
-                  testID="quick-add-next-button"
-                  label={t("quickAdd.next")}
-                  onPress={() => {
-                    setStep(3);
+          {step === 3 ? (
+            <View style={{ gap: Spacing.three }}>
+              <Pressable
+                testID="quick-add-save-button"
+                onPress={() => {
+                  void save(false);
+                }}
+                disabled={saving}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed ? theme.primarySoft : theme.primary,
+                  borderRadius: Radius.card,
+                  borderCurve: "continuous",
+                  paddingVertical: Spacing.three,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 44,
+                  opacity: saving ? 0.6 : 1,
+                })}
+              >
+                <Text
+                  style={{
+                    color: theme.onPrimary,
+                    fontSize: 15,
+                    fontWeight: "600",
                   }}
-                  modifiers={nativeButtonModifiers({ fullWidth: true })}
-                />
-                <Button
-                  testID="quick-add-back-button"
-                  label={t("quickAdd.back")}
-                  variant="text"
+                >
+                  {t("quickAdd.saveAndEnable")}
+                </Text>
+              </Pressable>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: Spacing.three,
+                }}
+              >
+                <View style={{ flex: 1 }} />
+                <Pressable
+                  testID="quick-add-complete-button"
                   onPress={() => {
-                    setStep(1);
+                    void save(true);
                   }}
-                  modifiers={nativeButtonModifiers({ fullWidth: true })}
-                />
-              </Column>
-            ) : null}
-
-            {step === 3 ? (
-              <Column spacing={Spacing.three}>
-                <Button
-                  testID="quick-add-save-button"
-                  label={t("quickAdd.saveAndEnable")}
-                  disabled={saving}
-                  onPress={() => {
-                    void save(false);
-                  }}
-                  modifiers={nativeButtonModifiers({ fullWidth: true })}
-                />
-                <Row alignment="center">
-                  <Spacer flexible />
+                >
                   <Text
-                    testID="quick-add-complete-button"
-                    onPress={() => {
-                      void save(true);
-                    }}
-                    textStyle={{
+                    style={{
                       fontSize: 14,
                       fontWeight: "600",
                       color: theme.primary,
@@ -272,36 +330,59 @@ export default function QuickAddScreen() {
                   >
                     {t("quickAdd.completeLater")}
                   </Text>
-                  <Spacer flexible />
-                </Row>
-                <Button
-                  testID="quick-add-back-button"
-                  label={t("quickAdd.back")}
-                  variant="text"
-                  onPress={() => {
-                    setStep(2);
+                </Pressable>
+                <View style={{ flex: 1 }} />
+              </View>
+              <Pressable
+                testID="quick-add-back-button"
+                onPress={() => {
+                  setStep(2);
+                }}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed
+                    ? theme.backgroundSelected
+                    : theme.surface,
+                  borderRadius: Radius.card,
+                  borderCurve: "continuous",
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  paddingVertical: Spacing.three,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 44,
+                })}
+              >
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 15,
+                    fontWeight: "600",
                   }}
-                  modifiers={nativeButtonModifiers({ fullWidth: true })}
-                />
-                <Row alignment="center">
-                  <Spacer flexible />
-                  <Text
-                    textStyle={{
-                      fontSize: 12,
-                      color: theme.textSecondary,
-                      textAlign: "center",
-                    }}
-                  >
-                    {t("quickAdd.notifyHint")}
-                  </Text>
-                  <Spacer flexible />
-                </Row>
-              </Column>
-            ) : null}
-          </Column>
-        </ScrollView>
-      </Host>
-    </>
+                >
+                  {t("quickAdd.back")}
+                </Text>
+              </Pressable>
+              <View
+                style={{
+                  alignItems: "center",
+                  paddingVertical: Spacing.two,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: theme.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
+                  {t("quickAdd.notifyHint")}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -313,7 +394,7 @@ function StepName({
   medications,
   loading,
 }: {
-  name: ObservableState<string>;
+  name: string;
   onChangeName: (value: string) => void;
   onPickExisting: (medication: Medication) => void;
   medications: Medication[];
@@ -334,7 +415,7 @@ function StepName({
               autoFocus
               onChangeText={onChangeName}
               value={name}
-              textStyle={{ fontSize: 17 }}
+              style={{ fontSize: 17, color: theme.text, padding: 0 }}
             />
           </InputShell>
         </Field>
@@ -343,20 +424,27 @@ function StepName({
       {/* 从已有药品选择：省得重复建档；点选即视为复用该药，只再配一次时间 */}
       {loading ? null : medications.length > 0 ? (
         <FormSection title={t("quickAdd.sectionExisting")}>
-          <Column spacing={Spacing.two}>
+          <View style={{ gap: Spacing.two }}>
             {medications.map((medication) => (
-              <Text
+              <Pressable
                 key={medication.id}
                 testID={`quick-add-existing-${medication.id}`}
                 onPress={() => {
                   onPickExisting(medication);
                 }}
-                textStyle={{ fontSize: 16, color: theme.text }}
               >
-                {medication.name}
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: theme.text,
+                    paddingVertical: Spacing.rowGap,
+                  }}
+                >
+                  {medication.name}
+                </Text>
+              </Pressable>
             ))}
-          </Column>
+          </View>
         </FormSection>
       ) : null}
     </>
@@ -380,6 +468,7 @@ function StepSchedule({
   onChangeTime: (index: number, date: Date) => void;
 }) {
   const t = useTranslation();
+  const theme = useTheme();
 
   return (
     <>
@@ -397,31 +486,37 @@ function StepSchedule({
             label: t("quickAdd.freqCount", { count: n }),
           }))}
         />
-        <Column>
+        <View style={{ gap: Spacing.two }}>
           {times.map((time, index) => (
-            <Row
+            <View
               key={index}
-              alignment="center"
-              style={{ paddingVertical: Spacing.two }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: Spacing.two,
+                gap: Spacing.rowGap,
+              }}
             >
-              <Text textStyle={{ fontSize: 15 }}>
+              <Text style={{ fontSize: 15, color: theme.text }}>
                 {t("plan.ordinal", { index: index + 1 })}
               </Text>
-              <Spacer flexible />
-              <NativeDatePicker
-                value={timeToDate(time)}
-                mode="time"
-                accentColor={accentColor}
-                locale={picker.locale}
-                is24Hour={picker.is24Hour}
-                testID={`quick-add-time-${index}`}
-                onValueChange={(date) => {
-                  onChangeTime(index, date);
-                }}
-              />
-            </Row>
+              <View style={{ flex: 1 }} />
+              <ExpoUiIsland>
+                <NativeDatePicker
+                  value={timeToDate(time)}
+                  mode="time"
+                  accentColor={accentColor}
+                  locale={picker.locale}
+                  is24Hour={picker.is24Hour}
+                  testID={`quick-add-time-${index}`}
+                  onValueChange={(date) => {
+                    onChangeTime(index, date);
+                  }}
+                />
+              </ExpoUiIsland>
+            </View>
           ))}
-        </Column>
+        </View>
       </FormSection>
     </>
   );
@@ -449,58 +544,70 @@ function StepConfirm({
 }) {
   const theme = useTheme();
   const t = useTranslation();
-  const box = roundedBox({
-    color: theme.border,
-    background: theme.surface,
-    radius: Radius.card,
-    width: 1,
-  });
 
   return (
     <>
       <Subtitle text={t("quickAdd.subtitle3")} />
-      <Column
-        spacing={Spacing.three}
-        style={{ ...box.style, padding: Spacing.three }}
-        modifiers={box.modifiers}
+      <View
+        style={{
+          backgroundColor: theme.surface,
+          borderWidth: 1,
+          borderColor: theme.border,
+          borderRadius: Radius.card,
+          borderCurve: "continuous",
+          padding: Spacing.three,
+          gap: Spacing.three,
+        }}
       >
-        <Row alignment="center" spacing={Spacing.rowGap}>
-          <MemberAvatar
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: Spacing.rowGap,
+          }}
+        >
+          <AvatarMark
             color={personColor}
             name={personName}
             uri={personPhoto}
             size={40}
           />
-          <Column modifiers={[nativeLayout({ unconstrainedWidth: true })]}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Text
               numberOfLines={1}
-              textStyle={{ fontSize: 17, fontWeight: "700" }}
+              style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
             >
               {name}
             </Text>
             <Text
               numberOfLines={1}
-              textStyle={{ fontSize: 13, color: theme.textSecondary }}
+              style={{ fontSize: 13, color: theme.textSecondary }}
             >
               {t("quickAdd.forSelf", { name: personName })}
             </Text>
-          </Column>
-        </Row>
+          </View>
+        </View>
 
-        <Row alignment="center" spacing={Spacing.two}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: Spacing.two,
+          }}
+        >
           <Text
-            textStyle={{
-              fontFamily: Fonts.sans,
+            style={{
+              fontFamily: "system-ui",
               fontSize: 15,
               color: theme.textSecondary,
             }}
           >
             {t("quickAdd.freqCount", { count: freq })}
           </Text>
-          <Spacer flexible />
+          <View style={{ flex: 1 }} />
           <Text
-            textStyle={{
-              fontFamily: Fonts.mono,
+            style={{
+              fontFamily: "monospace",
               fontSize: 15,
               fontWeight: "600",
               color: theme.text,
@@ -508,18 +615,18 @@ function StepConfirm({
           >
             {times.join("  ")}
           </Text>
-        </Row>
+        </View>
 
-        <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>
+        <Text style={{ fontSize: 13, color: theme.textSecondary }}>
           {t("quickAdd.doseHint", { amount: 1, unit })}
         </Text>
 
         {matched ? (
-          <Text textStyle={{ fontSize: 12, color: theme.primary }}>
+          <Text style={{ fontSize: 12, color: theme.primary }}>
             {t("quickAdd.existingHint", { name })}
           </Text>
         ) : null}
-      </Column>
+      </View>
     </>
   );
 }
