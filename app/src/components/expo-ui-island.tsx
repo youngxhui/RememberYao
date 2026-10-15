@@ -18,7 +18,7 @@ export function ExpoUiIsland({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * 玻璃按钮：补货提交等仍走系统玻璃。
+ * 玻璃按钮：补货提交、添加计划等仍走系统玻璃。
  *
  * iOS 走 `expo-glass-effect` 的 `GlassView`，Android 回退为普通 View；
  * testID 落在外层 Pressable 上，保证 RN / Maestro 可定位。
@@ -28,11 +28,15 @@ export function GlassHostButton({
   label,
   onPress,
   fullWidth,
+  tintColor,
+  labelColor,
 }: {
   testID: string;
   label: string;
   onPress: () => void;
   fullWidth?: boolean;
+  tintColor?: string;
+  labelColor?: string;
 }) {
   const theme = useTheme();
   return (
@@ -49,6 +53,7 @@ export function GlassHostButton({
     >
       <GlassView
         isInteractive
+        tintColor={tintColor ?? theme.primary}
         style={{
           paddingVertical: Spacing.three,
           alignItems: "center",
@@ -59,7 +64,7 @@ export function GlassHostButton({
       >
         <Text
           style={{
-            color: theme.onPrimary,
+            color: labelColor ?? theme.onPrimary,
             fontSize: 15,
             fontWeight: "600",
           }}

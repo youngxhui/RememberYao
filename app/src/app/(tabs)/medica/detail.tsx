@@ -339,65 +339,28 @@ export default function MedicationDetailScreen() {
           )}
 
           <View style={{ gap: Spacing.three, marginTop: Spacing.three }}>
-            <Pressable
+            <GlassHostButton
               testID="medication-add-plan-button"
+              label={t("plan.formTitle")}
               onPress={() => {
                 router.push({
                   pathname: "/(tabs)/profile/plan-form",
                   params: { medicationId: medication.id },
                 });
               }}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? theme.primarySoft : theme.primary,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-              })}
-            >
-              <Text
-                style={{
-                  color: theme.onPrimary,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
-                {t("plan.formTitle")}
-              </Text>
-            </Pressable>
-            <Pressable
+            />
+            <GlassHostButton
               testID="medication-delete-button"
+              label={
+                confirmDelete
+                  ? t("medication.deleteConfirmButton")
+                  : t("medication.deleteButton")
+              }
               onPress={() => {
                 void remove();
               }}
-              style={({ pressed }) => ({
-                backgroundColor: pressed
-                  ? theme.backgroundSelected
-                  : theme.surface,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                borderWidth: 1,
-                borderColor: theme.border,
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-              })}
-            >
-              <Text
-                style={{
-                  color: theme.danger,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
-                {confirmDelete
-                  ? t("medication.deleteConfirmButton")
-                  : t("medication.deleteButton")}
-              </Text>
-            </Pressable>
+              tintColor={theme.danger}
+            />
             <View
               style={{
                 alignItems: "center",
