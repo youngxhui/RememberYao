@@ -1,9 +1,10 @@
-import { Column, Host, Row, ScrollView, Spacer, Text } from "@expo/ui";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-
+import { Pressable, Text, View } from "react-native";
 import { DoseTimeline } from "@/components/dose-timeline";
-import { ProgressBar } from "@/components/progress-bar";
+import { ProgressBarRn } from "@/components/progress-bar";
+import { ScreenScaffold, Padded } from "@/components/screen-scaffold";
+import { Spacing, Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, type Language } from "@/i18n";
 import {
@@ -61,70 +62,93 @@ export default function RecordsScreen() {
   return (
     <>
       <Stack.Title large>{t("records.title")}</Stack.Title>
-      <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <ScrollView
-          style={{ padding: 16, paddingBottom: 32 }}
-          showsIndicators={false}
-        >
-          <Column spacing={16}>
-            <Row
-              alignment="center"
-              style={{
-                backgroundColor: theme.backgroundElement,
-                borderRadius: 12,
-                padding: 8,
-              }}
-            >
-              <NavButton
-                testID="records-prev-day"
-                label="‹"
-                onPress={() => setDate((d) => addDays(d, -1))}
-              />
-              <Spacer />
-              <Text textStyle={{ fontSize: 15, fontWeight: "600" }}>
+      <ScreenScaffold>
+        <Padded>
+          {/* 日期栏 */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: theme.backgroundElement,
+              borderRadius: Radius.card,
+              padding: Spacing.two,
+            }}
+          >
+            <NavButton
+              testID="records-prev-day"
+              label="‹"
+              onPress={() => setDate((d) => addDays(d, -1))}
+            />
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text
+                style={{ fontSize: 15, fontWeight: "600", color: theme.text }}
+              >
                 {formatDateLabel(date, language)}
               </Text>
-              <Spacer />
-              <NavButton
-                testID="records-next-day"
-                label="›"
-                disabled={date >= today}
-                onPress={() => setDate((d) => (d < today ? addDays(d, 1) : d))}
-              />
-            </Row>
+            </View>
+            <NavButton
+              testID="records-next-day"
+              label="›"
+              disabled={date >= today}
+              onPress={() => setDate((d) => (d < today ? addDays(d, 1) : d))}
+            />
+          </View>
 
-            {!loading && total > 0 ? (
-              <Column
-                spacing={10}
+          {/* 统计卡 */}
+          {!loading && total > 0 ? (
+            <View
+              style={{
+                marginTop: Spacing.three,
+                backgroundColor: theme.primarySoft,
+                borderRadius: Radius.card,
+                padding: Spacing.three,
+              }}
+            >
+              <View
                 style={{
-                  backgroundColor: theme.primarySoft,
-                  borderRadius: 16,
-                  padding: 16,
+                  flexDirection: "row",
+                  alignItems: "flex-end",
+                  gap: Spacing.one,
                 }}
               >
-                <Row alignment="end" spacing={6}>
-                  <Text textStyle={{ fontSize: 28, fontWeight: "700" }}>
-                    {`${rate}%`}
-                  </Text>
-                  <Text
-                    textStyle={{ fontSize: 13, color: theme.textSecondary }}
-                  >
-                    {t("records.adherence")}
-                  </Text>
-                </Row>
-                <ProgressBar
+                <Text
+                  style={{ fontSize: 28, fontWeight: "700", color: theme.text }}
+                >
+                  {`${rate}%`}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: theme.textSecondary,
+                    marginBottom: 2,
+                  }}
+                >
+                  {t("records.adherence")}
+                </Text>
+              </View>
+              <View style={{ marginTop: Spacing.two }}>
+                <ProgressBarRn
                   percent={rate / 100}
                   color={theme.primary}
                   track={theme.backgroundSelected}
                   height={8}
                 />
-                <Text textStyle={{ fontSize: 12, color: theme.textSecondary }}>
-                  {t("records.summary", { total, taken, missed, skipped })}
-                </Text>
-              </Column>
-            ) : null}
+              </View>
+              <Text
+                style={{
+                  marginTop: Spacing.two,
+                  fontSize: 12,
+                  color: theme.textSecondary,
+                }}
+              >
+                {t("records.summary", { total, taken, missed, skipped })}
+              </Text>
+            </View>
+          ) : null}
 
-            {!loading ? (
+          {/* 时间线 */}
+          {!loading ? (
+            <View style={{ marginTop: Spacing.three }}>
               <DoseTimeline
                 reminders={dayReminders}
                 medications={medications}
@@ -133,10 +157,10 @@ export default function RecordsScreen() {
                 onChanged={reload}
                 emptyText={t("records.empty")}
               />
-            ) : null}
-          </Column>
-        </ScrollView>
-      </Host>
+            </View>
+          ) : null}
+        </Padded>
+      </ScreenScaffold>
     </>
   );
 }
@@ -154,23 +178,29 @@ function NavButton({
 }) {
   const theme = useTheme();
   return (
-    <Row
+    <Pressable
       testID={testID}
-      alignment="center"
-      style={{
-        paddingHorizontal: 16,
-        paddingVertical: 6,
-        borderRadius: 8,
-        opacity: disabled ? 0.3 : 1,
-      }}
-      onPress={disabled ? undefined : onPress}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
+      style={({ pressed }) => ({
+        paddingHorizontal: Spacing.three,
+        paddingVertical: Spacing.two,
+        borderRadius: Radius.card,
+        opacity: disabled ? 0.3 : pressed ? 0.7 : 1,
+      })}
     >
       <Text
-        textStyle={{ fontSize: 20, color: theme.primary, fontWeight: "700" }}
+        style={{
+          fontSize: 20,
+          color: theme.primary,
+          fontWeight: "700",
+        }}
       >
         {label}
       </Text>
-    </Row>
+    </Pressable>
   );
 }
 

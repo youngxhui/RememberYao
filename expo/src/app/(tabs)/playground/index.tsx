@@ -1,3 +1,4 @@
+import { Button } from "@expo/ui";
 import { LiquidGlassView, supportsNativeGlass } from "expo-liquid-glass-view";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -10,12 +11,21 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ContentGlass } from "@/components/content-glass";
+import { ExpoUiIsland } from "@/components/expo-ui-island";
+import { GlassChip } from "@/components/glass-chip";
 import {
   MiniArchive,
   archiveEntryFromMedication,
 } from "@/components/mini-archive";
 import { ReminderCardStack } from "@/components/reminder-card-stack";
-import { Spacing } from "@/constants/theme";
+import { RnRoundIconButton } from "@/components/rn-round-icon-button";
+import {
+  ScreenScaffold,
+  Padded,
+  FullBleed,
+} from "@/components/screen-scaffold";
+import { Spacing, Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import { sendTestNotification } from "@/lib/notifications";
@@ -71,6 +81,10 @@ export default function PlaygroundScreen() {
     reloadReminders();
   }, [reloadMedications, reloadPersons, reloadPlans, reloadReminders]);
 
+  const [glassCardVariant, setGlassCardVariant] = useState<"regular" | "clear">(
+    "regular",
+  );
+  const [activeChip, setActiveChip] = useState<string>("all");
   const entries = medications.map((medication) =>
     archiveEntryFromMedication(medication, t),
   );
@@ -125,6 +139,37 @@ export default function PlaygroundScreen() {
                   }}
                 >
                   {t("common.playgroundTestNotification")}
+                </RNText>
+              </RNPressable>
+
+              <RNPressable
+                testID="playground-open-records"
+                accessibilityRole="button"
+                onPress={() => {
+                  router.push("/records");
+                }}
+                style={({ pressed }) => ({
+                  marginHorizontal: Spacing.three,
+                  marginTop: Spacing.two,
+                  paddingVertical: Spacing.two,
+                  borderRadius: 12,
+                  borderCurve: "continuous",
+                  alignItems: "center",
+                  backgroundColor: pressed
+                    ? theme.backgroundElement
+                    : theme.surface,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                })}
+              >
+                <RNText
+                  style={{
+                    color: theme.text,
+                    fontSize: 15,
+                    fontWeight: "600",
+                  }}
+                >
+                  打开服药记录（临时入口）
                 </RNText>
               </RNPressable>
 
@@ -190,9 +235,6 @@ export default function PlaygroundScreen() {
                     可交互控件的测试标识挂在外层 RNPressable 上 */}
                 <RNPressable
                   testID="playground-glass-primary-button"
-                  onClick={() => {
-                    console.log("GlassView Button");
-                  }}
                   onPress={() => {
                     console.log("LiquidGlassView Button OnPress");
                   }}
@@ -212,9 +254,6 @@ export default function PlaygroundScreen() {
 
                 <RNPressable
                   testID="playground-glass-primary-button"
-                  onClick={() => {
-                    console.log("GlassView Button");
-                  }}
                   onPress={() => {
                     console.log("LiquidGlassView Button OnPress");
                   }}
@@ -222,6 +261,7 @@ export default function PlaygroundScreen() {
                   <LiquidGlassView
                     variant={variant}
                     cornerRadius={24}
+                    interactive
                     style={styles.glassButton}
                   >
                     <RNText style={[styles.glassButtonLabel]}>
@@ -229,6 +269,240 @@ export default function PlaygroundScreen() {
                     </RNText>
                   </LiquidGlassView>
                 </RNPressable>
+              </RNView>
+
+              {/* ─── 迁移组件展示 ─── */}
+              <RNView
+                style={{
+                  marginTop: Spacing.five,
+                  paddingHorizontal: Spacing.three,
+                  gap: Spacing.four,
+                }}
+              >
+                <RNText
+                  style={{
+                    color: theme.textSecondary,
+                    fontSize: 13,
+                    fontWeight: "600",
+                  }}
+                >
+                  迁移组件展示（第 0 批）
+                </RNText>
+
+                {/* ContentGlass */}
+                <RNView style={{ gap: Spacing.two }}>
+                  <RNText
+                    style={{
+                      color: theme.text,
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    ContentGlass
+                  </RNText>
+                  <RNView
+                    style={{
+                      flexDirection: "row",
+                      gap: Spacing.two,
+                      alignItems: "center",
+                    }}
+                  >
+                    {(["regular", "clear"] as const).map((v) => (
+                      <RNPressable
+                        key={v}
+                        testID={`playground-content-glass-${v}`}
+                        onPress={() => setGlassCardVariant(v)}
+                        style={({ pressed }) => ({
+                          paddingHorizontal: Spacing.three,
+                          paddingVertical: Spacing.two,
+                          borderRadius: 999,
+                          borderCurve: "continuous",
+                          backgroundColor:
+                            glassCardVariant === v
+                              ? theme.primary
+                              : withAlpha(theme.primary, 0.12),
+                          opacity: pressed ? 0.7 : 1,
+                        })}
+                      >
+                        <RNText
+                          style={{
+                            color:
+                              glassCardVariant === v
+                                ? theme.onPrimary
+                                : theme.primary,
+                            fontSize: 14,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {v === "regular" ? "Regular" : "Clear"}
+                        </RNText>
+                      </RNPressable>
+                    ))}
+                  </RNView>
+                  <ContentGlass
+                    variant={glassCardVariant}
+                    tint={theme.primary}
+                    cornerRadius={Radius.card}
+                    style={{ padding: Spacing.three }}
+                    fallbackStyle={{
+                      backgroundColor: theme.surface,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
+                  >
+                    <RNText
+                      style={{
+                        color: theme.text,
+                        fontSize: 15,
+                        fontWeight: "600",
+                      }}
+                    >
+                      这是 ContentGlass 卡片
+                    </RNText>
+                    <RNText
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 13,
+                        marginTop: Spacing.one,
+                      }}
+                    >
+                      原生玻璃 / 实心 fallback 自动切换
+                    </RNText>
+                  </ContentGlass>
+                </RNView>
+
+                {/* GlassChip */}
+                <RNView style={{ gap: Spacing.two }}>
+                  <RNText
+                    style={{
+                      color: theme.text,
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    GlassChip
+                  </RNText>
+                  <RNView
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: Spacing.two,
+                    }}
+                  >
+                    {[
+                      { id: "all", label: "全部" },
+                      { id: "chronic", label: "慢性病" },
+                      { id: "acute", label: "急性病" },
+                      { id: "supplement", label: "补充剂" },
+                    ].map((chip) => (
+                      <GlassChip
+                        key={chip.id}
+                        testID={`playground-glass-chip-${chip.id}`}
+                        label={chip.label}
+                        active={activeChip === chip.id}
+                        onPress={() => setActiveChip(chip.id)}
+                      />
+                    ))}
+                  </RNView>
+                </RNView>
+
+                {/* RnRoundIconButton */}
+                <RNView style={{ gap: Spacing.two }}>
+                  <RNText
+                    style={{
+                      color: theme.text,
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    RnRoundIconButton
+                  </RNText>
+                  <RNView
+                    style={{
+                      flexDirection: "row",
+                      gap: Spacing.three,
+                      alignItems: "center",
+                    }}
+                  >
+                    <RnRoundIconButton
+                      testID="playground-round-icon-add"
+                      label="添加"
+                      icon={{ ios: "plus", android: "add" }}
+                      size={44}
+                      iconSize={24}
+                      onPress={() => {}}
+                    />
+                    <RnRoundIconButton
+                      testID="playground-round-icon-settings"
+                      label="设置"
+                      icon={{ ios: "gearshape", android: "settings" }}
+                      size={36}
+                      iconSize={20}
+                      onPress={() => {}}
+                    />
+                  </RNView>
+                </RNView>
+
+                {/* ExpoUiIsland */}
+                <RNView style={{ gap: Spacing.two }}>
+                  <RNText
+                    style={{
+                      color: theme.text,
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    ExpoUiIsland（RN 树里的 Host 边界）
+                  </RNText>
+                  <ExpoUiIsland>
+                    <Button
+                      testID="playground-island-button"
+                      label="Expo UI Island Button"
+                      onPress={() => {}}
+                    />
+                  </ExpoUiIsland>
+                </RNView>
+
+                {/* ScreenScaffold 效果 */}
+                <RNView style={{ gap: Spacing.two }}>
+                  <RNText
+                    style={{
+                      color: theme.text,
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    ScreenScaffold（scroll={false}）
+                  </RNText>
+                  <ScreenScaffold scroll={false}>
+                    <Padded>
+                      <RNView
+                        style={{
+                          backgroundColor: theme.primarySoft,
+                          padding: Spacing.two,
+                          borderRadius: Radius.card,
+                        }}
+                      >
+                        <RNText style={{ color: theme.primary, fontSize: 14 }}>
+                          Padded 区块（内缩 {Spacing.screen}pt）
+                        </RNText>
+                      </RNView>
+                    </Padded>
+                    <RNView style={{ height: Spacing.two }} />
+                    <FullBleed>
+                      <RNView
+                        style={{
+                          backgroundColor: theme.warningSoft,
+                          padding: Spacing.two,
+                        }}
+                      >
+                        <RNText style={{ color: theme.warning, fontSize: 14 }}>
+                          FullBleed 区块（顶到左右缘）
+                        </RNText>
+                      </RNView>
+                    </FullBleed>
+                  </ScreenScaffold>
+                </RNView>
               </RNView>
 
               <MiniArchive

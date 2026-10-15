@@ -1,7 +1,11 @@
-import { Button, Column, Row, Spacer, Text } from "@expo/ui";
+import {
+  Pressable as RNPressable,
+  Text as RNText,
+  View as RNView,
+} from "react-native";
 
-import { Avatar } from "@/components/avatar";
-import { nativeLayout } from "@/components/native-layout";
+import { AvatarMark } from "@/components/avatar";
+import { Spacing, Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation, getTranslator, type Translate } from "@/i18n";
 import {
@@ -76,18 +80,18 @@ export function StatusChip({
   const theme = useTheme();
   const { color, soft } = toneColors(tone, theme);
   return (
-    <Row
+    <RNView
       style={{
         backgroundColor: soft,
-        borderRadius: 999,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
+        borderRadius: Radius.pill,
+        paddingHorizontal: Spacing.three,
+        paddingVertical: Spacing.one + 1,
       }}
     >
-      <Text textStyle={{ fontSize: 12, color, fontWeight: "600" }}>
+      <RNText style={{ fontSize: 12, color, fontWeight: "600" }}>
         {label}
-      </Text>
-    </Row>
+      </RNText>
+    </RNView>
   );
 }
 
@@ -118,74 +122,133 @@ function DoseRow({
   };
 
   return (
-    <Row
+    <RNView
       testID={`dose-row-${reminder.id}`}
-      alignment="center"
-      spacing={10}
       style={{
         backgroundColor: theme.backgroundElement,
-        borderRadius: 14,
-        padding: 12,
+        borderRadius: Radius.card,
+        padding: Spacing.three,
       }}
     >
-      <Text
-        style={{ width: 52 }}
-        textStyle={{ fontSize: 15, fontWeight: "700" }}
+      <RNView
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: Spacing.three,
+        }}
       >
-        {reminder.time}
-      </Text>
-      <Column
-        spacing={2}
-        modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-      >
-        <Text textStyle={{ fontSize: 15, fontWeight: "600" }}>
-          {medication?.name ?? t("home.unknownMedication")}
-        </Text>
-        <Text textStyle={{ fontSize: 12, color: theme.textSecondary }}>
-          {`${reminder.doseAmount} ${
-            medication
-              ? medicationUnitLabel(medication.unit, t)
-              : t("medication.unitTablet")
-          }`}
-        </Text>
-        {showPerson && person ? (
-          <Row alignment="center" spacing={4}>
-            <Avatar
-              color={person.avatarColor}
-              name={person.name}
-              uri={person.avatarUri}
-              size={14}
-            />
-            <Text textStyle={{ fontSize: 11, color: theme.textSecondary }}>
-              {person.name}
-            </Text>
-          </Row>
-        ) : null}
-      </Column>
-      <Spacer />
-      {interactive && canResolve ? (
-        <Row spacing={6}>
-          <Button
-            testID={`dose-skip-${reminder.id}`}
-            label={t("reminder.skip")}
-            variant="outlined"
-            onPress={() => act(() => skipReminder(reminder.id))}
-          />
-          {/* 文案在「已服用 / 补服」之间切换，靠 testID 稳定定位 */}
-          <Button
-            testID={`dose-take-${reminder.id}`}
-            label={
-              reminder.status === "missed"
-                ? t("reminder.lateTake")
-                : t("reminder.taken")
-            }
-            onPress={() => act(() => takeReminder(reminder.id))}
-          />
-        </Row>
-      ) : (
-        <StatusChip label={meta.label} tone={meta.tone} />
-      )}
-    </Row>
+        {/* 时间 */}
+        <RNView style={{ width: 52 }}>
+          <RNText
+            style={{ fontSize: 15, fontWeight: "700", color: theme.text }}
+          >
+            {reminder.time}
+          </RNText>
+        </RNView>
+
+        {/* 药品 + 剂量 / 成员 */}
+        <RNView style={{ flex: 1 }}>
+          <RNText
+            style={{ fontSize: 15, fontWeight: "600", color: theme.text }}
+          >
+            {medication?.name ?? t("home.unknownMedication")}
+          </RNText>
+          <RNText
+            style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}
+          >
+            {`${reminder.doseAmount} ${
+              medication
+                ? medicationUnitLabel(medication.unit, t)
+                : t("medication.unitTablet")
+            }`}
+          </RNText>
+          {showPerson && person ? (
+            <RNView
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: Spacing.one,
+                marginTop: 2,
+              }}
+            >
+              <AvatarMark
+                color={person.avatarColor}
+                name={person.name}
+                uri={person.avatarUri}
+                size={14}
+              />
+              <RNText style={{ fontSize: 11, color: theme.textSecondary }}>
+                {person.name}
+              </RNText>
+            </RNView>
+          ) : null}
+        </RNView>
+
+        {/* 操作区 */}
+        {interactive && canResolve ? (
+          <RNView
+            style={{
+              flexDirection: "row",
+              gap: Spacing.two,
+              alignItems: "center",
+            }}
+          >
+            <RNPressable
+              testID={`dose-skip-${reminder.id}`}
+              onPress={() => act(() => skipReminder(reminder.id))}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                paddingHorizontal: Spacing.three,
+                paddingVertical: Spacing.two,
+                borderRadius: Radius.card,
+                borderCurve: "continuous",
+                backgroundColor: pressed
+                  ? theme.backgroundSelected
+                  : theme.surface,
+                borderWidth: 1,
+                borderColor: theme.border,
+              })}
+            >
+              <RNText
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: theme.textSecondary,
+                }}
+              >
+                {t("reminder.skip")}
+              </RNText>
+            </RNPressable>
+            <RNPressable
+              testID={`dose-take-${reminder.id}`}
+              onPress={() => act(() => takeReminder(reminder.id))}
+              accessibilityRole="button"
+              style={({ pressed }) => ({
+                paddingHorizontal: Spacing.three,
+                paddingVertical: Spacing.two,
+                borderRadius: Radius.card,
+                borderCurve: "continuous",
+                backgroundColor: pressed ? theme.primarySoft : theme.primary,
+              })}
+            >
+              <RNText
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: theme.onPrimary,
+                }}
+              >
+                {reminder.status === "missed"
+                  ? t("reminder.lateTake")
+                  : t("reminder.taken")}
+              </RNText>
+            </RNPressable>
+          </RNView>
+        ) : (
+          <StatusChip label={meta.label} tone={meta.tone} />
+        )}
+      </RNView>
+    </RNView>
   );
 }
 
@@ -209,14 +272,14 @@ export function DoseTimeline({
   const t = useTranslation();
   if (reminders.length === 0) {
     return (
-      <Text textStyle={{ color: theme.textSecondary, fontSize: 13 }}>
+      <RNText style={{ color: theme.textSecondary, fontSize: 13 }}>
         {emptyText ?? t("common.empty")}
-      </Text>
+      </RNText>
     );
   }
   const showPerson = persons.length > 1;
   return (
-    <Column spacing={8}>
+    <RNView style={{ gap: Spacing.two }}>
       {reminders.map((reminder) => (
         <DoseRow
           key={reminder.id}
@@ -228,6 +291,6 @@ export function DoseTimeline({
           onChanged={onChanged}
         />
       ))}
-    </Column>
+    </RNView>
   );
 }

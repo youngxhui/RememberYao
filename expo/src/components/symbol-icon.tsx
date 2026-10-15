@@ -16,7 +16,7 @@ import type { SymbolViewProps } from "expo-symbols";
  * flex 连接线、提醒卡是 Reanimated 手势），塞进 Host 要靠 RNHostView 逐块桥接，
  * 触摸链路和测量都更难保证。SymbolView 可以直接挂在 RN 树上。
  */
-type SymbolIconName = SymbolViewProps["name"];
+export type SymbolIconName = SymbolViewProps["name"];
 
 export function SymbolIcon({
   name,
