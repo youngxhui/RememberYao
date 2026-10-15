@@ -42,9 +42,12 @@ export function FilterRow({
       contentContainerStyle={{
         paddingHorizontal: Spacing.screen,
         paddingVertical: Spacing.one,
+        alignItems: "center",
       }}
     >
-      <RNView style={{ flexDirection: "row", gap: Spacing.two }}>
+      <RNView
+        style={{ flexDirection: "row", gap: Spacing.two, alignItems: "center" }}
+      >
         {MEDICA_FILTERS.map((item) => (
           <GlassChip
             key={item.key}
