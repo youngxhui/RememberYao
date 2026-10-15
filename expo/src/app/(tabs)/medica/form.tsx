@@ -2,9 +2,8 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, Pressable, Text, TextInput, View } from "react-native";
 
-import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { GlassChip } from "@/components/glass-chip";
-import { NativeDatePicker } from "@/components/native-date-picker";
+import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import {
   ChipField,
   ErrorText,
@@ -420,18 +419,16 @@ export default function MedicationFormScreen() {
                 }}
               >
                 {expiryDate ? (
-                  <ExpoUiIsland>
-                    <NativeDatePicker
-                      testID="medication-expiry-picker"
-                      value={dateFromKey(expiryDate)}
-                      mode="date"
-                      accentColor={theme.primary}
-                      locale={picker.locale}
-                      onValueChange={(date) => {
-                        setExpiryDate(dateKey(date));
-                      }}
-                    />
-                  </ExpoUiIsland>
+                  <RnDateTimePicker
+                    testID="medication-expiry-picker"
+                    value={dateFromKey(expiryDate)}
+                    mode="date"
+                    accentColor={theme.primary}
+                    locale={picker.locale}
+                    onValueChange={(date) => {
+                      setExpiryDate(dateKey(date));
+                    }}
+                  />
                 ) : (
                   <Text style={{ fontSize: 15, color: theme.textSecondary }}>
                     {t("medication.expiryUnset")}

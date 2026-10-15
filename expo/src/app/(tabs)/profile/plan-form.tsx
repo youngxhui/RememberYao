@@ -5,7 +5,7 @@ import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
 import { ExpoUiIsland } from "@/components/expo-ui-island";
-import { NativeDatePicker } from "@/components/native-date-picker";
+import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import {
   ChipField,
   ErrorText,
@@ -402,19 +402,17 @@ export default function PlanFormScreen() {
                       {t("plan.ordinal", { index: index + 1 })}
                     </Text>
                     <View style={{ flex: 1 }} />
-                    <ExpoUiIsland>
-                      <NativeDatePicker
-                        value={timeToDate(time)}
-                        mode="time"
-                        accentColor={theme.primary}
-                        locale={picker.locale}
-                        is24Hour={picker.is24Hour}
-                        testID={`plan-dose-time-${index}`}
-                        onValueChange={(date) => {
-                          changeTime(index, date);
-                        }}
-                      />
-                    </ExpoUiIsland>
+                    <RnDateTimePicker
+                      value={timeToDate(time)}
+                      mode="time"
+                      accentColor={theme.primary}
+                      locale={picker.locale}
+                      is24Hour={picker.is24Hour}
+                      testID={`plan-dose-time-${index}`}
+                      onValueChange={(date) => {
+                        changeTime(index, date);
+                      }}
+                    />
                   </View>
                 </View>
               ))}
@@ -424,16 +422,14 @@ export default function PlanFormScreen() {
           <FormSection title={t("plan.sectionDateRange")}>
             <Field label={t("plan.startDate")}>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <ExpoUiIsland>
-                  <NativeDatePicker
-                    value={dateFromKey(startDate)}
-                    mode="date"
-                    accentColor={theme.primary}
-                    locale={picker.locale}
-                    testID="plan-start-date"
-                    onValueChange={(date) => setStartDate(dateKey(date))}
-                  />
-                </ExpoUiIsland>
+                <RnDateTimePicker
+                  value={dateFromKey(startDate)}
+                  mode="date"
+                  accentColor={theme.primary}
+                  locale={picker.locale}
+                  testID="plan-start-date"
+                  onValueChange={(date) => setStartDate(dateKey(date))}
+                />
               </View>
             </Field>
             <Field label={t("plan.endDate")}>
@@ -445,17 +441,15 @@ export default function PlanFormScreen() {
                 }}
               >
                 {hasEndDate ? (
-                  <ExpoUiIsland>
-                    <NativeDatePicker
-                      value={dateFromKey(endDate)}
-                      mode="date"
-                      minimumDate={dateFromKey(startDate)}
-                      accentColor={theme.primary}
-                      locale={picker.locale}
-                      testID="plan-end-date"
-                      onValueChange={(date) => setEndDate(dateKey(date))}
-                    />
-                  </ExpoUiIsland>
+                  <RnDateTimePicker
+                    value={dateFromKey(endDate)}
+                    mode="date"
+                    minimumDate={dateFromKey(startDate)}
+                    accentColor={theme.primary}
+                    locale={picker.locale}
+                    testID="plan-end-date"
+                    onValueChange={(date) => setEndDate(dateKey(date))}
+                  />
                 ) : (
                   <Text style={{ fontSize: 15, color: theme.textSecondary }}>
                     {t("plan.endDateUnlimited")}

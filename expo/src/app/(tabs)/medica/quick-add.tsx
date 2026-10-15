@@ -3,8 +3,7 @@ import { useState } from "react";
 import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
-import { ExpoUiIsland } from "@/components/expo-ui-island";
-import { NativeDatePicker } from "@/components/native-date-picker";
+import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import { ChipField, Field, FormSection, Subtitle } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
 import { BottomTabInset, Spacing, Radius } from "@/constants/theme";
@@ -501,19 +500,17 @@ function StepSchedule({
                 {t("plan.ordinal", { index: index + 1 })}
               </Text>
               <View style={{ flex: 1 }} />
-              <ExpoUiIsland>
-                <NativeDatePicker
-                  value={timeToDate(time)}
-                  mode="time"
-                  accentColor={accentColor}
-                  locale={picker.locale}
-                  is24Hour={picker.is24Hour}
-                  testID={`quick-add-time-${index}`}
-                  onValueChange={(date) => {
-                    onChangeTime(index, date);
-                  }}
-                />
-              </ExpoUiIsland>
+              <RnDateTimePicker
+                value={timeToDate(time)}
+                mode="time"
+                accentColor={accentColor}
+                locale={picker.locale}
+                is24Hour={picker.is24Hour}
+                testID={`quick-add-time-${index}`}
+                onValueChange={(date) => {
+                  onChangeTime(index, date);
+                }}
+              />
             </View>
           ))}
         </View>
