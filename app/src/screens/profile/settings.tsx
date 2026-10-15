@@ -1,5 +1,4 @@
 import {
-  BottomSheet,
   Button,
   Column,
   FieldGroup,
@@ -11,10 +10,14 @@ import {
   Switch,
   Text,
 } from "@expo/ui";
+import BottomSheetModal, {
+  type BottomSheetModal as BottomSheetModalRef,
+} from "@expo/ui/community/bottom-sheet";
 import Constants from "expo-constants";
 import { Stack, useFocusEffect } from "expo-router";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 
+import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { ICONS, type IconKey } from "@/components/icons";
 import { NativeDatePicker } from "@/components/native-date-picker";
 import { Fonts, Spacing } from "@/constants/theme";
@@ -71,6 +74,21 @@ export function Settings() {
   const [permissionGranted, setPermissionGranted] = useState(true);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showQuietHours, setShowQuietHours] = useState(false);
+  // 两个 sheet 都用社区版 BottomSheet（@expo/ui/community/bottom-sheet）：
+  // 命令式 present/dismiss，纯 RN 可用。放在 Host 外面（屏幕根），
+  // 不再是 FieldGroup 的子节点 —— 社区版是 RN modal，不受那条约束
+  const quietSheetRef = useRef<BottomSheetModalRef>(null);
+  const privacySheetRef = useRef<BottomSheetModalRef>(null);
+
+  const openQuietSheet = () => {
+    setShowQuietHours(true);
+    quietSheetRef.current?.present();
+  };
+
+  const openPrivacySheet = () => {
+    setShowPrivacy(true);
+    privacySheetRef.current?.present();
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -184,7 +202,7 @@ export function Settings() {
               sub={t("settings.quietSub")}
               disabled={!settings.notificationsEnabled}
               onPress={() => {
-                setShowQuietHours(true);
+                openQuietSheet();
               }}
               trailing={
                 <ValueAndChevron
@@ -255,7 +273,7 @@ export function Settings() {
               label={t("settings.privacyTitle")}
               sub={t("settings.privacySub")}
               onPress={() => {
-                setShowPrivacy(true);
+                openPrivacySheet();
               }}
               trailing={<Chevron />}
             />
@@ -287,115 +305,122 @@ export function Settings() {
               </Text>
             </FieldGroup.SectionFooter>
           </FieldGroup.Section>
-          {/* 免打扰时段：时间选择器收在 sheet 里，主行因此不用跟着开关长出第二行。
-            ⚠️ 必须作为 FieldGroup 的子节点：BottomSheet 内嵌一个绝对定位的 Host，
-            若和 FieldGroup 同级挂在 Host 下（Host 变多子节点）会让整屏手势失效。 */}
-          {showQuietHours ? (
-            <BottomSheet
-              isPresented={showQuietHours}
-              onDismiss={() => {
-                setShowQuietHours(false);
-              }}
-            >
-              <Column spacing={16} style={{ padding: 20 }}>
-                <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
-                  {t("settings.quietTitle")}
-                </Text>
-                <Switch
-                  testID="settings-quiet-switch"
-                  label={t("settings.quietEnable")}
-                  value={quietOn}
-                  onValueChange={(value) => {
-                    void setQuietHours(
-                      value ? DEFAULT_QUIET_START : null,
-                      value ? DEFAULT_QUIET_END : null,
-                    );
-                  }}
-                />
-                {quietOn ? (
-                  <>
-                    <Text
-                      textStyle={{ fontSize: 13, color: theme.textSecondary }}
-                    >
-                      {t("settings.quietSub")}
-                    </Text>
-                    <Row alignment="center">
-                      <Text>{t("settings.quietRange")}</Text>
-                      <Spacer flexible />
-                      <NativeDatePicker
-                        testID="settings-quiet-start"
-                        value={timeToDate(
-                          settings.quietStart ?? DEFAULT_QUIET_START,
-                        )}
-                        mode="time"
-                        accentColor={theme.primary}
-                        locale={picker.locale}
-                        is24Hour={picker.is24Hour}
-                        onValueChange={(date) => {
-                          void setQuietHours(
-                            dateToTime(date),
-                            settings.quietEnd ?? DEFAULT_QUIET_END,
-                          );
-                        }}
-                      />
-                      <Text textStyle={{ color: theme.textSecondary }}>–</Text>
-                      <NativeDatePicker
-                        testID="settings-quiet-end"
-                        value={timeToDate(
-                          settings.quietEnd ?? DEFAULT_QUIET_END,
-                        )}
-                        mode="time"
-                        accentColor={theme.primary}
-                        locale={picker.locale}
-                        is24Hour={picker.is24Hour}
-                        onValueChange={(date) => {
-                          void setQuietHours(
-                            settings.quietStart ?? DEFAULT_QUIET_START,
-                            dateToTime(date),
-                          );
-                        }}
-                      />
-                    </Row>
-                  </>
-                ) : null}
-                <Button
-                  testID="settings-quiet-close-button"
-                  label={t("common.done")}
-                  onPress={() => {
-                    setShowQuietHours(false);
-                  }}
-                />
-              </Column>
-            </BottomSheet>
-          ) : null}
-
-          {/* 隐私说明：内容较长，用原生 sheet 而不是塞进分组行里展开 */}
-          {showPrivacy ? (
-            <BottomSheet
-              isPresented={showPrivacy}
-              onDismiss={() => {
-                setShowPrivacy(false);
-              }}
-            >
-              <Column spacing={12} style={{ padding: 20 }}>
-                <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
-                  {t("settings.privacyTitle")}
-                </Text>
-                <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
-                  {t("settings.privacyBody")}
-                </Text>
-                <Button
-                  testID="settings-privacy-close-button"
-                  label={t("common.done")}
-                  onPress={() => {
-                    setShowPrivacy(false);
-                  }}
-                />
-              </Column>
-            </BottomSheet>
-          ) : null}
         </FieldGroup>
       </Host>
+
+      {/* 免打扰时段：时间选择器收在 sheet 里，主行因此不用跟着开关长出第二行。
+          社区版 BottomSheet 是纯 RN modal，放屏幕根（Host 外）；内容仍是
+          Expo UI 子树（Switch / NativeDatePicker），包一层 ExpoUiIsland */}
+      <BottomSheetModal
+        ref={quietSheetRef}
+        onDismiss={() => {
+          setShowQuietHours(false);
+        }}
+        enablePanDownToClose
+      >
+        {showQuietHours ? (
+          <ExpoUiIsland>
+            <Column spacing={16} style={{ padding: 20 }}>
+              <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
+                {t("settings.quietTitle")}
+              </Text>
+              <Switch
+                testID="settings-quiet-switch"
+                label={t("settings.quietEnable")}
+                value={quietOn}
+                onValueChange={(value) => {
+                  void setQuietHours(
+                    value ? DEFAULT_QUIET_START : null,
+                    value ? DEFAULT_QUIET_END : null,
+                  );
+                }}
+              />
+              {quietOn ? (
+                <>
+                  <Text
+                    textStyle={{ fontSize: 13, color: theme.textSecondary }}
+                  >
+                    {t("settings.quietSub")}
+                  </Text>
+                  <Row alignment="center">
+                    <Text>{t("settings.quietRange")}</Text>
+                    <Spacer flexible />
+                    <NativeDatePicker
+                      testID="settings-quiet-start"
+                      value={timeToDate(
+                        settings.quietStart ?? DEFAULT_QUIET_START,
+                      )}
+                      mode="time"
+                      accentColor={theme.primary}
+                      locale={picker.locale}
+                      is24Hour={picker.is24Hour}
+                      embedInHost
+                      onValueChange={(date) => {
+                        void setQuietHours(
+                          dateToTime(date),
+                          settings.quietEnd ?? DEFAULT_QUIET_END,
+                        );
+                      }}
+                    />
+                    <Text textStyle={{ color: theme.textSecondary }}>–</Text>
+                    <NativeDatePicker
+                      testID="settings-quiet-end"
+                      value={timeToDate(settings.quietEnd ?? DEFAULT_QUIET_END)}
+                      mode="time"
+                      accentColor={theme.primary}
+                      locale={picker.locale}
+                      is24Hour={picker.is24Hour}
+                      embedInHost
+                      onValueChange={(date) => {
+                        void setQuietHours(
+                          settings.quietStart ?? DEFAULT_QUIET_START,
+                          dateToTime(date),
+                        );
+                      }}
+                    />
+                  </Row>
+                </>
+              ) : null}
+              <Button
+                testID="settings-quiet-close-button"
+                label={t("common.done")}
+                onPress={() => {
+                  quietSheetRef.current?.dismiss();
+                }}
+              />
+            </Column>
+          </ExpoUiIsland>
+        ) : null}
+      </BottomSheetModal>
+
+      {/* 隐私说明：内容较长，用原生 sheet 而不是塞进分组行里展开 */}
+      <BottomSheetModal
+        ref={privacySheetRef}
+        onDismiss={() => {
+          setShowPrivacy(false);
+        }}
+        enablePanDownToClose
+      >
+        {showPrivacy ? (
+          <ExpoUiIsland>
+            <Column spacing={12} style={{ padding: 20 }}>
+              <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
+                {t("settings.privacyTitle")}
+              </Text>
+              <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
+                {t("settings.privacyBody")}
+              </Text>
+              <Button
+                testID="settings-privacy-close-button"
+                label={t("common.done")}
+                onPress={() => {
+                  privacySheetRef.current?.dismiss();
+                }}
+              />
+            </Column>
+          </ExpoUiIsland>
+        ) : null}
+      </BottomSheetModal>
     </>
   );
 }

@@ -34,6 +34,7 @@ export function NativeDatePicker({
   accentColor,
   locale,
   testID,
+  embedInHost: _embedInHost,
   onValueChange,
 }: NativeDatePickerProps) {
   const theme = useTheme();

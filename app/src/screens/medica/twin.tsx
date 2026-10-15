@@ -1,15 +1,10 @@
-import {
-  BottomSheet,
-  Column,
-  Host,
-  Icon,
-  Picker,
-  Row,
-  Spacer,
-  Text,
-} from "@expo/ui";
+import { Column, Host, Icon, Picker, Row, Spacer, Text } from "@expo/ui";
+import BottomSheetModal, {
+  BottomSheetView,
+  type BottomSheetModal as BottomSheetModalRef,
+} from "@expo/ui/community/bottom-sheet";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Pressable as RNPressable,
   ScrollView as RNScrollView,
@@ -101,8 +96,8 @@ function buildPillLook(medication: Medication): PillLook {
  * `TwinFoilIsland` 这个 Expo UI 岛里 —— 铝箔渐变绑死 SwiftUI modifier，
  * LiquidGlassView 替代不了（Q2 冻结）。岛宽由 RN 父级 `onLayout` 实测喂入
  * （格子等分要数字宽），不再有 `useExpoUiContentWidth` 那套 Host 测宽。
- * 点格子弹出的 `BottomSheet` 是屏幕根的兄弟（不在任何 Host 里），其
- * children 在各平台都是 RN 视图 —— 这是组件本身的契约，不是绕路。
+ * 点格子弹出的 sheet 用社区版 `@expo/ui/community/bottom-sheet`（纯 RN、
+ * 命令式 present/dismiss），是屏幕根的兄弟（不在任何 Host 里）。
  *
  * 未开启孪生的板装药（存量数据）在这一屏承载开启表单：填规格 → 按当前
  * 剩余量补历史消耗格 → 立即可用。分配算法见 store.ts 的 planTwinBuild。
@@ -176,6 +171,9 @@ export function MedicationTwin() {
   // 铝箔岛的宽度：格子等分要数字宽（CELL_MIN/CELL_MAX），用格子父级
   // onLayout 实测，不再测 Host（孪生是 useExpoUiContentWidth 的最后一个调用方）
   const [gridWidth, setGridWidth] = useState(0);
+  // 格子详情 sheet：社区版 BottomSheet 是命令式的（present/dismiss），
+  // 不再是 isPresented 声明式
+  const sheetRef = useRef<BottomSheetModalRef>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -251,7 +249,14 @@ export function MedicationTwin() {
     : undefined;
 
   const closeSheet = () => {
-    setActiveSlotId(null);
+    // 命令式 dismiss：state 留给 onDismiss（关闭动画结束）清，
+    // 这样 sheet 下滑消失时内容不会先一步被卸载
+    sheetRef.current?.dismiss();
+  };
+
+  const openSlotSheet = (slotId: string) => {
+    setActiveSlotId(slotId);
+    sheetRef.current?.present();
   };
 
   const openTwin = async () => {
@@ -328,7 +333,7 @@ export function MedicationTwin() {
                         gridWidth={gridWidth}
                         pill={pill}
                         medication={medication}
-                        onSlotPress={setActiveSlotId}
+                        onSlotPress={openSlotSheet}
                       />
                       <SlotLegend pill={pill} />
                     </TwinFoilIsland>
@@ -400,9 +405,15 @@ export function MedicationTwin() {
         </RNView>
       </ScreenScaffold>
 
-      <BottomSheet
-        isPresented={activeSlot !== undefined && pack !== undefined}
-        onDismiss={closeSheet}
+      {/* 社区版 BottomSheet（@expo/ui/community/bottom-sheet）：命令式
+          present/dismiss，纯 RN 可用、不需要 Host。仍是屏幕根的兄弟，
+          不塞进 ScreenScaffold。下滑/点遮罩关闭对应 enablePanDownToClose */}
+      <BottomSheetModal
+        ref={sheetRef}
+        onDismiss={() => {
+          setActiveSlotId(null);
+        }}
+        enablePanDownToClose
         testID="twin-slot-sheet"
       >
         {activeSlot && pack ? (
@@ -439,7 +450,7 @@ export function MedicationTwin() {
             }}
           />
         ) : null}
-      </BottomSheet>
+      </BottomSheetModal>
     </>
   );
 }
@@ -1156,8 +1167,8 @@ function EnableTwinCard({
 }
 
 /**
- * 格子详情 sheet。children 是 RN 视图（BottomSheet 的契约），样式内联 ——
- * 一块一次性浮层不值得抽组件，四态的分支比样式更值得写注释。
+ * 格子详情 sheet 内容：包在社区版 BottomSheet 的 `BottomSheetView` 里，
+ * 样式内联 —— 一块一次性浮层不值得抽组件，四态的分支比样式更值得写注释。
  */
 function SlotSheet({
   seq,
@@ -1190,7 +1201,7 @@ function SlotSheet({
   const t = useTranslation();
 
   return (
-    <RNView
+    <BottomSheetView
       style={{
         paddingHorizontal: Spacing.four,
         paddingTop: Spacing.two,
@@ -1278,7 +1289,7 @@ function SlotSheet({
           />
         </>
       ) : null}
-    </RNView>
+    </BottomSheetView>
   );
 }
 
