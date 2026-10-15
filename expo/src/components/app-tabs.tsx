@@ -53,13 +53,6 @@ export default function AppTabs() {
           md="construction"
         />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="hello" testID="hello-tab">
-        <NativeTabs.Trigger.Label>{t("tab.hello")}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf={{ default: "star", selected: "star.fill" }}
-          md="star"
-        />
-      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
