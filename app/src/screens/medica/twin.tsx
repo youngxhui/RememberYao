@@ -1,8 +1,5 @@
 import { Column, Host, Icon, Picker, Row, Spacer, Text } from "@expo/ui";
-import BottomSheetModal, {
-  BottomSheetView,
-  type BottomSheetModal as BottomSheetModalRef,
-} from "@expo/ui/community/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -96,8 +93,8 @@ function buildPillLook(medication: Medication): PillLook {
  * `TwinFoilIsland` 这个 Expo UI 岛里 —— 铝箔渐变绑死 SwiftUI modifier，
  * LiquidGlassView 替代不了（Q2 冻结）。岛宽由 RN 父级 `onLayout` 实测喂入
  * （格子等分要数字宽），不再有 `useExpoUiContentWidth` 那套 Host 测宽。
- * 点格子弹出的 sheet 用社区版 `@expo/ui/community/bottom-sheet`（纯 RN、
- * 命令式 present/dismiss），是屏幕根的兄弟（不在任何 Host 里）。
+ * 点格子弹出的 sheet 用 `@gorhom/bottom-sheet`（inline 渲染，命令式
+ * snapToIndex/close），是屏幕根的兄弟（不在任何 Host 里）。
  *
  * 未开启孪生的板装药（存量数据）在这一屏承载开启表单：填规格 → 按当前
  * 剩余量补历史消耗格 → 立即可用。分配算法见 store.ts 的 planTwinBuild。
@@ -171,9 +168,9 @@ export function MedicationTwin() {
   // 铝箔岛的宽度：格子等分要数字宽（CELL_MIN/CELL_MAX），用格子父级
   // onLayout 实测，不再测 Host（孪生是 useExpoUiContentWidth 的最后一个调用方）
   const [gridWidth, setGridWidth] = useState(0);
-  // 格子详情 sheet：社区版 BottomSheet 是命令式的（present/dismiss），
-  // 不再是 isPresented 声明式
-  const sheetRef = useRef<BottomSheetModalRef>(null);
+  // 格子详情 sheet：@gorhom/bottom-sheet（inline 渲染在屏幕根底部），
+  // 命令式 snapToIndex/close，index={-1} 初始关闭
+  const sheetRef = useRef<BottomSheet>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -249,14 +246,14 @@ export function MedicationTwin() {
     : undefined;
 
   const closeSheet = () => {
-    // 命令式 dismiss：state 留给 onDismiss（关闭动画结束）清，
+    // 命令式 close：state 留给 onClose（关闭流程结束）清，
     // 这样 sheet 下滑消失时内容不会先一步被卸载
-    sheetRef.current?.dismiss();
+    sheetRef.current?.close();
   };
 
   const openSlotSheet = (slotId: string) => {
     setActiveSlotId(slotId);
-    sheetRef.current?.present();
+    sheetRef.current?.snapToIndex(0);
   };
 
   const openTwin = async () => {
@@ -405,16 +402,17 @@ export function MedicationTwin() {
         </RNView>
       </ScreenScaffold>
 
-      {/* 社区版 BottomSheet（@expo/ui/community/bottom-sheet）：命令式
-          present/dismiss，纯 RN 可用、不需要 Host。仍是屏幕根的兄弟，
-          不塞进 ScreenScaffold。下滑/点遮罩关闭对应 enablePanDownToClose */}
-      <BottomSheetModal
+      {/* @gorhom/bottom-sheet：inline 渲染，放在屏幕根（Scaffold 外）。
+          index={-1} 初始关闭；动态 sizing 不传 snapPoints */}
+      <BottomSheet
         ref={sheetRef}
-        onDismiss={() => {
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        onClose={() => {
           setActiveSlotId(null);
         }}
-        enablePanDownToClose
-        testID="twin-slot-sheet"
+        backgroundStyle={{ backgroundColor: theme.surface }}
       >
         {activeSlot && pack ? (
           <SlotSheet
@@ -450,7 +448,7 @@ export function MedicationTwin() {
             }}
           />
         ) : null}
-      </BottomSheetModal>
+      </BottomSheet>
     </>
   );
 }
@@ -1206,94 +1204,97 @@ function SlotSheet({
         paddingHorizontal: Spacing.four,
         paddingTop: Spacing.two,
         paddingBottom: Spacing.five,
-        gap: Spacing.three,
         backgroundColor: theme.surface,
       }}
     >
-      <RNText style={{ fontSize: 17, fontWeight: "700", color: theme.text }}>
-        {t("twin.slotTitle", { seq, slot: slotNumber })}
-      </RNText>
+      {/* gorhom 的 BottomSheet/BottomSheetView 都不收 testID， sheet 的
+          测试标识落在内容容器上 */}
+      <RNView testID="twin-slot-sheet" style={{ gap: Spacing.three }}>
+        <RNText style={{ fontSize: 17, fontWeight: "700", color: theme.text }}>
+          {t("twin.slotTitle", { seq, slot: slotNumber })}
+        </RNText>
 
-      {slot.status === "full" ? (
-        <>
-          <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
-            {hasPerson ? t("twin.slotFull") : t("twin.noPerson")}
-          </RNText>
-          <SheetButton
-            testID="twin-consume-button"
-            label={t("twin.actionConsume")}
-            color={theme.primary}
-            borderColor={theme.primary}
-            disabled={!hasPerson}
-            onPress={onConsume}
-          />
-          <SheetButton
-            testID="twin-void-button"
-            label={t("twin.actionVoid")}
-            color={theme.danger}
-            borderColor={theme.border}
-            onPress={onVoid}
-          />
-        </>
-      ) : null}
-
-      {slot.status === "empty" && personName && takenAt ? (
-        <>
-          <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
-            {t("twin.slotTaken", {
-              person: personName,
-              datetime: formatTakenAt(takenAt, language),
-            })}
-          </RNText>
-          {late ? (
-            <RNText style={{ fontSize: 12, color: theme.warningStrong }}>
-              {t("twin.slotTakenLate")}
+        {slot.status === "full" ? (
+          <>
+            <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
+              {hasPerson ? t("twin.slotFull") : t("twin.noPerson")}
             </RNText>
-          ) : null}
-          <SheetButton
-            testID="twin-undo-button"
-            label={t("twin.actionUndo")}
-            color={theme.danger}
-            borderColor={theme.border}
-            onPress={onUndo}
-          />
-        </>
-      ) : null}
+            <SheetButton
+              testID="twin-consume-button"
+              label={t("twin.actionConsume")}
+              color={theme.primary}
+              borderColor={theme.primary}
+              disabled={!hasPerson}
+              onPress={onConsume}
+            />
+            <SheetButton
+              testID="twin-void-button"
+              label={t("twin.actionVoid")}
+              color={theme.danger}
+              borderColor={theme.border}
+              onPress={onVoid}
+            />
+          </>
+        ) : null}
 
-      {slot.status === "empty" && !personName ? (
-        <>
-          <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
-            {t("twin.slotHistory")}
-          </RNText>
-          <SheetButton
-            testID="twin-restore-button"
-            label={t("twin.actionRestore")}
-            color={theme.primary}
-            borderColor={theme.primary}
-            onPress={onRestore}
-          />
-        </>
-      ) : null}
+        {slot.status === "empty" && personName && takenAt ? (
+          <>
+            <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
+              {t("twin.slotTaken", {
+                person: personName,
+                datetime: formatTakenAt(takenAt, language),
+              })}
+            </RNText>
+            {late ? (
+              <RNText style={{ fontSize: 12, color: theme.warningStrong }}>
+                {t("twin.slotTakenLate")}
+              </RNText>
+            ) : null}
+            <SheetButton
+              testID="twin-undo-button"
+              label={t("twin.actionUndo")}
+              color={theme.danger}
+              borderColor={theme.border}
+              onPress={onUndo}
+            />
+          </>
+        ) : null}
 
-      {slot.status === "void" ? (
-        <>
-          <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
-            {t("twin.slotVoid")}
-          </RNText>
-          <SheetButton
-            testID="twin-restore-button"
-            label={t("twin.actionRestore")}
-            color={theme.primary}
-            borderColor={theme.primary}
-            onPress={onRestore}
-          />
-        </>
-      ) : null}
+        {slot.status === "empty" && !personName ? (
+          <>
+            <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
+              {t("twin.slotHistory")}
+            </RNText>
+            <SheetButton
+              testID="twin-restore-button"
+              label={t("twin.actionRestore")}
+              color={theme.primary}
+              borderColor={theme.primary}
+              onPress={onRestore}
+            />
+          </>
+        ) : null}
+
+        {slot.status === "void" ? (
+          <>
+            <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
+              {t("twin.slotVoid")}
+            </RNText>
+            <SheetButton
+              testID="twin-restore-button"
+              label={t("twin.actionRestore")}
+              color={theme.primary}
+              borderColor={theme.primary}
+              onPress={onRestore}
+            />
+          </>
+        ) : null}
+      </RNView>
     </BottomSheetView>
   );
 }
 
-/** sheet 里的操作按钮：RN Pressable（BottomSheet 的 children 是 RN 视图） */
+/** sheet 里的操作按钮：RN Pressable（gorhom BottomSheet 的 children 是 RN 视图） */
 function SheetButton({
   testID,
   label,

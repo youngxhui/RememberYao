@@ -10,9 +10,7 @@ import {
   Switch,
   Text,
 } from "@expo/ui";
-import BottomSheetModal, {
-  type BottomSheetModal as BottomSheetModalRef,
-} from "@expo/ui/community/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import Constants from "expo-constants";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState, type ReactNode } from "react";
@@ -74,20 +72,20 @@ export function Settings() {
   const [permissionGranted, setPermissionGranted] = useState(true);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showQuietHours, setShowQuietHours] = useState(false);
-  // 两个 sheet 都用社区版 BottomSheet（@expo/ui/community/bottom-sheet）：
-  // 命令式 present/dismiss，纯 RN 可用。放在 Host 外面（屏幕根），
-  // 不再是 FieldGroup 的子节点 —— 社区版是 RN modal，不受那条约束
-  const quietSheetRef = useRef<BottomSheetModalRef>(null);
-  const privacySheetRef = useRef<BottomSheetModalRef>(null);
+  // 两个 sheet 都用 @gorhom/bottom-sheet（inline 渲染在屏幕根底部，
+  // 命令式 snapToIndex/close，index={-1} 初始关闭）。放在 Host 外面，
+  // 不再是 FieldGroup 的子节点
+  const quietSheetRef = useRef<BottomSheet>(null);
+  const privacySheetRef = useRef<BottomSheet>(null);
 
   const openQuietSheet = () => {
     setShowQuietHours(true);
-    quietSheetRef.current?.present();
+    quietSheetRef.current?.snapToIndex(0);
   };
 
   const openPrivacySheet = () => {
     setShowPrivacy(true);
-    privacySheetRef.current?.present();
+    privacySheetRef.current?.snapToIndex(0);
   };
 
   useFocusEffect(
@@ -309,118 +307,130 @@ export function Settings() {
       </Host>
 
       {/* 免打扰时段：时间选择器收在 sheet 里，主行因此不用跟着开关长出第二行。
-          社区版 BottomSheet 是纯 RN modal，放屏幕根（Host 外）；内容仍是
+          @gorhom/bottom-sheet 是 inline 渲染，放屏幕根（Host 外）；内容仍是
           Expo UI 子树（Switch / NativeDatePicker），包一层 ExpoUiIsland */}
-      <BottomSheetModal
+      <BottomSheet
         ref={quietSheetRef}
-        onDismiss={() => {
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        onClose={() => {
           setShowQuietHours(false);
         }}
-        enablePanDownToClose
+        backgroundStyle={{ backgroundColor: theme.surface }}
       >
         {showQuietHours ? (
-          <ExpoUiIsland>
-            <Column spacing={16} style={{ padding: 20 }}>
-              <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
-                {t("settings.quietTitle")}
-              </Text>
-              <Switch
-                testID="settings-quiet-switch"
-                label={t("settings.quietEnable")}
-                value={quietOn}
-                onValueChange={(value) => {
-                  void setQuietHours(
-                    value ? DEFAULT_QUIET_START : null,
-                    value ? DEFAULT_QUIET_END : null,
-                  );
-                }}
-              />
-              {quietOn ? (
-                <>
-                  <Text
-                    textStyle={{ fontSize: 13, color: theme.textSecondary }}
-                  >
-                    {t("settings.quietSub")}
-                  </Text>
-                  <Row alignment="center">
-                    <Text>{t("settings.quietRange")}</Text>
-                    <Spacer flexible />
-                    <NativeDatePicker
-                      testID="settings-quiet-start"
-                      value={timeToDate(
-                        settings.quietStart ?? DEFAULT_QUIET_START,
-                      )}
-                      mode="time"
-                      accentColor={theme.primary}
-                      locale={picker.locale}
-                      is24Hour={picker.is24Hour}
-                      embedInHost
-                      onValueChange={(date) => {
-                        void setQuietHours(
-                          dateToTime(date),
-                          settings.quietEnd ?? DEFAULT_QUIET_END,
-                        );
-                      }}
-                    />
-                    <Text textStyle={{ color: theme.textSecondary }}>–</Text>
-                    <NativeDatePicker
-                      testID="settings-quiet-end"
-                      value={timeToDate(settings.quietEnd ?? DEFAULT_QUIET_END)}
-                      mode="time"
-                      accentColor={theme.primary}
-                      locale={picker.locale}
-                      is24Hour={picker.is24Hour}
-                      embedInHost
-                      onValueChange={(date) => {
-                        void setQuietHours(
+          <BottomSheetView>
+            <ExpoUiIsland>
+              <Column spacing={16} style={{ padding: 20 }}>
+                <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
+                  {t("settings.quietTitle")}
+                </Text>
+                <Switch
+                  testID="settings-quiet-switch"
+                  label={t("settings.quietEnable")}
+                  value={quietOn}
+                  onValueChange={(value) => {
+                    void setQuietHours(
+                      value ? DEFAULT_QUIET_START : null,
+                      value ? DEFAULT_QUIET_END : null,
+                    );
+                  }}
+                />
+                {quietOn ? (
+                  <>
+                    <Text
+                      textStyle={{ fontSize: 13, color: theme.textSecondary }}
+                    >
+                      {t("settings.quietSub")}
+                    </Text>
+                    <Row alignment="center">
+                      <Text>{t("settings.quietRange")}</Text>
+                      <Spacer flexible />
+                      <NativeDatePicker
+                        testID="settings-quiet-start"
+                        value={timeToDate(
                           settings.quietStart ?? DEFAULT_QUIET_START,
-                          dateToTime(date),
-                        );
-                      }}
-                    />
-                  </Row>
-                </>
-              ) : null}
-              <Button
-                testID="settings-quiet-close-button"
-                label={t("common.done")}
-                onPress={() => {
-                  quietSheetRef.current?.dismiss();
-                }}
-              />
-            </Column>
-          </ExpoUiIsland>
+                        )}
+                        mode="time"
+                        accentColor={theme.primary}
+                        locale={picker.locale}
+                        is24Hour={picker.is24Hour}
+                        embedInHost
+                        onValueChange={(date) => {
+                          void setQuietHours(
+                            dateToTime(date),
+                            settings.quietEnd ?? DEFAULT_QUIET_END,
+                          );
+                        }}
+                      />
+                      <Text textStyle={{ color: theme.textSecondary }}>–</Text>
+                      <NativeDatePicker
+                        testID="settings-quiet-end"
+                        value={timeToDate(
+                          settings.quietEnd ?? DEFAULT_QUIET_END,
+                        )}
+                        mode="time"
+                        accentColor={theme.primary}
+                        locale={picker.locale}
+                        is24Hour={picker.is24Hour}
+                        embedInHost
+                        onValueChange={(date) => {
+                          void setQuietHours(
+                            settings.quietStart ?? DEFAULT_QUIET_START,
+                            dateToTime(date),
+                          );
+                        }}
+                      />
+                    </Row>
+                  </>
+                ) : null}
+                <Button
+                  testID="settings-quiet-close-button"
+                  label={t("common.done")}
+                  onPress={() => {
+                    quietSheetRef.current?.close();
+                  }}
+                />
+              </Column>
+            </ExpoUiIsland>
+          </BottomSheetView>
         ) : null}
-      </BottomSheetModal>
+      </BottomSheet>
 
       {/* 隐私说明：内容较长，用原生 sheet 而不是塞进分组行里展开 */}
-      <BottomSheetModal
+      <BottomSheet
         ref={privacySheetRef}
-        onDismiss={() => {
+        index={-1}
+        enableDynamicSizing
+        enablePanDownToClose
+        onClose={() => {
           setShowPrivacy(false);
         }}
-        enablePanDownToClose
+        backgroundStyle={{ backgroundColor: theme.surface }}
       >
         {showPrivacy ? (
-          <ExpoUiIsland>
-            <Column spacing={12} style={{ padding: 20 }}>
-              <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
-                {t("settings.privacyTitle")}
-              </Text>
-              <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
-                {t("settings.privacyBody")}
-              </Text>
-              <Button
-                testID="settings-privacy-close-button"
-                label={t("common.done")}
-                onPress={() => {
-                  privacySheetRef.current?.dismiss();
-                }}
-              />
-            </Column>
-          </ExpoUiIsland>
+          <BottomSheetView>
+            <ExpoUiIsland>
+              <Column spacing={12} style={{ padding: 20 }}>
+                <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
+                  {t("settings.privacyTitle")}
+                </Text>
+                <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
+                  {t("settings.privacyBody")}
+                </Text>
+                <Button
+                  testID="settings-privacy-close-button"
+                  label={t("common.done")}
+                  onPress={() => {
+                    privacySheetRef.current?.close();
+                  }}
+                />
+              </Column>
+            </ExpoUiIsland>
+          </BottomSheetView>
         ) : null}
-      </BottomSheetModal>
+      </BottomSheet>
     </>
   );
 }
