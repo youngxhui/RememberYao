@@ -37,7 +37,6 @@ export function GlassHostButton({
   style?: "glass" | "glassProminent" | "borderedProminent";
   fullWidth?: boolean;
 }) {
-  const theme = useTheme();
   return (
     <Pressable
       testID={testID}
