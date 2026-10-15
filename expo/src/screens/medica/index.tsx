@@ -47,7 +47,6 @@ export function buildMedicationCards(
 
 export function Medica() {
   const router = useRouter();
-  const theme = useTheme();
   const t = useTranslation();
   const { markInteractive } = useObserve();
   const { data: medications, loading, reload } = useMedications();
@@ -70,8 +69,9 @@ export function Medica() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+    <>
       <Stack.Title large>{t("medication.listTitle")}</Stack.Title>
+
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon={addIcon}
@@ -83,6 +83,7 @@ export function Medica() {
           <Stack.Toolbar.Label>{t("common.add")}</Stack.Toolbar.Label>
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
+
       <Stack.SearchBar
         placeholder={t("medication.searchPlaceholder")}
         onChangeText={(event) => {
@@ -105,6 +106,15 @@ export function Medica() {
             }}
           />
         )}
+        ListHeaderComponent={
+          <View
+            style={{
+              paddingStart: Spacing.one,
+            }}
+          >
+            <FilterRow filter={filter} onSelect={setFilter} />
+          </View>
+        }
         ListEmptyComponent={
           !loading ? (
             <EmptyState
@@ -120,16 +130,6 @@ export function Medica() {
             />
           ) : undefined
         }
-        ListHeaderComponent={
-          <View
-            style={{
-              paddingHorizontal: Spacing.screen,
-              marginTop: Spacing.two,
-            }}
-          >
-            <FilterRow filter={filter} onSelect={setFilter} />
-          </View>
-        }
         contentContainerStyle={
           cards.length === 0
             ? {
@@ -137,10 +137,12 @@ export function Medica() {
                 justifyContent: "center",
                 paddingBottom: Spacing.four,
               }
-            : { paddingBottom: BottomTabInset + Spacing.four }
+            : {
+                paddingBottom: BottomTabInset + Spacing.four,
+              }
         }
       />
-    </View>
+    </>
   );
 }
 
