@@ -90,46 +90,44 @@ export function Medica() {
         }}
       />
 
-      <ScreenScaffold scroll={false}>
-        <View style={{ flex: 1 }}>
-          <FilterRow filter={filter} onSelect={setFilter} />
-          <FlatList
-            style={{ flex: 1 }}
-            data={cards}
-            keyExtractor={(item) => item.medication.id}
-            renderItem={({ item }) => (
-              <MedicationRow
-                card={item}
-                onPress={() => {
-                  router.push({
-                    pathname: "/(tabs)/medica/detail",
-                    params: { id: item.medication.id },
-                  });
-                }}
+      <ScreenScaffold scroll={true}>
+        <FilterRow filter={filter} onSelect={setFilter} />
+        <FlatList
+          style={{ flex: 1 }}
+          data={cards}
+          keyExtractor={(item) => item.medication.id}
+          renderItem={({ item }) => (
+            <MedicationRow
+              card={item}
+              onPress={() => {
+                router.push({
+                  pathname: "/(tabs)/medica/detail",
+                  params: { id: item.medication.id },
+                });
+              }}
+            />
+          )}
+          ListEmptyComponent={
+            !loading ? (
+              <EmptyState
+                body={
+                  medications.length === 0
+                    ? "medication.empty"
+                    : query.trim()
+                      ? "medication.emptySearch"
+                      : filter === "low"
+                        ? "medication.emptyLow"
+                        : "medication.emptyCategory"
+                }
               />
-            )}
-            ListEmptyComponent={
-              !loading ? (
-                <EmptyState
-                  body={
-                    medications.length === 0
-                      ? "medication.empty"
-                      : query.trim()
-                        ? "medication.emptySearch"
-                        : filter === "low"
-                          ? "medication.emptyLow"
-                          : "medication.emptyCategory"
-                  }
-                />
-              ) : undefined
-            }
-            contentContainerStyle={
-              cards.length === 0
-                ? { flexGrow: 1, justifyContent: "center" }
-                : undefined
-            }
-          />
-        </View>
+            ) : undefined
+          }
+          contentContainerStyle={
+            cards.length === 0
+              ? { flexGrow: 1, justifyContent: "center" }
+              : undefined
+          }
+        />
       </ScreenScaffold>
     </>
   );

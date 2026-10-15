@@ -1,9 +1,10 @@
-import { FlatList, View } from "react-native";
-
+import { StyleSheet, View } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { GlassChip } from "@/components/glass-chip";
-import { Spacing } from "@/constants/theme";
 import { useTranslation, type Path } from "@/i18n";
 import type { MedicationCategory } from "@/lib/store";
+import { GlassContainer } from "expo-glass-effect";
+import { Spacing } from "@/constants/theme";
 
 export type MedicaFilter = "all" | "low" | MedicationCategory;
 
@@ -15,11 +16,6 @@ const MEDICA_FILTERS: { key: MedicaFilter; label: Path }[] = [
   { key: "low", label: "medication.filterLow" },
 ];
 
-const FILTER_ROW_HEIGHT = 48;
-
-/**
- * 横向 chip 行：固定高度，避免被纵向 flex 父容器拉伸。
- */
 export function FilterRow({
   filter,
   onSelect,
@@ -30,29 +26,33 @@ export function FilterRow({
   const t = useTranslation();
 
   return (
-    <View style={{ height: FILTER_ROW_HEIGHT }}>
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: Spacing.screen,
-          alignItems: "center",
-          gap: Spacing.two,
-        }}
-        style={{ flex: 1 }}
-        data={MEDICA_FILTERS}
+    <GlassContainer spacing={2} style={styles.containerStyle}>
+      <FlashList
         keyExtractor={(item) => item.key}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: Spacing.screen }}
+        horizontal
+        data={MEDICA_FILTERS}
         renderItem={({ item }) => (
-          <GlassChip
-            testID={`medica-filter-${item.key}`}
-            label={t(item.label)}
-            active={filter === item.key}
-            onPress={() => {
-              onSelect(item.key);
-            }}
-          />
+          <View style={{ marginRight: Spacing.two }}>
+            <GlassChip
+              key={item.key}
+              testID={`medica-filter-${item.key}`}
+              label={t(item.label)}
+              active={filter === item.key}
+              onPress={() => {
+                onSelect(item.key);
+              }}
+            />
+          </View>
         )}
       />
-    </View>
+    </GlassContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  containerStyle: {
+    paddingVertical: Spacing.one,
+  },
+});

@@ -2,8 +2,8 @@ import { Pressable as RNPressable, Text as RNText } from "react-native";
 
 import { Spacing, Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-
-import { ContentGlass, useLiquidGlassEnabled } from "./content-glass";
+import { GlassView } from "expo-glass-effect";
+import { useLiquidGlassEnabled } from "./content-glass";
 
 /**
  * RN 版玻璃 Chip：与旧 `Chip`（Expo UI / FilterChip）双轨共存，
@@ -62,30 +62,19 @@ export function GlassChip({
             }),
       })}
     >
-      {nativeGlass ? (
-        <ContentGlass
-          variant="regular"
-          tint={active ? theme.primary : undefined}
-          interactive
-          // 玻璃圆角只认 cornerRadius prop（原生侧会 clamp 成胶囊）；
-          // style.borderRadius 落在非渲染层上，对玻璃形状无效。
-          cornerRadius={999}
-          // 铺满 Pressable 的边框盒（含 padding），玻璃才是整颗胶囊。
-          // 禁止 overflow: 'hidden'（会糊掉高光）。
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0,
-          }}
-          fallbackStyle={{
-            backgroundColor: active ? theme.primary : theme.surface,
-            borderWidth: 1,
-            borderColor: active ? theme.primary : theme.border,
-          }}
-        />
-      ) : null}
+      <GlassView
+        tintColor={active ? theme.primary : undefined}
+        isInteractive={true}
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          borderRadius: 999,
+        }}
+      />
+
       <RNText style={{ fontSize: 14, fontWeight: "600", color: labelColor }}>
         {label}
       </RNText>

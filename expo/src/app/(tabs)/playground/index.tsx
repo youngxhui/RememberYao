@@ -1,4 +1,5 @@
 import { Button } from "@expo/ui";
+import { GlassContainer, GlassView } from "expo-glass-effect";
 import { LiquidGlassView, supportsNativeGlass } from "expo-liquid-glass-view";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -251,6 +252,17 @@ export default function PlaygroundScreen() {
                     </RNText>
                   </LiquidGlassView>
                 </RNPressable>
+                {/* glassView 版本 */}
+                <RNPressable
+                  testID="playground-glass-primary-button"
+                  onPress={() => {
+                    console.log("GlassView Button OnPress");
+                  }}
+                >
+                  <GlassView isInteractive={true} style={styles.glassButton2}>
+                    <RNText>确认服药 GlassView</RNText>
+                  </GlassView>
+                </RNPressable>
 
                 <RNPressable
                   testID="playground-glass-primary-button"
@@ -389,20 +401,22 @@ export default function PlaygroundScreen() {
                       gap: Spacing.two,
                     }}
                   >
-                    {[
-                      { id: "all", label: "全部" },
-                      { id: "chronic", label: "慢性病" },
-                      { id: "acute", label: "急性病" },
-                      { id: "supplement", label: "补充剂" },
-                    ].map((chip) => (
-                      <GlassChip
-                        key={chip.id}
-                        testID={`playground-glass-chip-${chip.id}`}
-                        label={chip.label}
-                        active={activeChip === chip.id}
-                        onPress={() => setActiveChip(chip.id)}
-                      />
-                    ))}
+                    <GlassContainer spacing={6} style={styles.containerStyle}>
+                      {[
+                        { id: "all", label: "全部" },
+                        { id: "chronic", label: "慢性病" },
+                        { id: "acute", label: "急性病" },
+                        { id: "supplement", label: "补充剂" },
+                      ].map((chip) => (
+                        <GlassChip
+                          key={chip.id}
+                          testID={`playground-glass-chip-${chip.id}`}
+                          label={chip.label}
+                          active={activeChip === chip.id}
+                          onPress={() => setActiveChip(chip.id)}
+                        />
+                      ))}
+                    </GlassContainer>
                   </RNView>
                 </RNView>
 
@@ -602,5 +616,14 @@ const styles = StyleSheet.create({
   },
   cardSubtitle: {
     fontSize: 14,
+  },
+  containerStyle: {
+    top: 200,
+    left: 50,
+    width: 250,
+    height: 100,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
 });
