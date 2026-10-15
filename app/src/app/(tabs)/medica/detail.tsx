@@ -359,7 +359,7 @@ export default function MedicationDetailScreen() {
               onPress={() => {
                 void remove();
               }}
-              tintColor={theme.danger}
+              labelColor={theme.danger}
             />
             <View
               style={{
