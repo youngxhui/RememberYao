@@ -1,7 +1,7 @@
 import { Picker } from "@expo/ui";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
 import { ExpoUiIsland } from "@/components/expo-ui-island";
@@ -16,6 +16,7 @@ import {
 } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
 import { HairLine } from "@/components/rn-section-card";
+import { ScreenScaffold } from "@/components/screen-scaffold";
 import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n, useTranslation } from "@/i18n";
@@ -255,21 +256,17 @@ export default function PlanFormScreen() {
   const presetPerson = persons.find((p) => p.id === params.personId);
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+    <>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Title large>{title}</Stack.Title>
 
-      <ScrollView
-        style={{ flex: 1 }}
+      <ScreenScaffold
         contentContainerStyle={{
-          paddingTop: Spacing.three,
+          paddingHorizontal: Spacing.screen,
           paddingBottom: BottomTabInset + Spacing.four,
         }}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.four }}>
+        <View style={{ gap: Spacing.four }}>
           <Subtitle text={t("plan.formSubtitle")} />
 
           <FormSection title={t("plan.sectionPerson")}>
@@ -591,8 +588,8 @@ export default function PlanFormScreen() {
             </View>
           </View>
         </View>
-      </ScrollView>
-    </View>
+      </ScreenScaffold>
+    </>
   );
 }
 

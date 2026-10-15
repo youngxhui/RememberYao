@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
 import {
@@ -12,6 +12,7 @@ import {
   Subtitle,
 } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
+import { ScreenScaffold } from "@/components/screen-scaffold";
 import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
@@ -200,23 +201,19 @@ export default function PersonsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+    <>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Title large>
         {isEditing ? t("person.editTitle") : t("person.addMember")}
       </Stack.Title>
 
-      <ScrollView
-        style={{ flex: 1 }}
+      <ScreenScaffold
         contentContainerStyle={{
-          paddingTop: Spacing.three,
+          paddingHorizontal: Spacing.screen,
           paddingBottom: BottomTabInset + Spacing.four,
         }}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.four }}>
+        <View style={{ gap: Spacing.four }}>
           <Subtitle
             text={t(isEditing ? "person.editSubtitle" : "person.formSubtitle")}
           />
@@ -408,7 +405,7 @@ export default function PersonsScreen() {
             </Text>
           </Pressable>
         </View>
-      </ScrollView>
-    </View>
+      </ScreenScaffold>
+    </>
   );
 }

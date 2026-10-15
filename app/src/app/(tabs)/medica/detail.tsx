@@ -5,7 +5,7 @@ import {
   useRouter,
 } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
 import { GlassHostButton } from "@/components/expo-ui-island";
@@ -17,6 +17,7 @@ import {
   SectionCard,
   SectionTitle,
 } from "@/components/rn-section-card";
+import { ScreenScaffold } from "@/components/screen-scaffold";
 import { SymbolIcon, type SymbolIconName } from "@/components/symbol-icon";
 import { editIcon } from "@/components/toolbar-icons";
 import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
@@ -179,7 +180,7 @@ export default function MedicationDetailScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+    <>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
@@ -194,17 +195,13 @@ export default function MedicationDetailScreen() {
       </Stack.Toolbar>
       <Stack.Title large>{medication.name}</Stack.Title>
 
-      <ScrollView
-        style={{ flex: 1 }}
+      <ScreenScaffold
         contentContainerStyle={{
-          paddingTop: Spacing.three,
+          paddingHorizontal: Spacing.screen,
           paddingBottom: BottomTabInset + Spacing.four,
         }}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.four }}>
+        <View style={{ gap: Spacing.four }}>
           <StockOverview medication={medication} summary={summary} />
 
           <SectionTitle>{t("medication.sectionBasic")}</SectionTitle>
@@ -380,8 +377,8 @@ export default function MedicationDetailScreen() {
             </View>
           </View>
         </View>
-      </ScrollView>
-    </View>
+      </ScreenScaffold>
+    </>
   );
 }
 

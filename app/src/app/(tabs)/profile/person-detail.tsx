@@ -5,12 +5,13 @@ import {
   useRouter,
 } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
 import { GlassHostButton } from "@/components/expo-ui-island";
 import { FormSection } from "@/components/rn-form";
 import { HairLine } from "@/components/rn-section-card";
+import { ScreenScaffold } from "@/components/screen-scaffold";
 import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
@@ -149,7 +150,7 @@ export default function PersonDetailScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+    <>
       <Stack.Screen.BackButton displayMode="minimal">
         {/* 返回键文案显式钉成「家庭成员」：persons 屏的标题是「添加家庭成员」，
             不钉的话返回键会跟着变成它（Maestro 也按这个文案点返回） */}
@@ -157,17 +158,11 @@ export default function PersonDetailScreen() {
       </Stack.Screen.BackButton>
       <Stack.Title large>{person.name}</Stack.Title>
 
-      <ScrollView
-        style={{ flex: 1 }}
+      <ScreenScaffold
         contentContainerStyle={{
           paddingHorizontal: Spacing.screen,
-          paddingTop: Spacing.three,
-          // 详情页在 (tabs) 组内，尾部必须让开原生 tab 栏，
-          // 否则「删除用药人」会被压在 tab 栏底下点不到
           paddingBottom: BottomTabInset + Spacing.four,
         }}
-        contentInsetAdjustmentBehavior="automatic"
-        showsVerticalScrollIndicator={false}
       >
         <View style={{ gap: Spacing.four }}>
           {/* 没照片时退回「底色 + 姓名首字」（AvatarMark 内部处理），
@@ -311,8 +306,8 @@ export default function PersonDetailScreen() {
             )}
           </View>
         </View>
-      </ScrollView>
-    </View>
+      </ScreenScaffold>
+    </>
   );
 }
 

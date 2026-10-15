@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { GlassChip } from "@/components/glass-chip";
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
@@ -14,6 +14,7 @@ import {
   Subtitle,
 } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
+import { ScreenScaffold } from "@/components/screen-scaffold";
 import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n } from "@/i18n";
@@ -201,23 +202,19 @@ export default function MedicationFormScreen() {
   if (!loaded) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+    <>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Title large>
         {isEditing ? t("medication.editTitle") : t("medication.formTitle")}
       </Stack.Title>
 
-      <ScrollView
-        style={{ flex: 1 }}
+      <ScreenScaffold
         contentContainerStyle={{
-          paddingTop: Spacing.three,
+          paddingHorizontal: Spacing.screen,
           paddingBottom: BottomTabInset + Spacing.four,
         }}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.four }}>
+        <View style={{ gap: Spacing.four }}>
           <Subtitle text={t("medication.formSubtitle")} />
 
           <FormSection title={t("medication.sectionBasic")}>
@@ -583,7 +580,7 @@ export default function MedicationFormScreen() {
             </View>
           </View>
         </View>
-      </ScrollView>
-    </View>
+      </ScreenScaffold>
+    </>
   );
 }

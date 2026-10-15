@@ -1,11 +1,12 @@
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import { ChipField, Field, FormSection, Subtitle } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
+import { ScreenScaffold } from "@/components/screen-scaffold";
 import { BottomTabInset, Spacing, Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n, useTranslation } from "@/i18n";
@@ -132,21 +133,17 @@ export default function QuickAddScreen() {
         : t("quickAdd.title3");
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+    <>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Title large>{stepTitle}</Stack.Title>
 
-      <ScrollView
-        style={{ flex: 1 }}
+      <ScreenScaffold
         contentContainerStyle={{
-          paddingTop: Spacing.three,
+          paddingHorizontal: Spacing.screen,
           paddingBottom: BottomTabInset + Spacing.four,
         }}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.four }}>
+        <View style={{ gap: Spacing.four }}>
           {step === 1 ? (
             <StepName
               name={nameText}
@@ -380,8 +377,8 @@ export default function QuickAddScreen() {
             </View>
           ) : null}
         </View>
-      </ScrollView>
-    </View>
+      </ScreenScaffold>
+    </>
   );
 }
 
