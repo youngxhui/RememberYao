@@ -3,10 +3,9 @@ import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View, FlatList } from "react-native";
 
-import { ScreenScaffold } from "@/components/screen-scaffold";
 import { SymbolIcon } from "@/components/symbol-icon";
 import { addIcon } from "@/components/toolbar-icons";
-import { Spacing, Radius } from "@/constants/theme";
+import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation, type Path } from "@/i18n";
 import {
@@ -48,6 +47,7 @@ export function buildMedicationCards(
 
 export function Medica() {
   const router = useRouter();
+  const theme = useTheme();
   const t = useTranslation();
   const { markInteractive } = useObserve();
   const { data: medications, loading, reload } = useMedications();
@@ -90,7 +90,7 @@ export function Medica() {
         }}
       />
 
-      <ScreenScaffold scroll={false}>
+      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
         <FlatList
           style={{ flex: 1 }}
           data={cards}
@@ -138,10 +138,10 @@ export function Medica() {
                   justifyContent: "center",
                   paddingBottom: Spacing.four,
                 }
-              : { paddingBottom: Spacing.four }
+              : { paddingBottom: BottomTabInset + Spacing.four }
           }
         />
-      </ScreenScaffold>
+      </View>
     </>
   );
 }
