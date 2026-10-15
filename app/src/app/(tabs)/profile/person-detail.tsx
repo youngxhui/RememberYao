@@ -1,4 +1,3 @@
-import { Button, Column, Host, Row, ScrollView, Spacer, Text } from "@expo/ui";
 import {
   Stack,
   useFocusEffect,
@@ -6,15 +5,13 @@ import {
   useRouter,
 } from "expo-router";
 import { useCallback, useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { MemberAvatar } from "@/components/avatar";
-import { FormSection } from "@/components/form";
-import {
-  nativeButtonModifiers,
-  nativeLayout,
-} from "@/components/native-layout";
-import { HairLine } from "@/components/section-card";
-import { BottomTabInset, Spacing } from "@/constants/theme";
+import { AvatarMark } from "@/components/avatar";
+import { GlassHostButton } from "@/components/expo-ui-island";
+import { FormSection } from "@/components/rn-form";
+import { HairLine } from "@/components/rn-section-card";
+import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import {
@@ -32,16 +29,12 @@ import {
 /**
  * 用药人详情：头像 → 基本信息 → 用药配置 → 操作。
  *
- * 分区外壳用表单那一套（`FormSection`：绿条标题 + 描边白卡，与添加成员一致），
- * 卡片里面是设置页的行式排版（design/settings.html 的 `.setting-item`）：标签在
- * 左、值在右、行间发线。两个都不做的中间态都试过，很难看：
+ * 分区外壳与添加成员（persons.tsx）同一套 rn-form 基元，卡片里面是设置页的
+ * 行式排版（design/settings.html 的 `.setting-item`）：标签在左、值在右、
+ * 行间发线。两个都不做的中间态都试过，很难看：
  *   - 「标签在上 + 输入盒」：盒子是输入控件，只读值套一圈又重又空；
  *   - 「标签在上 + 裸文本」：宽卡片里每行各自抱内容宽，左右边缘全是锯齿。
  * 行式排版把整行撑满，标签列与值列各自对齐，长值（过敏原列表）允许压缩折行。
- *
- * ⚠️ 不要再把 `FieldGroup` / `List` 嵌进外层 `ScrollView`：它们在 iOS 上是
- * SwiftUI Form / List，本身就是滚动容器，嵌进去会塌成零高（项目已记录的
- * 真机 bug）。
  */
 export default function PersonDetailScreen() {
   const router = useRouter();
@@ -85,33 +78,35 @@ export default function PersonDetailScreen() {
   // 首屏还在读 SQLite：直接渲染会闪一下「用药人不存在」
   if (loading) {
     return (
-      <>
+      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
         <Stack.Screen.BackButton displayMode="minimal">
           {t("person.listTitle")}
         </Stack.Screen.BackButton>
-        <Host style={{ flex: 1 }} />
-      </>
+        <Stack.Title large>{t("person.listTitle")}</Stack.Title>
+      </View>
     );
   }
 
   if (!person) {
     return (
-      <>
+      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
         <Stack.Screen.BackButton displayMode="minimal">
           {t("person.listTitle")}
         </Stack.Screen.BackButton>
-        <Host style={{ flex: 1 }}>
-          {/* 同药品详情页：HStack + 弹性 Spacer 才能把文案压到中线，
-              VStack 的 alignment="center" 只在自己那个内容宽的盒子里自居中 */}
-          <Row alignment="center" style={{ paddingTop: 120 }}>
-            <Spacer flexible />
-            <Text textStyle={{ color: theme.textSecondary }}>
-              {t("person.notFound")}
-            </Text>
-            <Spacer flexible />
-          </Row>
-        </Host>
-      </>
+        <Stack.Title large>{t("person.listTitle")}</Stack.Title>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: 120,
+          }}
+        >
+          <Text style={{ color: theme.textSecondary }}>
+            {t("person.notFound")}
+          </Text>
+        </View>
+      </View>
     );
   }
 
@@ -154,201 +149,205 @@ export default function PersonDetailScreen() {
   };
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
       <Stack.Screen.BackButton displayMode="minimal">
         {/* 返回键文案显式钉成「家庭成员」：persons 屏的标题是「添加家庭成员」，
             不钉的话返回键会跟着变成它（Maestro 也按这个文案点返回） */}
         {t("person.listTitle")}
       </Stack.Screen.BackButton>
       <Stack.Title large>{person.name}</Stack.Title>
-      <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        {/* 排版与添加成员（persons.tsx）同一套：画布底 + 屏幕边距 + 分区卡片 */}
-        <ScrollView
-          showsIndicators={false}
-          style={{ backgroundColor: theme.canvas }}
-        >
-          <Column
-            spacing={Spacing.four}
-            style={{
-              paddingHorizontal: Spacing.screen,
-              paddingTop: Spacing.three,
-              // 详情页在 (tabs) 组内，尾部必须让开原生 tab 栏，
-              // 否则「删除用药人」会被压在 tab 栏底下点不到
-              paddingBottom: BottomTabInset + Spacing.four,
-            }}
-          >
-            {/* 头像居中不能靠 Column 的 alignment：收缩成内容宽后会贴左，
-                左右各一个弹性 Spacer 才能压到中线。
-                没照片时用 MemberAvatar（纯 universal 组件）而不是 Avatar
-                （RNHostView）—— iOS 不转发 RNHostView 的 style，没有死尺寸的
-                头像插在弹性 Spacer 里会把外层 Column 的理想宽度带崩，整页卡片
-                被顶出屏外。有照片时 universal 层没有图片组件，只能退到
-                RNHostView + matchContents（avatar.tsx 内部已按文档写法接好） */}
-            <Row alignment="center" style={{ paddingVertical: Spacing.two }}>
-              <Spacer flexible />
-              <MemberAvatar
-                color={person.avatarColor}
-                name={person.name}
-                uri={person.avatarUri}
-                size={64}
-              />
-              <Spacer flexible />
-            </Row>
 
-            {basicRows.length > 0 ? (
-              <FormSection title={t("person.basicInfo")}>
-                {/* 行与行之间只隔发线：再套一层无间距的 Column，FormSection
-                    默认的 16pt 字段间距会让发线悬在空隙中间 */}
-                <Column>
-                  {basicRows.map((row, index) => (
-                    <Column key={row.label}>
-                      {index > 0 ? <HairLine /> : null}
-                      {/* 标签在左、值在右（design/settings.html 的
-                          .setting-item）。标签用次级色、值用粗体深色 ——
-                          值才是信息（对什么过敏、有什么基础病），标签只是语境 */}
-                      <Row
-                        alignment="center"
-                        style={{
-                          paddingHorizontal: Spacing.three,
-                          paddingVertical: Spacing.rowGap,
-                        }}
-                      >
-                        <Text
-                          textStyle={{
-                            fontSize: 15,
-                            color: theme.textSecondary,
-                          }}
-                        >
-                          {row.label}
-                        </Text>
-                        <Spacer flexible />
-                        {/* 值列允许压缩折行：长过敏原列表会把整行撑爆，
-                            让标签列先让位（同药品详情页的 InfoRow） */}
-                        <Column
-                          modifiers={[
-                            nativeLayout({ unconstrainedWidth: true }),
-                          ]}
-                        >
-                          <Text
-                            numberOfLines={2}
-                            textStyle={{
-                              fontSize: 15,
-                              fontWeight: "600",
-                              color: theme.text,
-                              textAlign: "right",
-                            }}
-                          >
-                            {row.value}
-                          </Text>
-                        </Column>
-                      </Row>
-                    </Column>
-                  ))}
-                </Column>
-              </FormSection>
-            ) : null}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: Spacing.screen,
+          paddingTop: Spacing.three,
+          // 详情页在 (tabs) 组内，尾部必须让开原生 tab 栏，
+          // 否则「删除用药人」会被压在 tab 栏底下点不到
+          paddingBottom: BottomTabInset + Spacing.four,
+        }}
+        contentInsetAdjustmentBehavior="automatic"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ gap: Spacing.four }}>
+          {/* 没照片时退回「底色 + 姓名首字」（AvatarMark 内部处理），
+              有照片时直接渲染本地文件 URI */}
+          <View style={{ alignItems: "center", paddingVertical: Spacing.two }}>
+            <AvatarMark
+              color={person.avatarColor}
+              name={person.name}
+              uri={person.avatarUri}
+              size={64}
+            />
+          </View>
 
-            <FormSection title={t("person.plans")}>
-              {personPlans.length === 0 ? (
-                /* 空态：Row + 左右弹性 Spacer 把文案压到中线（同药品库空态） */
-                <Row alignment="center">
-                  <Spacer flexible />
-                  <Text
-                    textStyle={{
-                      fontSize: 13,
-                      color: theme.textSecondary,
-                      textAlign: "center",
-                    }}
-                  >
-                    {t("plan.emptyAddHint")}
-                  </Text>
-                  <Spacer flexible />
-                </Row>
-              ) : (
-                <Column>
-                  {personPlans.map((plan, index) => {
-                    const medication = medications.find(
-                      (m) => m.id === plan.medicationId,
-                    );
-                    return (
-                      <Column key={plan.id}>
-                        {index > 0 ? <HairLine /> : null}
-                        <PlanEntry plan={plan} medication={medication} />
-                      </Column>
-                    );
-                  })}
-                </Column>
-              )}
+          {basicRows.length > 0 ? (
+            <FormSection title={t("person.basicInfo")}>
+              {basicRows.map((row, index) => (
+                <View key={row.label}>
+                  {index > 0 ? <HairLine /> : null}
+                  <BasicRow label={row.label} value={row.value} />
+                </View>
+              ))}
             </FormSection>
+          ) : null}
 
-            <Column spacing={Spacing.three}>
-              <Button
-                testID="plan-add-button"
-                label={t("plan.formTitle")}
-                onPress={() => {
-                  router.push({
-                    pathname: "/(tabs)/profile/plan-form",
-                    params: { personId: person.id },
-                  });
-                }}
-                modifiers={nativeButtonModifiers({ fullWidth: true })}
-              />
-              {/* 改名 / 补基本信息：编辑屏与添加成员同一个表单（persons.tsx，
-                  id 参数区分新建与编辑）。默认用户「自己」也走这里 */}
-              <Button
-                testID="person-edit-button"
-                variant="outlined"
-                label={t("person.editButton")}
-                onPress={() => {
-                  router.push({
-                    pathname: "/(tabs)/profile/persons",
-                    params: { id: person.id },
-                  });
-                }}
-                modifiers={nativeButtonModifiers({ fullWidth: true })}
-              />
-              {/* 删除是危险操作：不用主题色的 borderedProminent（填充/描边都会
-                  带主色），改纯文字按钮 + 危险色文字。文字色必须靠 children 里的
-                  Text 显式给 —— label 的文字色跟按钮样式的 tint 走，压不住。
-                  「自己」是 App 的默认用户，不是家庭成员，不给删 */}
-              {isSelf ? (
+          <FormSection title={t("person.plans")}>
+            {personPlans.length === 0 ? (
+              <View
+                style={{ alignItems: "center", paddingVertical: Spacing.three }}
+              >
                 <Text
-                  textStyle={{
+                  style={{
                     fontSize: 13,
                     color: theme.textSecondary,
                     textAlign: "center",
                   }}
                 >
-                  {t("person.selfLockedHint")}
+                  {t("plan.emptyAddHint")}
                 </Text>
-              ) : (
-                <Button
-                  testID="person-delete-button"
-                  variant="text"
-                  onPress={() => {
-                    removePerson();
+              </View>
+            ) : (
+              <View>
+                {personPlans.map((plan, index) => {
+                  const medication = medications.find(
+                    (m) => m.id === plan.medicationId,
+                  );
+                  return (
+                    <View key={plan.id}>
+                      {index > 0 ? <HairLine /> : null}
+                      <PlanEntry plan={plan} medication={medication} />
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </FormSection>
+
+          <View style={{ gap: Spacing.three }}>
+            <GlassHostButton
+              testID="plan-add-button"
+              label={t("plan.formTitle")}
+              onPress={() => {
+                router.push({
+                  pathname: "/(tabs)/profile/plan-form",
+                  params: { personId: person.id },
+                });
+              }}
+            />
+            {/* 改名 / 补基本信息：编辑屏与添加成员同一个表单（persons.tsx，
+                id 参数区分新建与编辑）。默认用户「自己」也走这里 */}
+            <Pressable
+              testID="person-edit-button"
+              onPress={() => {
+                router.push({
+                  pathname: "/(tabs)/profile/persons",
+                  params: { id: person.id },
+                });
+              }}
+              style={({ pressed }) => ({
+                backgroundColor: pressed
+                  ? theme.backgroundSelected
+                  : theme.surface,
+                borderRadius: Radius.card,
+                borderCurve: "continuous",
+                borderWidth: 1,
+                borderColor: theme.border,
+                paddingVertical: Spacing.three,
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
+              })}
+            >
+              <Text
+                style={{
+                  color: theme.text,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              >
+                {t("person.editButton")}
+              </Text>
+            </Pressable>
+            {/* 删除是危险操作：不用主题色填充/描边，改纯文字按钮 + 危险色文字。
+                「自己」是 App 的默认用户，不是家庭成员，不给删 */}
+            {isSelf ? (
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: theme.textSecondary,
+                  textAlign: "center",
+                }}
+              >
+                {t("person.selfLockedHint")}
+              </Text>
+            ) : (
+              <Pressable
+                testID="person-delete-button"
+                onPress={() => {
+                  removePerson();
+                }}
+                style={({ pressed }) => ({
+                  paddingVertical: Spacing.three,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 44,
+                  opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "600",
+                    color: theme.danger,
+                    textAlign: "center",
                   }}
-                  modifiers={nativeButtonModifiers({ fullWidth: true })}
                 >
-                  <Text
-                    textStyle={{
-                      fontSize: 15,
-                      fontWeight: "600",
-                      color: theme.danger,
-                      textAlign: "center",
-                    }}
-                  >
-                    {confirmDeletePerson
-                      ? t("common.confirmDelete")
-                      : t("person.deleteButtonAlt")}
-                  </Text>
-                </Button>
-              )}
-            </Column>
-          </Column>
-        </ScrollView>
-      </Host>
-    </>
+                  {confirmDeletePerson
+                    ? t("common.confirmDelete")
+                    : t("person.deleteButtonAlt")}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * 基本信息行：标签在左（次级色）、值在右（粗体深色）—— 值才是信息
+ * （对什么过敏、有什么基础病），标签只是语境。值列允许压缩折行：长过敏原
+ * 列表会把整行撑爆，让标签列先让位。
+ */
+function BasicRow({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: Spacing.three,
+        paddingHorizontal: Spacing.three,
+        paddingVertical: Spacing.rowGap,
+      }}
+    >
+      <Text style={{ fontSize: 15, color: theme.textSecondary }}>{label}</Text>
+      <View style={{ flex: 1 }} />
+      <Text
+        numberOfLines={2}
+        style={{
+          fontSize: 15,
+          fontWeight: "600",
+          color: theme.text,
+          textAlign: "right",
+          flexShrink: 1,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -356,9 +355,8 @@ export default function PersonDetailScreen() {
  * 用药配置条目：药名与状态打头（同在一条行式排版的首行），剂量 / 服用时间 /
  * 起止日期各一行，条目间发线分隔，整条可点进编辑。
  *
- * 条目列要显式撑满（`fullWidth`）：VStack 按内容收缩，首行的行尾状态要靠弹性
- * Spacer 推到右边，父列不撑满时间隙就是 0。药品由父组件查找后传入：删药会
- * 级联删配置，取不到只可能是数据异常，留兜底文案。
+ * 药品由父组件查找后传入：删药会级联删配置，取不到只可能是数据异常，
+ * 留兜底文案。
  */
 function PlanEntry({
   plan,
@@ -374,7 +372,7 @@ function PlanEntry({
   const unit = medication ? medicationUnitLabel(medication.unit, t) : "";
 
   return (
-    <Column
+    <Pressable
       testID={`plan-item-${plan.id}`}
       onPress={() => {
         router.push({
@@ -382,35 +380,48 @@ function PlanEntry({
           params: { id: plan.id },
         });
       }}
-      spacing={Spacing.one}
-      style={{ paddingVertical: Spacing.two }}
-      modifiers={[nativeLayout({ fullWidth: true })]}
+      style={({ pressed }) => ({
+        gap: Spacing.one,
+        paddingVertical: Spacing.two,
+        backgroundColor: pressed ? theme.backgroundSelected : "transparent",
+      })}
     >
-      <Row alignment="center" spacing={Spacing.two}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: Spacing.two,
+        }}
+      >
         <Text
           numberOfLines={1}
-          textStyle={{ fontSize: 15, fontWeight: "600", color: theme.text }}
+          style={{
+            fontSize: 15,
+            fontWeight: "600",
+            color: theme.text,
+            flexShrink: 1,
+          }}
         >
           {medication?.name ?? t("home.unknownMedication")}
         </Text>
-        <Spacer flexible />
+        <View style={{ flex: 1 }} />
         <Text
           numberOfLines={1}
-          textStyle={{ fontSize: 13, color: theme.textSecondary }}
+          style={{ fontSize: 13, color: theme.textSecondary }}
         >
           {planStatusLabel(plan, t)}
         </Text>
-      </Row>
-      <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>
+      </View>
+      <Text style={{ fontSize: 13, color: theme.textSecondary }}>
         {t("medication.doseLine", { amount: plan.doseAmount, unit })}
       </Text>
-      <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>
+      <Text style={{ fontSize: 13, color: theme.textSecondary }}>
         {t("person.timesLine", {
           count: plan.times.length,
           times: plan.times.join(" / "),
         })}
       </Text>
-      <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>
+      <Text style={{ fontSize: 13, color: theme.textSecondary }}>
         {[
           t("person.startFrom", { start: plan.startDate }),
           plan.endDate
@@ -418,6 +429,6 @@ function PlanEntry({
             : t("person.rangeOngoing"),
         ].join("")}
       </Text>
-    </Column>
+    </Pressable>
   );
 }
