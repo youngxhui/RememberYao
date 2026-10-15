@@ -65,27 +65,32 @@ export function RnDateTimePicker({
         : { display: "spinner" as const }),
   };
 
+  const showNativePicker = open || Platform.OS !== "ios";
+
   return (
     <>
-      <Text
-        testID={testID}
-        onPress={() => {
-          setOpen(true);
-        }}
-        style={{
-          backgroundColor: theme.backgroundElement,
-          borderRadius: Radius.pill,
-          paddingHorizontal: Spacing.three,
-          paddingVertical: Spacing.two,
-          fontSize: 15,
-          fontWeight: "600",
-          color: accentColor ?? theme.text,
-        }}
-      >
-        {formatValue(value, mode, locale, is24Hour)}
-      </Text>
-      {open ? (
+      {!showNativePicker ? (
+        <Text
+          testID={testID}
+          onPress={() => {
+            setOpen(true);
+          }}
+          style={{
+            backgroundColor: theme.backgroundElement,
+            borderRadius: Radius.pill,
+            paddingHorizontal: Spacing.three,
+            paddingVertical: Spacing.two,
+            fontSize: 15,
+            fontWeight: "600",
+            color: accentColor ?? theme.text,
+          }}
+        >
+          {formatValue(value, mode, locale, is24Hour)}
+        </Text>
+      ) : null}
+      {showNativePicker ? (
         <DateTimePicker
+          testID={testID}
           value={value}
           onChange={handleChange}
           {...pickerOptions}
