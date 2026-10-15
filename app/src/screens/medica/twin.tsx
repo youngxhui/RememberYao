@@ -403,7 +403,9 @@ export function MedicationTwin() {
       </ScreenScaffold>
 
       {/* @gorhom/bottom-sheet：inline 渲染，放在屏幕根（Scaffold 外）。
-          index={-1} 初始关闭；动态 sizing 不传 snapPoints */}
+          index={-1} 初始关闭；动态 sizing 不传 snapPoints。
+          视觉是 JS 自绘（不是系统 sheet 材质）：背景色 + 圆角 + grabber 颜色
+          都要显式给，否则是直角 + 写死的黑色小横条 */}
       <BottomSheet
         ref={sheetRef}
         index={-1}
@@ -412,7 +414,14 @@ export function MedicationTwin() {
         onClose={() => {
           setActiveSlotId(null);
         }}
-        backgroundStyle={{ backgroundColor: theme.surface }}
+        backgroundStyle={{
+          backgroundColor: theme.surface,
+          borderRadius: Radius.card,
+        }}
+        handleIndicatorStyle={{
+          backgroundColor: theme.textSecondary,
+          width: 36,
+        }}
       >
         {activeSlot && pack ? (
           <SlotSheet

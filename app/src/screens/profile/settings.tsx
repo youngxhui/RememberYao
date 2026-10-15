@@ -18,7 +18,7 @@ import { useCallback, useRef, useState, type ReactNode } from "react";
 import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { ICONS, type IconKey } from "@/components/icons";
 import { NativeDatePicker } from "@/components/native-date-picker";
-import { Fonts, Spacing } from "@/constants/theme";
+import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useMedicationExport } from "@/hooks/use-medication-export";
 import { useTheme } from "@/hooks/use-theme";
 import { LANGUAGE_LABELS, LANGUAGES, pickerFormat, useI18n } from "@/i18n";
@@ -317,7 +317,14 @@ export function Settings() {
         onClose={() => {
           setShowQuietHours(false);
         }}
-        backgroundStyle={{ backgroundColor: theme.surface }}
+        backgroundStyle={{
+          backgroundColor: theme.surface,
+          borderRadius: Radius.card,
+        }}
+        handleIndicatorStyle={{
+          backgroundColor: theme.textSecondary,
+          width: 36,
+        }}
       >
         {showQuietHours ? (
           <BottomSheetView>
@@ -407,7 +414,14 @@ export function Settings() {
         onClose={() => {
           setShowPrivacy(false);
         }}
-        backgroundStyle={{ backgroundColor: theme.surface }}
+        backgroundStyle={{
+          backgroundColor: theme.surface,
+          borderRadius: Radius.card,
+        }}
+        handleIndicatorStyle={{
+          backgroundColor: theme.textSecondary,
+          width: 36,
+        }}
       >
         {showPrivacy ? (
           <BottomSheetView>
