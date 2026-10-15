@@ -23,8 +23,8 @@ export const zh = {
     home: "首页",
     medica: "药品",
     profile: "我的",
-    // 调试页（已不在 tab 栏，位于 src/app/playground），保留英文术语便于和目录对上
     playground: "Playground",
+    hello: "Hello",
   },
   onboarding: {
     skip: "跳过",

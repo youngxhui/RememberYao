@@ -9,15 +9,21 @@ import { DateTimePicker } from "@expo/ui/community/datetime-picker";
  * `Row` 会纵向偏移），所以 iOS 侧直接用纯 SwiftUI 的 `DatePicker`
  * （见 `native-date-picker.ios.tsx`），Android / web 继续用社区组件。
  *
+ * 三端的**交互语义**因此也各自实现：iOS 是 compact 胶囊（点它弹轮盘）；
+ * Android 的社区组件默认 `presentation="dialog"` 且**挂载即弹**，所以那边改成
+ * 「灰底胶囊 + 点一下才挂载对话框」（见 `native-date-picker.android.tsx`）；
+ * web 走 `display="compact"`。
+ *
  * props 三个变体必须完全一致（AGENTS.md：平台文件的 API 不许漂移）。
  */
 export type NativeDatePickerProps = {
   value: Date;
   mode: "date" | "time";
   minimumDate?: Date;
-  /** iOS：显示格式的 locale（跟随 App 语言，见 `@/i18n` 的 `pickerFormat`） */
+  /** 显示格式的 locale（跟随 App 语言，见 `@/i18n` 的 `pickerFormat`）。
+   *  iOS 由原生 `DatePicker` 消费；Android 用来格式化胶囊上显示的值 */
   locale?: string;
-  /** Android：12/24 小时制。iOS 由 locale 决定，忽略本参数 */
+  /** Android：12/24 小时制（原生选择器与胶囊文案共用）。iOS 由 locale 决定，忽略本参数 */
   is24Hour?: boolean;
   accentColor?: string;
   testID?: string;

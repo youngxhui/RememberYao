@@ -3,8 +3,9 @@ import {
   Column,
   Host,
   Icon,
+  List,
+  ListItem,
   Row,
-  ScrollView,
   Spacer,
   Text,
 } from "@expo/ui";
@@ -12,11 +13,9 @@ import { useObserve } from "expo-observe";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { ICONS, type IconKey } from "@/components/icons";
-import { nativeLayout } from "@/components/native-layout";
-import { roundedBox } from "@/components/rounded-box";
+import { ICONS } from "@/components/icons";
 import { addIcon } from "@/components/toolbar-icons";
-import { Fonts, Radius, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation, type Path } from "@/i18n";
 import {
@@ -31,40 +30,28 @@ import { withAlpha } from "@/utils/color";
 
 import { FilterRow, type MedicaFilter } from "./filter-row";
 
-/** 药品缩略图边长（design/medications.html 的 .med-thumb 52px） */
-const THUMB_SIZE = 52;
-
-/**
- * 左侧状态色条的高度：跟着卡片内容走（缩略图 + 上下内边距），再高会被卡片
- * 自己的 borderRadius 裁掉。系统大字号下卡片会长高，色条仍是居中的 6pt 圆头条，
- * 不会破版。
- */
-const SPINE_HEIGHT = THUMB_SIZE + Spacing.three * 2;
-
 type CardModel = {
   medication: Medication;
   level: StockLevel;
 };
 
 /**
- * 药品库：搜索 + 分类筛选 + 药品卡片列表。
- * 视觉基准 = design/medications.html。
+ * 药品库：搜索 + 分类筛选 + 原生列表。
  *
- * 整屏是 Expo UI：`Host` + 原生纵向 `ScrollView`，分类筛选行是原生横向 `ScrollView`
- * （`FilterRow`），没有 RN island。卡片内部也不用 `flex` —— 药名与分类那列靠
- * `nativeLayout({ unconstrainedWidth })` 可压缩、行尾的状态胶囊按固有宽度排布并
- * 推到边（见 docs/conventions/expo-ui-layout.md）。
+ * 列表用 universal `List` + `ListItem`（iOS 是 SwiftUI `List`，Android 是 Material 3
+ * `LazyColumn`，两端都是懒加载容器）：一味药就是一行原生行 —— 药名是 headline，
+ * `类型 · 分类` 是 supportingText，行尾是 `剩余/总数`。不再自己拼卡片：缩略图、
+ * 左侧色条、库存胶囊、描边圆角底全去掉，原生行的字号层级、分隔线与按压高亮已经
+ * 把层次讲清楚了，再糊一层装饰只会把药名挤得更短。库存够不够只看行尾数字的颜色
+ * （偏低 / 告急），完整状态在详情页。
  *
- * 大标题走原生 `Stack.Title large`（就是设计稿的 hero-title），内容里从搜索栏
- * 直接进分类筛选行；搜索同样走原生的 `Stack.SearchBar`（AGENTS 硬规则 13），
- * 没有自己拼一个搜索框。
- * 设计稿 hero-title 那一行的副标题与「N 种」徽章已去掉：标题上移到导航栏之后，
- * 这两个元素只是设计稿的残留，药品数在列表里数得出来。
+ * ⚠️ `List` 自己就是滚动容器，**不能再嵌进外层 `ScrollView`**（SwiftUI List 在
+ * ScrollView 里会塌成零高、内容直接消失，项目记录过的真机 bug），所以本屏的滚动
+ * 整体交给 `List`：分类筛选 chip 行是不随内容滚动的头部，排在 `List` 上面，
+ * 由外层 `Column`（VStack / Compose Column）把剩余高度让给列表。
  *
- * 设计稿卡片右端还有个「更多」省略号按钮：它需要一个真能用的菜单，而
- * `@expo/ui` 的 universal 层没有 `Menu`（`swift-ui/Menu` 是 iOS-only，
- * `community/menu` 是自带 `Host` 的 RN 视图，不能嵌进这棵原生树）。
- * 整张卡的点击已经进详情，编辑与补货在详情页里，所以这里不放这个死控件。
+ * 大标题走原生 `Stack.Title large`，搜索走原生 `Stack.SearchBar`（AGENTS 硬规则 13），
+ * 都没有自己拼。
  */
 export function Medica() {
   const router = useRouter();
@@ -114,27 +101,16 @@ export function Medica() {
       />
 
       <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        {/* 底色铺在 ScrollView 背后：内容不满一屏时下方也得是 canvas */}
-        <ScrollView
-          showsIndicators={false}
-          style={{ backgroundColor: theme.canvas }}
-        >
-          <Column
-            spacing={Spacing.three}
-            style={{
-              paddingHorizontal: Spacing.screen,
-            }}
-          >
-            <FilterRow filter={filter} onSelect={setFilter} />
-            <MedicationList
-              cards={cards}
-              loading={loading}
-              filter={filter}
-              query={query}
-              emptyCabinet={medications.length === 0}
-            />
-          </Column>
-        </ScrollView>
+        <Column spacing={Spacing.two}>
+          <FilterRow filter={filter} onSelect={setFilter} />
+          <MedicationList
+            cards={cards}
+            loading={loading}
+            filter={filter}
+            query={query}
+            emptyCabinet={medications.length === 0}
+          />
+        </Column>
       </Host>
     </>
   );
@@ -183,11 +159,11 @@ function MedicationList({
 }) {
   if (cards.length > 0) {
     return (
-      <Column spacing={Spacing.rowGap}>
+      <List>
         {cards.map((card) => (
-          <MedicationCard key={card.medication.id} card={card} />
+          <MedicationRow key={card.medication.id} card={card} />
         ))}
-      </Column>
+      </List>
     );
   }
   // 首屏还在读数据时不渲染空态：空列表闪一下再刷出内容最像「没做完」
@@ -207,107 +183,41 @@ function MedicationList({
   );
 }
 
-function MedicationCard({ card }: { card: CardModel }) {
+/**
+ * 一行药。整行点击进详情（`ListItem` 的 onPress 覆盖整行矩形，含槽位间的空隙），
+ * 行内容只留三样：药名、`类型 · 分类`、行尾库存。
+ */
+function MedicationRow({ card }: { card: CardModel }) {
   const router = useRouter();
-  const theme = useTheme();
   const t = useTranslation();
   const { medication, level } = card;
-  const color = useStockColors(level);
-  const box = roundedBox({
-    color: theme.border,
-    background: theme.surface,
-    radius: Radius.card,
-    width: 1,
-  });
 
   return (
-    <Row
+    <ListItem
       testID={`medica-card-${medication.id}`}
-      alignment="center"
-      // spacing 必须显式给 0：HStack 不传 spacing 时是 SwiftUI 默认的 8pt，
-      // 会把色条与内容之间撑出一条缝。设计稿的 .med-card 用 `border-left: 6px`
-      // 造色条，色条紧贴卡片左沿、16px padding 紧接着量，所以这里也要 0。
-      spacing={0}
       onPress={() => {
         router.push({
           pathname: "/(tabs)/medica/detail",
           params: { id: medication.id },
         });
       }}
-      style={box.style}
-      modifiers={box.modifiers}
+      supportingText={t("medication.metaLine", {
+        type: medicationTypeLabel(medication.type, t),
+        category: medicationCategoryLabel(medication.category, t),
+      })}
+      trailing={<StockValue medication={medication} level={level} />}
     >
-      <Row
-        style={{
-          width: 6,
-          height: SPINE_HEIGHT,
-          borderRadius: 3,
-          backgroundColor: color.strong,
-        }}
-      />
-      <Column style={{ padding: Spacing.three }}>
-        <Row alignment="center" spacing={Spacing.rowGap}>
-          <Thumb />
-          <Column modifiers={[nativeLayout({ unconstrainedWidth: true })]}>
-            <Text
-              numberOfLines={1}
-              textStyle={{
-                fontSize: 17,
-                fontWeight: "700",
-                color: theme.text,
-              }}
-            >
-              {medication.name}
-            </Text>
-            <Text
-              numberOfLines={1}
-              textStyle={{ fontSize: 13, color: theme.textSecondary }}
-            >
-              {t("medication.metaLine", {
-                type: medicationTypeLabel(medication.type, t),
-                category: medicationCategoryLabel(medication.category, t),
-              })}
-            </Text>
-          </Column>
-          <Spacer flexible />
-          <StockPill medication={medication} level={level} />
-        </Row>
-      </Column>
-    </Row>
+      {medication.name}
+    </ListItem>
   );
 }
 
-function Thumb() {
-  const theme = useTheme();
-  const box = roundedBox({
-    color: theme.border,
-    background: theme.primarySoft,
-    radius: 14,
-    width: 1,
-    // 固定尺寸的小盒子：fullWidth 的 frame(maxWidth: .infinity) 会把 style 里的
-    // width / height 顶掉（omitUserOverridden 按 $type 去重）
-    fullWidth: false,
-  });
-  return (
-    <Row
-      alignment="center"
-      style={{
-        ...box.style,
-        width: THUMB_SIZE,
-        height: THUMB_SIZE,
-      }}
-      modifiers={box.modifiers}
-    >
-      {/* Row 的 frame 只把内容压到纵轴中线，横轴中线靠这层 Column */}
-      <Column alignment="center" style={{ width: THUMB_SIZE }}>
-        <Icon name={ICONS.pills} size={24} color={theme.primary} />
-      </Column>
-    </Row>
-  );
-}
-
-/** 库存胶囊：`剩余/总数 · 状态`。设计稿的 .stock-pill */
-function StockPill({
+/**
+ * 行尾库存：`剩余/总数`；从没记过库存（快速添加只建提醒那种）显示「未设置」。
+ * 只给偏低 / 告急两档换文字色，不再有底色、图标和胶囊外框 —— 数字本身就是信息，
+ * 颜色负责让「该补货了」在一屏里被看见。
+ */
+function StockValue({
   medication,
   level,
 }: {
@@ -315,36 +225,20 @@ function StockPill({
   level: StockLevel;
 }) {
   const t = useTranslation();
-  const color = useStockColors(level);
+  const theme = useTheme();
+  const color =
+    level === "critical"
+      ? theme.dangerStrong
+      : level === "low"
+        ? theme.warningStrong
+        : theme.textSecondary;
 
   return (
-    <Row
-      // 设计稿是 `flex-shrink: 0` + `white-space: nowrap`：状态胶囊永远单行、整颗不折行，
-      // 药名那列压缩并截断。不锁固有宽度的话行内文字会先折成两行（设计稿 390pt 都放不下）
-      // 或被截成「库存充…」，两种都比截断药名难看。
-      modifiers={[nativeLayout({ idealWidth: true })]}
-      alignment="center"
-      spacing={5}
-      style={{
-        borderRadius: Radius.pill,
-        backgroundColor: withAlpha(color.base, 0.12),
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
-      }}
-    >
-      <Icon name={ICONS[STOCK_ICON[level]]} size={13} color={color.strong} />
-      <Text
-        numberOfLines={1}
-        textStyle={{
-          fontFamily: Fonts.mono,
-          fontSize: 11,
-          fontWeight: "600",
-          color: color.strong,
-        }}
-      >
-        {`${medication.remainingQuantity}/${medication.totalQuantity} · ${t(STOCK_LABEL[level])}`}
-      </Text>
-    </Row>
+    <Text numberOfLines={1} textStyle={{ fontSize: 15, color }}>
+      {level === "unset"
+        ? t("medication.stockUnset")
+        : `${medication.remainingQuantity}/${medication.totalQuantity}`}
+    </Text>
   );
 }
 
@@ -354,86 +248,52 @@ function EmptyState({ body }: { body: Path }) {
   const router = useRouter();
 
   return (
-    // 居中靠外层 Row 的左右弹性 Spacer，不是 Column 自己的 alignment="center"：
-    // VStack 按内容收缩并贴父容器-leading，center 只是在这个窄盒子里自居中，
-    // 整块空态会挤在屏幕左侧（就是上报的那个 bug）。
-    // 也不能用 `nativeLayout({ fullWidth: true })` 的 maxWidth: Infinity ——
-    // medica/form.tsx 的 PhotoScanArea 真机实测过，同位置下仍是小方块。
-    // HStack + Spacer flexible 能撑满（同屏药品卡里把库存胶囊推到行尾的那对
-    // `Spacer flexible` 就是这写法）。
-    <Row alignment="center">
+    // 空态不再套在滚动容器里（`List` 才是滚动容器），上下各一颗弹性 Spacer 把它
+    // 撑到筛选行下方的整块区域中间。
+    <Column>
       <Spacer flexible />
-      <Column
-        alignment="center"
-        spacing={Spacing.two}
-        style={{ paddingTop: 60 }}
-      >
-        <Icon
-          name={ICONS.bookmark}
-          size={56}
-          color={withAlpha(theme.textSecondary, 0.4)}
-          accessibilityLabel={t(body)}
-        />
-        <Text
-          textStyle={{
-            fontSize: 17,
-            fontWeight: "700",
-            color: theme.textSecondary,
-            textAlign: "center",
-          }}
-        >
-          {t("medication.emptyTitle")}
-        </Text>
-        <Text
-          textStyle={{
-            fontSize: 13,
-            color: theme.textSecondary,
-            textAlign: "center",
-          }}
-        >
-          {t(body)}
-        </Text>
-        <Button
-          label={t("common.add")}
-          onPress={() => {
-            router.push("/(tabs)/medica/quick-add");
-          }}
-          modifiers={[]}
-        />
-      </Column>
+      {/* 居中靠外层 Row 的左右弹性 Spacer，不是 Column 自己的 alignment="center"：
+          VStack 按内容收缩并贴父容器-leading，center 只是在这个窄盒子里自居中，
+          整块空态会挤在屏幕左侧（就是上报的那个 bug）。 */}
+      <Row alignment="center">
+        <Spacer flexible />
+        <Column alignment="center" spacing={Spacing.two}>
+          <Icon
+            name={ICONS.bookmark}
+            size={56}
+            color={withAlpha(theme.textSecondary, 0.4)}
+            accessibilityLabel={t(body)}
+          />
+          <Text
+            textStyle={{
+              fontSize: 17,
+              fontWeight: "700",
+              color: theme.textSecondary,
+              textAlign: "center",
+            }}
+          >
+            {t("medication.emptyTitle")}
+          </Text>
+          <Text
+            textStyle={{
+              fontSize: 13,
+              color: theme.textSecondary,
+              textAlign: "center",
+            }}
+          >
+            {t(body)}
+          </Text>
+          <Button
+            label={t("common.add")}
+            onPress={() => {
+              router.push("/(tabs)/medica/quick-add");
+            }}
+            modifiers={[]}
+          />
+        </Column>
+        <Spacer flexible />
+      </Row>
       <Spacer flexible />
-    </Row>
+    </Column>
   );
 }
-
-/**
- * 库存状态 → 语义色。`base` 用于 12% 淡底（胶囊），`strong` 用于文字与左侧色条
- * —— 淡色档做实心会糊，与 AGENTS 里 `*Strong` 的约定一致。
- */
-function useStockColors(level: StockLevel): { base: string; strong: string } {
-  const theme = useTheme();
-  if (level === "critical") {
-    return { base: theme.danger, strong: theme.dangerStrong };
-  }
-  if (level === "low") {
-    return { base: theme.warning, strong: theme.warningStrong };
-  }
-  if (level === "unset") {
-    return { base: theme.textSecondary, strong: theme.textSecondary };
-  }
-  return { base: theme.success, strong: theme.successStrong };
-}
-
-const STOCK_ICON: Record<StockLevel, IconKey> = {
-  ok: "stockOk",
-  low: "stockLow",
-  critical: "stockCritical",
-  unset: "stockUnset",
-};
-
-const STOCK_LABEL: Record<StockLevel, Path> = {
-  ok: "medication.stockOk",
-  low: "medication.stockLow",
-  critical: "medication.stockCritical",
-  unset: "medication.stockUnset",
-};

@@ -1,6 +1,6 @@
 appId: top.youngxhui.rememberyao.k3f9
 ---
-# 药品库（药品 tab）冒烟：引导页 → 首页加药 → 手动表单 → 列表展示与库存胶囊 →
+# 药品库（药品 tab）冒烟：引导页 → 首页加药 → 手动表单 → 列表展示与行尾库存 →
 # 分类筛选/空态/横滑 → 详情 → 删除 → 搜索空态
 #
 # 沿用 dashboard.yaml 的两个踩坑：@expo/ui 的 Text 在 iOS 上不落 testID，只能按
@@ -78,9 +78,8 @@ appId: top.youngxhui.rememberyao.k3f9
     visible: "Amoxil"
     timeout: 20000
 
-# ── 列表卡片：徽章、库存胶囊、meta 行 ──
-- assertVisible: "1 种"
-- assertVisible: "5/30 · 偏低"
+# ── 列表行：药名、meta 行、行尾库存（卡片 / 胶囊已改成原生列表行）──
+- assertVisible: "5/30"
 - assertVisible: "瓶装 · 慢性病"
 
 # ── 分类筛选：慢性病命中；横滑后保健品 → 空态；库存不足命中 ──

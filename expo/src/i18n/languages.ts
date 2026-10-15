@@ -29,8 +29,9 @@ export function resolveDictionary(
  * 原生日期 / 时间选择器的显示格式：跟 App 语言走，不跟系统 locale ——
  * 中文界面里弹一个「8:00 AM」很违和（日期时间格式由界面语言决定，不硬编码语序）。
  *
- * `locale` 只有 iOS 认；Android 的 12/24 小时制没有 locale 可依，只能显式给
- * `is24Hour`。
+ * `locale` 给 iOS 的原生 `DatePicker`；Android 的 Material 选择器没有 locale
+ * 可依，12/24 小时制只能显式给 `is24Hour`，但 `locale` 仍用来格式化
+ * `NativeDatePicker` 那颗胶囊上显示的值（见 native-date-picker.android.tsx）。
  */
 export function pickerFormat(language: Language) {
   return {

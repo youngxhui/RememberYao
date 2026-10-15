@@ -27,7 +27,7 @@
 | 带 label 的表单分组 | `FieldGroup` from `@expo/ui` |
 | 可折叠分组 | `Collapsible` from `@expo/ui` |
 
-`@expo/ui` 的 `List` **不是虚拟化列表**：它渲染的是原生分组表格行（iOS 设置页那种观感），每个 `ListItem` 都是原生节点，不回收。只适合短小、长度固定的分组（设置页、详情面板行、固定菜单）。数据量大或长度不确定的列表（feed、搜索结果、目录）用 `FlatList` / `FlashList`。
+`@expo/ui` 的 `List` 渲染的是**原生列表行**（iOS 是 SwiftUI `List`、Android 是 Compose `LazyColumn`，两端都是懒加载容器），行内排版受原生行的槽位约束，且 universal 层没有分组头 / 滑动操作 / 多选等高阶列表能力。适合短小、长度固定的分组（设置页、详情面板行、家庭量级的药箱目录）；数据量大或形态不确定的列表（feed、搜索结果）仍用 `FlatList` / `FlashList`。⚠️ 它自己是滚动容器，**不能嵌进外层 `ScrollView`**（会塌成零高，见 AGENTS「待办」里记录的真机 bug）。
 
 ## 平台专属组件隔离（最重要）
 
@@ -158,7 +158,8 @@ const theme = useTheme();
 
 另外，原生日期/时间选择器的**格式跟随 App 语言**，不跟随系统 locale —— 中文界面里弹
 「8:00 AM」很违和。用 `@/i18n` 的 `pickerFormat(language)`：iOS 走 `locale`，Android 的
-12/24 小时制没有 locale 可依，只能显式给 `is24Hour`。
+12/24 小时制没有 locale 可依，只能显式给 `is24Hour`（`locale` 仍用来格式化 Android 那颗
+胶囊上显示的值）。
 
 ### 日期/时间选择器走 `NativeDatePicker`
 
@@ -170,6 +171,15 @@ SwiftUI 栈里的定位不可靠：放进 `Column` 会顶出父容器的内边�
 所以日期/时间选择一律用 `src/components/native-date-picker.{tsx,ios.tsx,android.tsx}`：
 iOS 直接渲染 SwiftUI `DatePicker`（compact 样式），由外层 VStack / HStack 正常排布；
 Android / web 继续用社区组件。三份实现的 props 必须完全一致。
+
+**Android 的对话框是「挂载即弹」**：社区组件默认 `presentation="dialog"`，而 Material 3 的
+`TimePickerDialog` / `DatePickerDialog` 整个 content 就是一个 AlertDialog（`expo-ui` 的
+`DatePickerView.kt`）。把选择器直接渲染进表单 = 进页面就弹系统对话框 —— 快速添加第二步
+一进来「吃药时间」扑面而来，plan-form 把每日次数从 1 调到 3 还会连弹三层。所以 Android 实现
+按 iOS compact 的语义改写：先画一颗灰底胶囊显示当前值，**点一下才挂载对话框**，选完
+（`onValueChange`）或取消（`onDismiss`）立即卸载。胶囊用 universal `Text`（Android 上是原生
+Compose Text，`style` 经 `transformToModifiers` 翻成 clip + background + padding +
+clickable），不要为了这个触发器新造原生控件。
 
 ## 什么时候抽公共组件
 

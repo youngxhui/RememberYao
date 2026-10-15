@@ -37,6 +37,7 @@ export const en = {
     medica: "Meds",
     profile: "Me",
     playground: "Playground",
+    hello: "Hello",
   },
   onboarding: {
     skip: "Skip",
