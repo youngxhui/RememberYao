@@ -858,15 +858,3 @@ function StackCard({
     </Animated.View>
   );
 }
-
-/**
- * Expo UI 导入时用这个包装：把纯 RN 的 ReminderCardStack 挂进 RNHostView，
- * 让 Host 的 matchContents 能测到它实际渲染宽度。
- */
-export function ReminderCardStackExpoUI(props: ReminderCardStackProps) {
-  return (
-    <RNView>
-      <ReminderCardStack {...props} />
-    </RNView>
-  );
-}
