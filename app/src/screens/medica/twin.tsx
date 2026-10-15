@@ -412,8 +412,6 @@ export function MedicationTwin() {
         ref={sheetRef}
         detents={["auto"]}
         initialDetentIndex={-1}
-        backgroundColor={theme.surface}
-        cornerRadius={Radius.card}
         onDidDismiss={() => {
           setActiveSlotId(null);
         }}

@@ -1,5 +1,4 @@
 import {
-  Button,
   Column,
   FieldGroup,
   Host,
@@ -14,10 +13,16 @@ import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import Constants from "expo-constants";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState, type ReactNode } from "react";
+import {
+  Pressable as RNPressable,
+  Text as RNText,
+  View as RNView,
+} from "react-native";
+// oxlint-disable-next-line no-restricted-imports -- sheet 内容是 RN 子树，Expo UI Switch 离开 Host 会丢 view config
+import { Switch as RNSwitch } from "react-native";
 
-import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { ICONS, type IconKey } from "@/components/icons";
-import { NativeDatePicker } from "@/components/native-date-picker";
+import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useMedicationExport } from "@/hooks/use-medication-export";
 import { useTheme } from "@/hooks/use-theme";
@@ -308,27 +313,41 @@ export function Settings() {
       </Host>
 
       {/* 免打扰时段：时间选择器收在 sheet 里，主行因此不用跟着开关长出第二行。
-          TrueSheet 是真原生 sheet，放屏幕根（Host 外）；内容仍是 Expo UI 子树
-          （Switch / NativeDatePicker），包一层 ExpoUiIsland */}
+          TrueSheet 是真原生 sheet，放屏幕根（Host 外）；内容是纯 RN 子树 */}
       <TrueSheet
         ref={quietSheetRef}
-        detents={["auto"]}
+        detents={["auto", 0.6]}
         initialDetentIndex={-1}
-        backgroundColor={theme.surface}
-        cornerRadius={Radius.card}
         onDidDismiss={() => {
           setShowQuietHours(false);
         }}
       >
         {showQuietHours ? (
-          <ExpoUiIsland>
-            <Column spacing={16} style={{ padding: 20 }}>
-              <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
-                {t("settings.quietTitle")}
-              </Text>
-              <Switch
+          <RNView
+            style={{
+              padding: 20,
+              gap: 16,
+            }}
+          >
+            <RNText
+              style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
+            >
+              {t("settings.quietTitle")}
+            </RNText>
+            {/* RN Switch：sheet 内容是 RN 子树，Expo UI 的 Switch 离开 Host
+                会丢 view config；oxlint 的禁用规则原面向 Expo UI 屏，此处豁免 */}
+            <RNView
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <RNText style={{ fontSize: 15, color: theme.text }}>
+                {t("settings.quietEnable")}
+              </RNText>
+              <RNSwitch
                 testID="settings-quiet-switch"
-                label={t("settings.quietEnable")}
                 value={quietOn}
                 onValueChange={(value) => {
                   void setQuietHours(
@@ -337,93 +356,142 @@ export function Settings() {
                   );
                 }}
               />
-              {quietOn ? (
-                <>
-                  <Text
-                    textStyle={{ fontSize: 13, color: theme.textSecondary }}
-                  >
-                    {t("settings.quietSub")}
-                  </Text>
-                  <Row alignment="center">
-                    <Text>{t("settings.quietRange")}</Text>
-                    <Spacer flexible />
-                    <NativeDatePicker
-                      testID="settings-quiet-start"
-                      value={timeToDate(
+            </RNView>
+            {quietOn ? (
+              <>
+                <RNText style={{ fontSize: 13, color: theme.textSecondary }}>
+                  {t("settings.quietSub")}
+                </RNText>
+                <RNView
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: Spacing.two,
+                  }}
+                >
+                  <RNText style={{ fontSize: 15, color: theme.text }}>
+                    {t("settings.quietRange")}
+                  </RNText>
+                  <RNView style={{ flex: 1 }} />
+                  <RnDateTimePicker
+                    testID="settings-quiet-start"
+                    value={timeToDate(
+                      settings.quietStart ?? DEFAULT_QUIET_START,
+                    )}
+                    mode="time"
+                    accentColor={theme.primary}
+                    locale={picker.locale}
+                    is24Hour={picker.is24Hour}
+                    onValueChange={(date) => {
+                      void setQuietHours(
+                        dateToTime(date),
+                        settings.quietEnd ?? DEFAULT_QUIET_END,
+                      );
+                    }}
+                  />
+                  <RNText style={{ color: theme.textSecondary }}>–</RNText>
+                  <RnDateTimePicker
+                    testID="settings-quiet-end"
+                    value={timeToDate(settings.quietEnd ?? DEFAULT_QUIET_END)}
+                    mode="time"
+                    accentColor={theme.primary}
+                    locale={picker.locale}
+                    is24Hour={picker.is24Hour}
+                    onValueChange={(date) => {
+                      void setQuietHours(
                         settings.quietStart ?? DEFAULT_QUIET_START,
-                      )}
-                      mode="time"
-                      accentColor={theme.primary}
-                      locale={picker.locale}
-                      is24Hour={picker.is24Hour}
-                      embedInHost
-                      onValueChange={(date) => {
-                        void setQuietHours(
-                          dateToTime(date),
-                          settings.quietEnd ?? DEFAULT_QUIET_END,
-                        );
-                      }}
-                    />
-                    <Text textStyle={{ color: theme.textSecondary }}>–</Text>
-                    <NativeDatePicker
-                      testID="settings-quiet-end"
-                      value={timeToDate(settings.quietEnd ?? DEFAULT_QUIET_END)}
-                      mode="time"
-                      accentColor={theme.primary}
-                      locale={picker.locale}
-                      is24Hour={picker.is24Hour}
-                      embedInHost
-                      onValueChange={(date) => {
-                        void setQuietHours(
-                          settings.quietStart ?? DEFAULT_QUIET_START,
-                          dateToTime(date),
-                        );
-                      }}
-                    />
-                  </Row>
-                </>
-              ) : null}
-              <Button
-                testID="settings-quiet-close-button"
-                label={t("common.done")}
-                onPress={() => {
-                  void quietSheetRef.current?.dismiss();
+                        dateToTime(date),
+                      );
+                    }}
+                  />
+                </RNView>
+              </>
+            ) : null}
+            <RNPressable
+              testID="settings-quiet-close-button"
+              onPress={() => {
+                void quietSheetRef.current?.dismiss();
+              }}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? theme.primarySoft : theme.primary,
+                borderRadius: Radius.card,
+                borderCurve: "continuous",
+                paddingVertical: Spacing.three,
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
+              })}
+            >
+              <RNText
+                style={{
+                  color: theme.onPrimary,
+                  fontSize: 15,
+                  fontWeight: "600",
                 }}
-              />
-            </Column>
-          </ExpoUiIsland>
+              >
+                {t("common.done")}
+              </RNText>
+            </RNPressable>
+          </RNView>
         ) : null}
       </TrueSheet>
 
       {/* 隐私说明：内容较长，用原生 sheet 而不是塞进分组行里展开 */}
       <TrueSheet
         ref={privacySheetRef}
-        detents={["auto"]}
+        detents={["auto", 0.6]}
         initialDetentIndex={-1}
-        backgroundColor={theme.surface}
-        cornerRadius={Radius.card}
         onDidDismiss={() => {
           setShowPrivacy(false);
         }}
       >
         {showPrivacy ? (
-          <ExpoUiIsland>
-            <Column spacing={12} style={{ padding: 20 }}>
-              <Text textStyle={{ fontSize: 17, fontWeight: "700" }}>
-                {t("settings.privacyTitle")}
-              </Text>
-              <Text textStyle={{ fontSize: 14, color: theme.textSecondary }}>
-                {t("settings.privacyBody")}
-              </Text>
-              <Button
-                testID="settings-privacy-close-button"
-                label={t("common.done")}
-                onPress={() => {
-                  void privacySheetRef.current?.dismiss();
+          <RNView
+            style={{
+              padding: 20,
+              gap: 12,
+            }}
+          >
+            <RNText
+              style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
+            >
+              {t("settings.privacyTitle")}
+            </RNText>
+            <RNText
+              style={{
+                fontSize: 14,
+                color: theme.textSecondary,
+                lineHeight: 20,
+              }}
+            >
+              {t("settings.privacyBody")}
+            </RNText>
+            <RNPressable
+              testID="settings-privacy-close-button"
+              onPress={() => {
+                void privacySheetRef.current?.dismiss();
+              }}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? theme.primarySoft : theme.primary,
+                borderRadius: Radius.card,
+                borderCurve: "continuous",
+                paddingVertical: Spacing.three,
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 44,
+              })}
+            >
+              <RNText
+                style={{
+                  color: theme.onPrimary,
+                  fontSize: 15,
+                  fontWeight: "600",
                 }}
-              />
-            </Column>
-          </ExpoUiIsland>
+              >
+                {t("common.done")}
+              </RNText>
+            </RNPressable>
+          </RNView>
         ) : null}
       </TrueSheet>
     </>
