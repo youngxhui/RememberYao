@@ -5,7 +5,7 @@ import { Pressable, Text, View, FlatList } from "react-native";
 
 import { SymbolIcon } from "@/components/symbol-icon";
 import { addIcon } from "@/components/toolbar-icons";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing, Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation, type Path } from "@/i18n";
 import {
@@ -70,7 +70,7 @@ export function Medica() {
   );
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
       <Stack.Title large>{t("medication.listTitle")}</Stack.Title>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
@@ -90,59 +90,57 @@ export function Medica() {
         }}
       />
 
-      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
-        <FlatList
-          style={{ flex: 1 }}
-          data={cards}
-          keyExtractor={(item) => item.medication.id}
-          renderItem={({ item }) => (
-            <MedicationRow
-              card={item}
-              onPress={() => {
-                router.push({
-                  pathname: "/(tabs)/medica/detail",
-                  params: { id: item.medication.id },
-                });
-              }}
+      <FlatList
+        style={{ flex: 1 }}
+        data={cards}
+        keyExtractor={(item) => item.medication.id}
+        renderItem={({ item }) => (
+          <MedicationRow
+            card={item}
+            onPress={() => {
+              router.push({
+                pathname: "/(tabs)/medica/detail",
+                params: { id: item.medication.id },
+              });
+            }}
+          />
+        )}
+        ListEmptyComponent={
+          !loading ? (
+            <EmptyState
+              body={
+                medications.length === 0
+                  ? "medication.empty"
+                  : query.trim()
+                    ? "medication.emptySearch"
+                    : filter === "low"
+                      ? "medication.emptyLow"
+                      : "medication.emptyCategory"
+              }
             />
-          )}
-          ListEmptyComponent={
-            !loading ? (
-              <EmptyState
-                body={
-                  medications.length === 0
-                    ? "medication.empty"
-                    : query.trim()
-                      ? "medication.emptySearch"
-                      : filter === "low"
-                        ? "medication.emptyLow"
-                        : "medication.emptyCategory"
-                }
-              />
-            ) : undefined
-          }
-          ListHeaderComponent={
-            <View
-              style={{
-                paddingHorizontal: Spacing.screen,
-                marginTop: Spacing.two,
-              }}
-            >
-              <FilterRow filter={filter} onSelect={setFilter} />
-            </View>
-          }
-          contentContainerStyle={
-            cards.length === 0
-              ? {
-                  flexGrow: 1,
-                  justifyContent: "center",
-                  paddingBottom: Spacing.four,
-                }
-              : { paddingBottom: BottomTabInset + Spacing.four }
-          }
-        />
-      </View>
-    </>
+          ) : undefined
+        }
+        ListHeaderComponent={
+          <View
+            style={{
+              paddingHorizontal: Spacing.screen,
+              marginTop: Spacing.two,
+            }}
+          >
+            <FilterRow filter={filter} onSelect={setFilter} />
+          </View>
+        }
+        contentContainerStyle={
+          cards.length === 0
+            ? {
+                flexGrow: 1,
+                justifyContent: "center",
+                paddingBottom: Spacing.four,
+              }
+            : { paddingBottom: BottomTabInset + Spacing.four }
+        }
+      />
+    </View>
   );
 }
 
