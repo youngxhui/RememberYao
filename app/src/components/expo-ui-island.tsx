@@ -35,8 +35,8 @@ export function GlassHostButton({
   label: string;
   onPress: () => void;
   fullWidth?: boolean;
-  tintColor?: string;
-  labelColor?: string;
+  tintColor?: string | null;
+  labelColor?: string | null;
 }) {
   const theme = useTheme();
   return (
@@ -53,7 +53,9 @@ export function GlassHostButton({
     >
       <GlassView
         isInteractive
-        tintColor={tintColor ?? theme.primary}
+        {...(tintColor !== undefined && tintColor !== null
+          ? { tintColor }
+          : {})}
         style={{
           paddingVertical: Spacing.three,
           alignItems: "center",

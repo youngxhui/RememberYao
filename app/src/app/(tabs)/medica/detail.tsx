@@ -370,7 +370,6 @@ export default function MedicationDetailScreen() {
               <Text
                 style={{
                   fontSize: 12,
-                  color: theme.textSecondary,
                   textAlign: "center",
                 }}
               >
