@@ -1,39 +1,38 @@
 import {
   BottomSheet,
-  Button,
   Column,
   Host,
   Icon,
   Picker,
   Row,
-  ScrollView,
   Spacer,
   Text,
-  TextInput,
-  useNativeState,
-  type ObservableState,
 } from "@expo/ui";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Pressable as RNPressable,
+  ScrollView as RNScrollView,
   Text as RNText,
+  TextInput as RNTextInput,
   View as RNView,
 } from "react-native";
 
-import { Chip } from "@/components/chip";
+import { GlassHostButton } from "@/components/expo-ui-island";
+import { ExpoUiIsland } from "@/components/expo-ui-island";
+import { GlassChip } from "@/components/glass-chip";
 import { ICONS, type IconKey } from "@/components/icons";
-import { InputShell } from "@/components/input-shell";
 import {
-  nativeButtonModifiers,
   nativeContinuousShape,
   nativeGradientBackground,
 } from "@/components/native-layout";
-import { ProgressBar } from "@/components/progress-bar";
+import { ProgressBarRn } from "@/components/progress-bar";
+import { InputShell } from "@/components/rn-input-shell";
+import { SectionCard, SectionTitle } from "@/components/rn-section-card";
 import { roundedBox } from "@/components/rounded-box";
-import { SectionTitle } from "@/components/section-card";
+import { ScreenScaffold } from "@/components/screen-scaffold";
+import { SymbolIcon } from "@/components/symbol-icon";
 import { BottomTabInset, Fonts, Radius, Spacing } from "@/constants/theme";
-import { useExpoUiContentWidth } from "@/hooks/use-expo-ui-content-width";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, useTranslation, type Language } from "@/i18n";
 import {
@@ -98,11 +97,12 @@ function buildPillLook(medication: Medication): PillLook {
 /**
  * 泡罩数字孪生：把一块实体药板逐格搬进 App。
  *
- * 布局沿药品详情页的既有结论：整屏 Expo UI（`Host` + 原生 `ScrollView`），
- * 区块收进同一个 `Column`；格子按 `useExpoUiContentWidth` 实测宽等分
- * （universal 没有 flex，等分靠算，同药品表单的两列字段）。点格子弹出的
- * `BottomSheet` 里是 RN 视图 —— universal BottomSheet 的 children 在各平台
- * 都是 RN 视图，这是组件本身的契约，不是绕路。
+ * 交互外壳是 RN（`ScreenScaffold` + RN 组件）；铝箔网格与图例继续活在
+ * `TwinFoilIsland` 这个 Expo UI 岛里 —— 铝箔渐变绑死 SwiftUI modifier，
+ * LiquidGlassView 替代不了（Q2 冻结）。岛宽由 RN 父级 `onLayout` 实测喂入
+ * （格子等分要数字宽），不再有 `useExpoUiContentWidth` 那套 Host 测宽。
+ * 点格子弹出的 `BottomSheet` 是屏幕根的兄弟（不在任何 Host 里），其
+ * children 在各平台都是 RN 视图 —— 这是组件本身的契约，不是绕路。
  *
  * 未开启孪生的板装药（存量数据）在这一屏承载开启表单：填规格 → 按当前
  * 剩余量补历史消耗格 → 立即可用。分配算法见 store.ts 的 planTwinBuild。
@@ -170,16 +170,12 @@ export function MedicationTwin() {
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
   const [personId, setPersonId] = useState<string | null>(null);
   const [specError, setSpecError] = useState(false);
-
-  const specRows = useNativeState("3");
-  const specCols = useNativeState("10");
-  const specPacks = useNativeState("1");
-
-  const {
-    width: contentWidth,
-    onHostLayout,
-    onLayoutContent,
-  } = useExpoUiContentWidth();
+  const [specRows, setSpecRows] = useState("3");
+  const [specCols, setSpecCols] = useState("10");
+  const [specPacks, setSpecPacks] = useState("1");
+  // 铝箔岛的宽度：格子等分要数字宽（CELL_MIN/CELL_MAX），用格子父级
+  // onLayout 实测，不再测 Host（孪生是 useExpoUiContentWidth 的最后一个调用方）
+  const [gridWidth, setGridWidth] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -190,27 +186,31 @@ export function MedicationTwin() {
   // 首屏还在读 SQLite：直接渲染会闪一下「药品不存在」
   if (loading) {
     return (
-      <>
+      <RNView style={{ flex: 1, backgroundColor: theme.canvas }}>
         <Stack.Screen.BackButton displayMode="minimal" />
-        <Host style={{ flex: 1 }} />
-      </>
+        <Stack.Title large>{t("common.loading")}</Stack.Title>
+      </RNView>
     );
   }
 
   if (!medication) {
     return (
-      <>
+      <RNView style={{ flex: 1, backgroundColor: theme.canvas }}>
         <Stack.Screen.BackButton displayMode="minimal" />
-        <Host style={{ flex: 1 }}>
-          <Row alignment="center" style={{ paddingTop: 120 }}>
-            <Spacer flexible />
-            <Text textStyle={{ color: theme.textSecondary }}>
-              {t("medication.notFound")}
-            </Text>
-            <Spacer flexible />
-          </Row>
-        </Host>
-      </>
+        <Stack.Title large>{t("medication.notFound")}</Stack.Title>
+        <RNView
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: 120,
+          }}
+        >
+          <RNText style={{ color: theme.textSecondary }}>
+            {t("medication.notFound")}
+          </RNText>
+        </RNView>
+      </RNView>
     );
   }
 
@@ -255,9 +255,9 @@ export function MedicationTwin() {
   };
 
   const openTwin = async () => {
-    const rows = Number.parseInt(specRows.value, 10);
-    const cols = Number.parseInt(specCols.value, 10);
-    const packCount = Number.parseInt(specPacks.value, 10);
+    const rows = Number.parseInt(specRows, 10);
+    const cols = Number.parseInt(specCols, 10);
+    const packCount = Number.parseInt(specPacks, 10);
     const valid =
       Number.isFinite(rows) &&
       Number.isFinite(cols) &&
@@ -284,72 +284,72 @@ export function MedicationTwin() {
     await reload();
   };
 
-  // 开启表单三个输入框的等分宽：实测内容宽减去屏幕边距与列间距
-  const gridWidth = Math.max(0, contentWidth - Spacing.screen * 2);
-  const enableInputWidth = Math.max(
-    0,
-    Math.floor((gridWidth - Spacing.two * 2) / 3),
-  );
-
   return (
     <>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Title large>{medication.name}</Stack.Title>
-      <Host
-        seedColor={theme.primary}
-        style={{ flex: 1 }}
-        onLayout={onHostLayout}
-        onLayoutContent={onLayoutContent}
+      <ScreenScaffold
+        contentContainerStyle={{
+          paddingHorizontal: Spacing.screen,
+          // 孪生页在 (tabs) 组内，尾部让开原生 tab 栏
+          paddingBottom: BottomTabInset + Spacing.five,
+        }}
       >
-        <ScrollView
-          showsIndicators={false}
-          style={{ backgroundColor: theme.canvas }}
-        >
-          <Column
-            spacing={Spacing.three}
-            style={{
-              paddingHorizontal: Spacing.screen,
-              paddingTop: Spacing.three,
-              // 孪生页在 (tabs) 组内，尾部让开原生 tab 栏
-              paddingBottom: BottomTabInset + Spacing.five,
-            }}
-          >
-            {summary.enabled ? (
-              <>
-                <TwinOverview
-                  full={summary.fullSlots}
-                  total={summary.totalSlots}
-                  daysLeft={stock.daysLeft}
-                  low={stock.low}
-                />
+        <RNView style={{ gap: Spacing.three }}>
+          {summary.enabled ? (
+            <>
+              <TwinOverview
+                full={summary.fullSlots}
+                total={summary.totalSlots}
+                daysLeft={stock.daysLeft}
+                low={stock.low}
+              />
 
-                <PackSwitcher
-                  packs={ownPacks}
-                  slots={blisterSlots}
-                  selectedSeq={pack?.seq ?? 1}
-                  onSelect={setSelectedSeq}
-                />
+              <PackSwitcher
+                packs={ownPacks}
+                slots={blisterSlots}
+                selectedSeq={pack?.seq ?? 1}
+                onSelect={setSelectedSeq}
+              />
 
-                {pack ? (
-                  <BlisterGrid
-                    pack={pack}
-                    slots={packSlots}
-                    gridWidth={gridWidth}
-                    pill={pill}
-                    medication={medication}
-                    onSlotPress={setActiveSlotId}
+              {/* 铝箔岛：整块药板（含格子与图例）继续活在 Expo UI 子树里，
+                  宽度由父级实测喂进去 —— 格子等分要数字宽，测 RN 父级不测 Host */}
+              {pack ? (
+                <RNView
+                  onLayout={(event) => {
+                    setGridWidth(event.nativeEvent.layout.width);
+                  }}
+                >
+                  {gridWidth > 0 ? (
+                    <TwinFoilIsland width={gridWidth}>
+                      <BlisterGrid
+                        pack={pack}
+                        slots={packSlots}
+                        gridWidth={gridWidth}
+                        pill={pill}
+                        medication={medication}
+                        onSlotPress={setActiveSlotId}
+                      />
+                      <SlotLegend pill={pill} />
+                    </TwinFoilIsland>
+                  ) : null}
+                </RNView>
+              ) : null}
+
+              {persons.length > 1 ? (
+                <RNView
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: Spacing.rowGap,
+                  }}
+                >
+                  <SymbolIcon
+                    name={{ ios: "person.2.fill", android: "group" }}
+                    size={18}
+                    color={theme.textSecondary}
                   />
-                ) : null}
-
-                <SlotLegend pill={pill} />
-
-                {persons.length > 1 ? (
-                  <Row alignment="center" spacing={Spacing.rowGap}>
-                    <Icon
-                      name={ICONS.persons}
-                      size={18}
-                      color={theme.textSecondary}
-                    />
+                  <ExpoUiIsland>
                     <Picker<string>
                       testID="twin-person-picker"
                       appearance="menu"
@@ -364,45 +364,41 @@ export function MedicationTwin() {
                         />
                       ))}
                     </Picker>
-                    <Spacer flexible />
-                    <Text
-                      textStyle={{ fontSize: 12, color: theme.textSecondary }}
-                    >
-                      {t("twin.personHint")}
-                    </Text>
-                  </Row>
-                ) : null}
+                  </ExpoUiIsland>
+                  <RNView style={{ flex: 1 }} />
+                  <RNText style={{ fontSize: 12, color: theme.textSecondary }}>
+                    {t("twin.personHint")}
+                  </RNText>
+                </RNView>
+              ) : null}
 
-                <Button
-                  testID="twin-add-pack-button"
-                  label={t("twin.actionAddPack")}
-                  onPress={() => {
-                    void appendBlisterPacks(medication.id, 1).then(reload);
-                  }}
-                  modifiers={nativeButtonModifiers({
-                    style: "glass",
-                    fullWidth: true,
-                  })}
-                />
-              </>
-            ) : (
-              <EnableTwinCard
-                inputWidth={enableInputWidth}
-                rows={specRows}
-                cols={specCols}
-                packCount={specPacks}
-                specError={specError}
-                onSubmit={() => {
-                  void openTwin();
-                }}
-                onInput={() => {
-                  setSpecError(false);
+              <GlassHostButton
+                testID="twin-add-pack-button"
+                label={t("twin.actionAddPack")}
+                onPress={() => {
+                  void appendBlisterPacks(medication.id, 1).then(reload);
                 }}
               />
-            )}
-          </Column>
-        </ScrollView>
-      </Host>
+            </>
+          ) : (
+            <EnableTwinCard
+              rows={specRows}
+              cols={specCols}
+              packCount={specPacks}
+              specError={specError}
+              onSubmit={() => {
+                void openTwin();
+              }}
+              onInput={(field, value) => {
+                if (field === "rows") setSpecRows(value);
+                if (field === "cols") setSpecCols(value);
+                if (field === "packs") setSpecPacks(value);
+                setSpecError(false);
+              }}
+            />
+          )}
+        </RNView>
+      </ScreenScaffold>
 
       <BottomSheet
         isPresented={activeSlot !== undefined && pack !== undefined}
@@ -464,23 +460,29 @@ function TwinOverview({
   const t = useTranslation();
   const percent = total > 0 ? full / total : 0;
   const strong = low ? theme.dangerStrong : theme.successStrong;
-  const box = roundedBox({
-    color: theme.border,
-    background: theme.surface,
-    radius: Radius.card,
-    width: 1,
-  });
 
   return (
-    <Column
-      spacing={Spacing.three}
-      style={{ ...box.style, padding: Spacing.three }}
-      modifiers={box.modifiers}
+    <RNView
+      style={{
+        backgroundColor: theme.surface,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: Radius.card,
+        borderCurve: "continuous",
+        padding: Spacing.three,
+        gap: Spacing.three,
+      }}
     >
-      <Row alignment="end" spacing={Spacing.two}>
-        <Text
-          textStyle={{
-            fontFamily: Fonts.sans,
+      <RNView
+        style={{
+          flexDirection: "row",
+          alignItems: "flex-end",
+          gap: Spacing.two,
+        }}
+      >
+        <RNText
+          style={{
+            fontFamily: "system-ui",
             fontSize: 32,
             lineHeight: 34,
             fontWeight: "800",
@@ -489,13 +491,13 @@ function TwinOverview({
           }}
         >
           {String(full)}
-        </Text>
-        <Text textStyle={{ fontSize: 15, color: theme.textSecondary }}>
+        </RNText>
+        <RNText style={{ fontSize: 15, color: theme.textSecondary }}>
           {`/ ${total}`}
-        </Text>
-        <Spacer flexible />
-        <Text
-          textStyle={{
+        </RNText>
+        <RNView style={{ flex: 1 }} />
+        <RNText
+          style={{
             fontSize: 13,
             color:
               low && daysLeft !== null ? theme.danger : theme.textSecondary,
@@ -506,23 +508,23 @@ function TwinOverview({
               ? t("medication.daysLeftHintLow", { days: daysLeft })
               : t("medication.daysLeftHint", { days: daysLeft })
             : t("medication.noEstimate")}
-        </Text>
-      </Row>
-      <ProgressBar
+        </RNText>
+      </RNView>
+      <ProgressBarRn
         percent={percent}
         color={strong}
         track={theme.backgroundSelected}
         height={8}
       />
-      <Text
-        textStyle={{
+      <RNText
+        style={{
           fontSize: 12,
           color: low ? theme.danger : theme.textSecondary,
         }}
       >
         {t("twin.summaryLine", { full, total })}
-      </Text>
-    </Column>
+      </RNText>
+    </RNView>
   );
 }
 
@@ -541,31 +543,55 @@ function PackSwitcher({
   const t = useTranslation();
 
   return (
-    <ScrollView direction="horizontal" showsIndicators={false}>
-      <Row spacing={Spacing.two} style={{ padding: Spacing.one }}>
-        {packs.map((pack) => {
-          // 吃完的板在 chip 上标注出来，省得点进去才发现是空的
-          const done =
-            packStatus(slots.filter((s) => s.packId === pack.id)) ===
-            "consumed";
-          return (
-            <Chip
-              key={pack.id}
-              testID={`twin-pack-${pack.seq}`}
-              label={
-                done
-                  ? `${t("twin.packChip", { seq: pack.seq })} · ${t("twin.packStatusConsumed")}`
-                  : t("twin.packChip", { seq: pack.seq })
-              }
-              active={pack.seq === selectedSeq}
-              onPress={() => {
-                onSelect(pack.seq);
-              }}
-            />
-          );
-        })}
-      </Row>
-    </ScrollView>
+    <RNScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ padding: Spacing.one, gap: Spacing.two }}
+    >
+      {packs.map((pack) => {
+        // 吃完的板在 chip 上标注出来，省得点进去才发现是空的
+        const done =
+          packStatus(slots.filter((s) => s.packId === pack.id)) === "consumed";
+        return (
+          <GlassChip
+            key={pack.id}
+            testID={`twin-pack-${pack.seq}`}
+            label={
+              done
+                ? `${t("twin.packChip", { seq: pack.seq })} · ${t("twin.packStatusConsumed")}`
+                : t("twin.packChip", { seq: pack.seq })
+            }
+            active={pack.seq === selectedSeq}
+            onPress={() => {
+              onSelect(pack.seq);
+            }}
+          />
+        );
+      })}
+    </RNScrollView>
+  );
+}
+
+/**
+ * 铝箔岛：整块药板的 Expo UI 子树边界。
+ *
+ * 铝箔渐变（`nativeGradientBackground`）与泡罩分层绑死 SwiftUI modifier，
+ * LiquidGlassView 替代不了（Q2 冻结），所以网格 + 图例继续活在 Host 里。
+ * 宽度由 RN 父级实测后显式喂入：格子等分要数字宽，而 Host 不 matchContents
+ * 才能撑到指定宽度。
+ */
+function TwinFoilIsland({
+  width,
+  children,
+}: {
+  width: number;
+  children: React.ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <Host seedColor={theme.primary} style={{ width }}>
+      <Column spacing={Spacing.three}>{children}</Column>
+    </Host>
   );
 }
 
@@ -1043,7 +1069,6 @@ const LEGEND_SLOTS: Record<"taken" | "history" | "void", BlisterSlot> = {
 
 /** 开启孪生的引导表单：规格 + 板数，一次建好整盒 */
 function EnableTwinCard({
-  inputWidth,
   rows,
   cols,
   packCount,
@@ -1051,98 +1076,82 @@ function EnableTwinCard({
   onSubmit,
   onInput,
 }: {
-  /** 三个输入框的等分宽，由宿主实测内容宽算好传进来（universal 无 flex） */
-  inputWidth: number;
-  rows: ObservableState<string>;
-  cols: ObservableState<string>;
-  packCount: ObservableState<string>;
+  rows: string;
+  cols: string;
+  packCount: string;
   specError: boolean;
   onSubmit: () => void;
-  onInput: () => void;
+  /** 三个输入框共用：field 区分改的是哪一个，顺带清掉错误态 */
+  onInput: (field: "rows" | "cols" | "packs", value: string) => void;
 }) {
   const theme = useTheme();
   const t = useTranslation();
-  const box = roundedBox({
-    color: theme.border,
-    background: theme.surface,
-    radius: Radius.card,
-    width: 1,
-  });
 
   return (
-    <Column spacing={Spacing.three}>
+    <RNView style={{ gap: Spacing.three }}>
       <SectionTitle>{t("twin.enableTitle")}</SectionTitle>
-      <Column
-        spacing={Spacing.three}
-        style={{ ...box.style, padding: Spacing.three }}
-        modifiers={box.modifiers}
-      >
-        <Text
-          textStyle={{
-            fontSize: 13,
-            lineHeight: 19,
-            color: theme.textSecondary,
-          }}
-        >
-          {t("twin.enableBody")}
-        </Text>
-        <Row spacing={Spacing.two}>
-          <Column
-            spacing={Spacing.one}
-            style={inputWidth ? { width: inputWidth } : undefined}
+      <SectionCard>
+        <RNView style={{ gap: Spacing.three }}>
+          <RNText
+            style={{
+              fontSize: 13,
+              lineHeight: 19,
+              color: theme.textSecondary,
+            }}
           >
-            <InputShell>
-              <TextInput
-                testID="twin-enable-rows-input"
-                placeholder={t("twin.specRows")}
-                keyboardType="number-pad"
-                onChangeText={onInput}
-                value={rows}
-              />
-            </InputShell>
-          </Column>
-          <Column
-            spacing={Spacing.one}
-            style={inputWidth ? { width: inputWidth } : undefined}
-          >
-            <InputShell>
-              <TextInput
-                testID="twin-enable-cols-input"
-                placeholder={t("twin.specCols")}
-                keyboardType="number-pad"
-                onChangeText={onInput}
-                value={cols}
-              />
-            </InputShell>
-          </Column>
-          <Column
-            spacing={Spacing.one}
-            style={inputWidth ? { width: inputWidth } : undefined}
-          >
-            <InputShell>
-              <TextInput
-                testID="twin-enable-packs-input"
-                placeholder={t("twin.specPacks")}
-                keyboardType="number-pad"
-                onChangeText={onInput}
-                value={packCount}
-              />
-            </InputShell>
-          </Column>
-        </Row>
-        {specError ? (
-          <Text textStyle={{ fontSize: 13, color: theme.danger }}>
-            {t("twin.specInvalid")}
-          </Text>
-        ) : null}
-        <Button
-          testID="twin-enable-submit"
-          label={t("twin.specSubmit")}
-          onPress={onSubmit}
-          modifiers={nativeButtonModifiers({ fullWidth: true })}
-        />
-      </Column>
-    </Column>
+            {t("twin.enableBody")}
+          </RNText>
+          {/* 三列等分：RN 有 flex，直接 flex: 1，不再由宿主算数字宽度 */}
+          <RNView style={{ flexDirection: "row", gap: Spacing.two }}>
+            {[
+              {
+                field: "rows" as const,
+                testID: "twin-enable-rows-input",
+                placeholder: t("twin.specRows"),
+                value: rows,
+              },
+              {
+                field: "cols" as const,
+                testID: "twin-enable-cols-input",
+                placeholder: t("twin.specCols"),
+                value: cols,
+              },
+              {
+                field: "packs" as const,
+                testID: "twin-enable-packs-input",
+                placeholder: t("twin.specPacks"),
+                value: packCount,
+              },
+            ].map((item) => (
+              <RNView key={item.testID} style={{ flex: 1 }}>
+                <InputShell>
+                  <RNTextInput
+                    testID={item.testID}
+                    placeholder={item.placeholder}
+                    keyboardType="number-pad"
+                    onChangeText={(text) => {
+                      onInput(item.field, text);
+                    }}
+                    value={item.value}
+                    style={{ fontSize: 15, color: theme.text, padding: 0 }}
+                  />
+                </InputShell>
+              </RNView>
+            ))}
+          </RNView>
+          {specError ? (
+            <RNText style={{ fontSize: 13, color: theme.danger }}>
+              {t("twin.specInvalid")}
+            </RNText>
+          ) : null}
+          <GlassHostButton
+            testID="twin-enable-submit"
+            label={t("twin.specSubmit")}
+            onPress={onSubmit}
+          />
+        </RNView>
+      </SectionCard>
+    </RNView>
   );
 }
 
