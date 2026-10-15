@@ -207,6 +207,8 @@
     <string name="person_basicInfo">基本信息</string>
     <string name="person_conditionsPlaceholder">如：高血压、糖尿病</string>
     <string name="person_deleteButtonAlt">删除用药人</string>
+    <string name="person_defaultName">自己</string>
+    <string name="person_selfBadge">本人</string>
     <string name="person_formSubtitle">保存后即可为 TA 安排用药提醒</string>
     <string name="person_gender">性别</string>
     <string name="person_genderFemale">女</string>

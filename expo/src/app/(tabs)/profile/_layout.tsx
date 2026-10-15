@@ -3,7 +3,15 @@ import { Stack } from "expo-router";
 export default function ProfileLayout() {
   return (
     <>
-      <Stack screenOptions={{ headerShown: true }}>
+      <Stack
+        screenOptions={{
+          headerShown: true,
+          headerShadowVisible: false,
+          headerStyle: {
+            backgroundColor: "transparent",
+          },
+        }}
+      >
         {/* index 用大标题：就是 design/profile.html 的 hero-title，滚动时由系统收起 */}
         <Stack.Screen name="index" options={{ headerLargeTitle: true }} />
         <Stack.Screen name="persons" />

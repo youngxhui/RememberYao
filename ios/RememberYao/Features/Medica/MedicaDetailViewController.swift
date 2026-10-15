@@ -50,7 +50,6 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
     super.viewDidLoad()
     title = medication?.name ?? L10n.shared.t("medication.listTitle")
     reload()
-    registerViewModelObservation()
   }
 
   override func reload() {
@@ -251,6 +250,13 @@ final class MedicaDetailViewController: ListScreenViewController<MedicaDetailRow
         // 未开启：用原生 alert 收集行列板数（三字段）
         presentTwinEnableSheet(for: medication)
       }
+
+    case .plan(let id, _, _):
+      navigationController?.pushViewController(
+        PlanFormViewController(
+          viewModel: viewModel, personId: nil, medicationId: medicationId, editingPlanId: id),
+        animated: true
+      )
 
     case .addPlan:
       guard let medication else { return }

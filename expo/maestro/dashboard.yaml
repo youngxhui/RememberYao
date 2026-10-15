@@ -41,11 +41,12 @@ appId: top.youngxhui.rememberyao.k3f9
 # 巨型日期头部的添加药品按钮（首页是 Expo UI 树，testID 照旧）
 - assertVisible:
     id: "home-add-medication-button"
-# 成员筛选：@expo/ui 的 Picker（appearance=menu）。只有一家以上成员才渲染，
-# clearState 后只有默认的「自己」一个，所以这里是 optional
-- assertVisible:
-    id: "home-member-picker"
-    optional: true
+# 成员筛选：已挪进系统工具栏右上角的原生菜单（Stack.Toolbar.Menu），
+# 工具栏按钮拿不到 testID（见 docs/conventions/data-state.md），只能靠无障碍
+# 文案「成员」定位。只有一家以上成员才渲染，clearState 后只有默认的「自己」
+# 一个，所以这里是 optional
+- assertVisible: "成员"
+  optional: true
 # 底部 tab 栏 3 个：home / medica / profile。playground 调试屏已移出 (tabs) 组，
 # tab 栏里不再出现（路由保留，从代码 push /playground 可达）
 - assertVisible:

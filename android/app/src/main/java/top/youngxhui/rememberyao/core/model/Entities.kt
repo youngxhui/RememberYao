@@ -122,6 +122,8 @@ data class Person(
     val name: String,
     /** 头像底色 `#rrggbb`。 */
     val avatarColor: String,
+    /** 头像照片的本地文件 URI；`null` 表示没有照片，界面退回底色 + 姓名首字。 */
+    val avatarUri: String? = null,
     val gender: Gender? = null,
     /** 年龄（周岁）；未填写为 null。 */
     val age: Int? = null,

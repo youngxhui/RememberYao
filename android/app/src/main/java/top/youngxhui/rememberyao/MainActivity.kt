@@ -6,7 +6,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+import top.youngxhui.rememberyao.core.domain.Repository
+import top.youngxhui.rememberyao.core.l10n.LanguageStore
 import top.youngxhui.rememberyao.core.l10n.LocaleManager
 import top.youngxhui.rememberyao.core.notification.NotificationScheduler
 import top.youngxhui.rememberyao.ui.RememberYaoApp
@@ -24,6 +30,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var scheduler: NotificationScheduler
 
+    @Inject
+    lateinit var store: Repository
+
+    @Inject
+    lateinit var languageStore: LanguageStore
+
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase))
     }
@@ -34,6 +46,9 @@ class MainActivity : ComponentActivity() {
         // 语言切换走 recreate()，Application.onCreate 不会再跑：
         // 渠道名是系统设置里给用户看的，停在上一种语言会很违和
         scheduler.createChannel()
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            store.ensureDefaultPerson(languageStore.language)
+        }
         setContent {
             RememberYaoTheme {
                 RememberYaoApp()

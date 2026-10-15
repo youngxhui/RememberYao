@@ -42,6 +42,10 @@ class ListScreenViewController<RowType: Hashable & Sendable>: UIViewController,
   ) -> UITableViewCell {
     let cell = tableView.dequeueReusableCell(
       withIdentifier: cellReuseIdentifier, for: indexPath)
+    // 共用 "Cell"：上一行的 disclosure / 开关 / selectionStyle 会留到这一行
+    cell.accessoryType = .none
+    cell.accessoryView = nil
+    cell.selectionStyle = .default
     configure(cell, for: row, at: indexPath)
     return cell
   }

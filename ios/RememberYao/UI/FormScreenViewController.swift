@@ -1,10 +1,78 @@
 import UIKit
 
+/// 一行表单的外观与交互。子类在 `spec(for:)` 里一次写完，基类按这份分发。
+@MainActor
+struct FormRowSpec {
+  var field: FieldCell.Field?
+  var configureAction: ((UITableViewCell) -> Void)?
+  var onSelect: ((IndexPath) -> Void)?
+  var onChange: ((String) -> Void)?
+
+  /// 可编辑输入行。
+  static func input(
+    _ field: FieldCell.Field, onChange: @escaping (String) -> Void
+  ) -> FormRowSpec {
+    FormRowSpec(field: field, onChange: onChange)
+  }
+
+  /// 只读选择行：点整行弹选择器。
+  static func picker(
+    _ field: FieldCell.Field, onSelect: @escaping (IndexPath) -> Void
+  ) -> FormRowSpec {
+    FormRowSpec(field: field, onSelect: onSelect)
+  }
+
+  /// 操作行（开关、多选入口）。`onSelect` 可空：开关自己处理变更。
+  static func action(
+    configure: @escaping (UITableViewCell) -> Void,
+    onSelect: ((IndexPath) -> Void)? = nil
+  ) -> FormRowSpec {
+    FormRowSpec(configureAction: configure, onSelect: onSelect)
+  }
+
+  /// 表单里的按钮。走 inset grouped 的一行文字，和系统设置页的「删除」一致。
+  ///
+  /// 底部主操作仍用 `primaryTitleKey` + `primaryTapped`，不要再用这一行充当保存。
+  static func button(
+    titleKey: String,
+    identifier: String,
+    role: ButtonRole = .regular,
+    onTap: @escaping () -> Void
+  ) -> FormRowSpec {
+    .action(
+      configure: { cell in
+        var content = UIListContentConfiguration.cell()
+        content.text = L10n.shared.t(titleKey)
+        content.textProperties.color = role.color
+        cell.contentConfiguration = content
+        cell.accessibilityIdentifier = identifier
+      },
+      onSelect: { _ in onTap() }
+    )
+  }
+
+  enum ButtonRole {
+    case regular
+    case destructive
+
+    var color: UIColor {
+      switch self {
+      case .regular: return Theme.Color.primary
+      case .destructive: return Theme.Color.danger
+      }
+    }
+  }
+}
+
 /// 表单屏基类：`UITableView` inset grouped + 原生输入单元格 + 底部固定主按钮。
 ///
 /// 表单一律用表格而不是一摉 `UIStackView`：系统表格自带分组圆角、发丝线、
 /// 键盘避让（`UITableView` 会自动滚动到当前第一响应者）、大字号适配。
 /// 输入框用 `UITextField` 直接嵌单元格右侧，label 走单元格左侧文字。
+///
+/// 加一个控件：Row enum 加 case、放进 `buildRows()`、在 `spec(for:)` 写这一行
+/// （`.input` / `.picker` / `.button` / `.action`）。
+/// 底部保存仍走 `primaryTitleKey` + `primaryTapped`。
 @MainActor
 class FormScreenViewController<RowType: Hashable & Sendable>: UIViewController,
   UITableViewDelegate
@@ -13,9 +81,8 @@ class FormScreenViewController<RowType: Hashable & Sendable>: UIViewController,
   private var dataSource: UITableViewDiffableDataSource<SectionKey, RowType>!
   private var bottomConstraint: NSLayoutConstraint!
 
-  enum SectionKey: Int {
-    case form
-  }
+  /// 分区键。与列表屏一样用 Int，子类用自己的 `Section` enum 的 `rawValue`。
+  typealias SectionKey = Int
 
   /// 底部主按钮（保存 / 提交）。
   let primaryButton = UIButton(type: .system)
@@ -103,6 +170,9 @@ class FormScreenViewController<RowType: Hashable & Sendable>: UIViewController,
         }
         let cell = tableView.dequeueReusableCell(
           withIdentifier: "ActionCell", for: indexPath)
+        cell.accessoryType = .none
+        cell.accessoryView = nil
+        cell.selectionStyle = .default
         configureAction(cell, for: row)
         return cell
       })
@@ -146,25 +216,37 @@ class FormScreenViewController<RowType: Hashable & Sendable>: UIViewController,
   var primaryTitleKey: String { "" }
   /// 表单是否可提交。用来驱动主按钮禁用态。
   var isFormValid: Bool { true }
-  /// 返回该行对应的输入字段；nil 表示这是普通操作行。
-  func field(for row: RowType) -> FieldCell.Field? { nil }
-  /// 配置普通操作行。
-  func configureAction(_ cell: UITableViewCell, for row: RowType) {}
+  /// 子类覆盖：这一行的外观与交互。
+  func spec(for row: RowType) -> FormRowSpec { FormRowSpec() }
+  /// 子类覆盖：分区标题（nil = 不显示）。参数是快照里的分区 key。
+  func sectionTitle(for section: SectionKey) -> String? { nil }
   /// 子类覆盖：返回 sections → rows。
   func buildRows() -> [SectionKey: [RowType]] { [:] }
   /// 主按钮点击。
   @objc func primaryTapped() {}
 
-  /// 子类覆盖：输入字段值变化。`row` 是 `buildRows()` 里返回的那个行标识。
-  func setValue(_ value: String, for row: RowType) {}
+  private func field(for row: RowType) -> FieldCell.Field? {
+    spec(for: row).field
+  }
 
-  /// ViewModel 数据变更后刷新表单行。
-  func viewModelDataChanged() {}
+  private func configureAction(_ cell: UITableViewCell, for row: RowType) {
+    spec(for: row).configureAction?(cell)
+  }
+
+  private func setValue(_ value: String, for row: RowType) {
+    spec(for: row).onChange?(value)
+    primaryButton.setNeedsUpdateConfiguration()
+  }
+
+  /// ViewModel 数据变更后刷新表单行。列表屏的对应方法叫 `reload()`。
+  func viewModelDataChanged() {
+    reloadRows()
+  }
 
   func applyRows() {
     var snapshot = NSDiffableDataSourceSnapshot<SectionKey, RowType>()
     let rows = buildRows()
-    for section in rows.keys.sorted(by: { $0.rawValue < $1.rawValue }) {
+    for section in rows.keys.sorted() {
       snapshot.appendSections([section])
       snapshot.appendItems(rows[section] ?? [], toSection: section)
     }
@@ -178,12 +260,22 @@ class FormScreenViewController<RowType: Hashable & Sendable>: UIViewController,
 
   // MARK: - UITableViewDelegate
 
+  func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+    guard let key = dataSource.sectionIdentifier(for: section),
+      let title = sectionTitle(for: key)
+    else { return nil }
+    let view = UITableViewHeaderFooterView()
+    view.textLabel?.text = title
+    return view
+  }
+
   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
     tableView.deselectRow(at: indexPath, animated: true)
     guard let row = dataSource.itemIdentifier(for: indexPath) else { return }
     didSelect(row, at: indexPath)
   }
 
-  /// 子类覆盖：点操作行。
-  func didSelect(_ row: RowType, at indexPath: IndexPath) {}
+  private func didSelect(_ row: RowType, at indexPath: IndexPath) {
+    spec(for: row).onSelect?(indexPath)
+  }
 }

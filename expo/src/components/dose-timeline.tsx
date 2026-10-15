@@ -150,7 +150,12 @@ function DoseRow({
         </Text>
         {showPerson && person ? (
           <Row alignment="center" spacing={4}>
-            <Avatar color={person.avatarColor} name={person.name} size={14} />
+            <Avatar
+              color={person.avatarColor}
+              name={person.name}
+              uri={person.avatarUri}
+              size={14}
+            />
             <Text textStyle={{ fontSize: 11, color: theme.textSecondary }}>
               {person.name}
             </Text>

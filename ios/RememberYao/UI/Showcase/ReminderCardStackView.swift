@@ -138,6 +138,7 @@ private enum Beat {
 /// - 磨砂卡底 = `UIVisualEffectView` 实时背景模糊 + 半透明主题色叠染，
 ///   每卡按用药人头像色区分家庭成员。
 ///
+/// 放在 `UI/Showcase/`：首页 `tableHeaderView` 的展示组件，不是列表/表单原语。
 /// 接入约定：放进滚动区用（首页是 `tableHeaderView`，随页面一起滚走）。
 /// 纵向拖动与 `UIScrollView` 的滚动手势同向，嵌进滚动屏时必须让滚动视图的
 /// pan `require(toFail:)` 本视图的 `panGesture`：超过死区的纵向拖动由牌堆

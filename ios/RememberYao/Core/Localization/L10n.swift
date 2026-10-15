@@ -126,6 +126,11 @@ public final class L10n {
     }
   }
 
+  /// 默认用药人（「自己」）的展示名字：跟随当前界面语言。
+  nonisolated public static func defaultPersonName() -> String {
+    translator.t("person.defaultName")
+  }
+
   /// 日期 / 星期走 `Intl` 等价的 `DateFormatter`，不硬编码语序
   /// （中文「9月5日」vs 英文「Sep 5」）。
   nonisolated public static func formatDate(_ date: Date, style: DateStyle = .monthDay)

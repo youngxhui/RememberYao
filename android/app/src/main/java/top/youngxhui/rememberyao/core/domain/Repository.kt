@@ -10,6 +10,7 @@ import top.youngxhui.rememberyao.core.model.MedicationUsage
 import top.youngxhui.rememberyao.core.model.Person
 import top.youngxhui.rememberyao.core.model.Reminder
 import top.youngxhui.rememberyao.core.model.Settings
+import top.youngxhui.rememberyao.core.l10n.AppLanguage
 
 /**
  * 通知重排所需的跨实体只读投影。
@@ -88,6 +89,11 @@ interface Repository {
 
     suspend fun deletePerson(id: String)
 
+    // MARK: - 默认用药人
+
+    /** 首启创建 / 语言切换时刷新默认用药人（「自己」）：id 固定 [Domain.SELF_PERSON_ID]。 */
+    suspend fun ensureDefaultPerson(language: AppLanguage)
+
     // MARK: - 用药配置
 
     suspend fun addPlan(input: PlanInput)
@@ -98,6 +104,13 @@ interface Repository {
 
     /** 一次落多笔配置变更，只重排一次通知。 */
     suspend fun applyPlanChanges(changes: PlanChanges)
+
+    /** 快捷加药：创建药品 + 一条默认用药人「自己」的配置，事务内完成。 */
+    suspend fun addMedicationWithPlan(
+        name: String,
+        doseAmount: Int,
+        times: List<String>
+    ): Pair<Medication, MedicationPlan>
 
     // MARK: - 板装孪生
 

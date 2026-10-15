@@ -35,7 +35,6 @@ final class SettingsViewController: ListScreenViewController<SettingsRow>, ViewM
     super.viewDidLoad()
     title = L10n.shared.t("settings.title")
     reload()
-    registerViewModelObservation()
   }
 
   override func reload() {
@@ -244,7 +243,7 @@ final class SettingsViewController: ListScreenViewController<SettingsRow>, ViewM
         let start = alert.textFields?[0].text ?? ""
         let end = alert.textFields?[1].text ?? ""
         // 免打扰成对出现：只填一端等于禁用
-        let valid = Self.isValidTime(start) && Self.isValidTime(end)
+        let valid = Clock.isValidTime(start) && Clock.isValidTime(end)
         self.update {
           $0.quietStart = valid ? start : nil
           $0.quietEnd = valid ? end : nil
@@ -265,13 +264,6 @@ final class SettingsViewController: ListScreenViewController<SettingsRow>, ViewM
     present(alert, animated: true)
   }
 
-  private static func isValidTime(_ value: String) -> Bool {
-    let parts = value.split(separator: ":")
-    guard parts.count == 2, let hour = Int(parts[0]), let minute = Int(parts[1])
-    else { return false }
-    return (0...23).contains(hour) && (0...59).contains(minute)
-  }
-
   private func presentPrivacy() {
     let alert = UIAlertController(
       title: L10n.shared.t("settings.privacyTitle"),
@@ -283,7 +275,7 @@ final class SettingsViewController: ListScreenViewController<SettingsRow>, ViewM
     present(alert, animated: true)
   }
 
-    required init?(coder: NSCoder) {
-      fatalError("init(coder:) has not been implemented")
-    }
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
 }

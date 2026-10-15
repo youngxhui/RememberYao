@@ -73,6 +73,12 @@ object Domain {
 
     /** 用药人已被删除时的历史占位名。 */
     const val DELETED_PERSON_NAME = "已删除的用药人"
+
+    /** 默认用药人（「自己」）的固定 id。 */
+    const val SELF_PERSON_ID = "self"
+
+    /** 默认用药人在各语言下的名字集合：首启创建 / 语言切换时按当前界面语言刷新。 */
+    val DEFAULT_PERSON_NAMES = setOf("自己", "Self")
 }
 
 // MARK: - 稳定 hash 取色
@@ -193,6 +199,15 @@ object Clock {
     /** 取前 n 个默认时间。 */
     fun defaultTimes(count: Int): List<String> =
         if (count <= 0) emptyList() else Domain.DEFAULT_TIMES.take(count)
+
+    /** `"HH:MM"` 是否合法。配置次数、免打扰时段共用。 */
+    fun isValidTime(value: String): Boolean {
+        val parts = value.split(":")
+        if (parts.size != 2) return false
+        val hour = parts[0].toIntOrNull() ?: return false
+        val minute = parts[1].toIntOrNull() ?: return false
+        return hour in 0..23 && minute in 0..59
+    }
 }
 
 // MARK: - 配置生效与状态

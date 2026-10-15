@@ -2993,6 +2993,40 @@
         }
       }
     },
+    "person.defaultName" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Self"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自己"
+          }
+        }
+      }
+    },
+    "person.selfBadge" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本人"
+          }
+        }
+      }
+    },
     "person.formSubtitle" : {
       "extractionState" : "stale",
       "localizations" : {

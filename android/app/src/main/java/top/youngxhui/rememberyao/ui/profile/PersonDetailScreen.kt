@@ -26,6 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.youngxhui.rememberyao.R
+import top.youngxhui.rememberyao.core.domain.DateKey
+import top.youngxhui.rememberyao.core.domain.Domain
 import top.youngxhui.rememberyao.core.l10n.L10n
 import top.youngxhui.rememberyao.core.model.MedicationPlan
 import top.youngxhui.rememberyao.ui.AppViewModel
@@ -172,11 +174,13 @@ fun PersonDetailScreen(
                             .fillMaxWidth()
                             .testId("person-edit-button")
                     ) { Text(stringResource(R.string.common_edit)) }
-                    DestructiveAction(
-                        text = stringResource(R.string.person_deleteButtonAlt),
-                        onClick = { showDelete = true },
-                        testId = "person-delete-button"
-                    )
+                    if (person.id != Domain.SELF_PERSON_ID) {
+                        DestructiveAction(
+                            text = stringResource(R.string.person_deleteButtonAlt),
+                            onClick = { showDelete = true },
+                            testId = "person-delete-button"
+                        )
+                    }
                 }
             }
         }

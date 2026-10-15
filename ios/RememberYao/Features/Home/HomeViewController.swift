@@ -1,18 +1,16 @@
 import UIKit
 
 enum HomeSection: Int, CaseIterable {
-  case reminders
   case stock
 }
 
 enum HomeRow: Hashable {
-  case reminder(id: String, title: String, detail: String, statusKey: String)
   /// 库存行：`fraction` = 剩余 / 总量（进度条），`levelKey` 定充裕度配色
   case stock(
     id: String, title: String, detail: String, levelKey: String, fraction: Double)
 }
 
-/// 首页（今日）：日期 + 成员筛选 + 提醒卡堆叠 + 今日全部提醒 + 库存速览。
+/// 首页（今日）：日期 + 成员筛选 + 提醒卡堆叠 + 库存速览。
 ///
 /// 视觉基准 `design/today.html`，但控件一律用平台原生：`UITableView`
 /// （inset grouped）+ `UIListContentConfiguration` 单元格、`UIMenu` 筛选、
@@ -52,10 +50,9 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
     tableView.register(
       StockProgressCell.self, forCellReuseIdentifier: StockProgressCell.reuseID)
     reload()
-    registerViewModelObservation()
   }
 
-  /// 库存行走进度条 cell，提醒行走基类的普通单元格。
+  /// 库存行走进度条 cell。
   override func cell(
     for row: HomeRow, in tableView: UITableView, at indexPath: IndexPath
   ) -> UITableViewCell {
@@ -74,9 +71,6 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
       )
       cell.accessibilityIdentifier = "home-stock-\(id)"
       return cell
-
-    case .reminder:
-      return super.cell(for: row, in: tableView, at: indexPath)
     }
   }
 
@@ -86,6 +80,7 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
     // 所在 UINavigationController 的 tabBarItem.title（lldb 实测：一设就覆盖
     // AppCoordinator 里显式设置的「首页」），大标题只认 navigationItem.title
     navigationItem.title = L10n.formatDate(Date(), style: .full)
+    configureFilterMenu()
     applySnapshot()
   }
 
@@ -107,7 +102,7 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
 
   // MARK: - 牌堆头部
 
-  /// 牌堆挂进 `tableHeaderView`：随页面一起滚走（Expo 版在 ScrollView 里，
+  /// 牌堆挂进 `tableHeaderView`：随页面一起滚走（Expo 版在原生 ScrollView 里，
   /// 同样是滚动内容的一部分）。
   ///
   /// 纵向换卡手势与表格滚动手势同向，必须协调：让表格的 pan 等牌堆的 pan
@@ -187,10 +182,6 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
   override func buildSnapshot() -> [SectionKey: [HomeRow]] {
     // 空分区不进快照：否则分区标题会孤零零挂一个空壳
     var snapshot: [SectionKey: [HomeRow]] = [:]
-    let reminders = reminderRows()
-    if !reminders.isEmpty {
-      snapshot[HomeSection.reminders.rawValue] = reminders
-    }
     let stock = stockRows()
     if !stock.isEmpty {
       snapshot[HomeSection.stock.rawValue] = stock
@@ -200,35 +191,11 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
 
   override func sectionTitle(for section: SectionKey) -> String? {
     switch section {
-    case HomeSection.reminders.rawValue:
-      return L10n.shared.t("home.todaySchedule")
     case HomeSection.stock.rawValue:
       return L10n.shared.t("home.stockListTitle")
     default:
       return nil
     }
-  }
-
-  private func reminderRows() -> [HomeRow] {
-    let today = DateKey.today()
-    return viewModel.reminders
-      .filter { $0.date == today }
-      .filter { reminder in
-        guard let memberFilter else { return true }
-        return reminder.personId == memberFilter
-      }
-      .sorted { DateKey.compareTime($0.time, $1.time) == .orderedAscending }
-      .map { reminder in
-        let medication = viewModel.medications.first { $0.id == reminder.medicationId }
-        let person = viewModel.persons.first { $0.id == reminder.personId }
-        return HomeRow.reminder(
-          id: reminder.id,
-          title: medication?.name ?? Domain.deletedMedicationName,
-          detail:
-            "\(reminder.time) · \(person?.name ?? Domain.deletedPersonName) · \(L10n.shared.t("medication.amountWithUnit", ["amount": "\(reminder.doseAmount)", "unit": medication.map { L10n.unitLabel($0.unit) } ?? ""]))",
-          statusKey: reminder.status.rawValue
-        )
-      }
   }
 
   /// 库存速览：全部药品各一行（药名 + 库存进度条 + 剩余天数），与 Android 首页
@@ -261,18 +228,6 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
 
   override func configure(_ cell: UITableViewCell, for row: HomeRow, at indexPath: IndexPath) {
     switch row {
-    case .reminder(_, let title, let detail, let statusKey):
-      var content = UIListContentConfiguration.subtitleCell()
-      content.text = title
-      content.secondaryText = detail
-      content.secondaryTextProperties.numberOfLines = 2
-      // 状态用文字标在右侧而不是靠颜色区分：色弱用户看不出红绿
-      let status = ReminderStatus(rawValue: statusKey) ?? .pending
-      content.textProperties.color = tint(for: status)
-      cell.contentConfiguration = content
-      cell.accessibilityIdentifier = "home-reminder-\(title)"
-      cell.accessoryType = status == .pending ? .disclosureIndicator : .none
-
     case .stock:
       // 库存行统一走 StockProgressCell（见 cell(for:in:at:) 覆写）；这里只为
       // 让 switch 穷尽，最简配置防止子类漏覆写时出现复用残留
@@ -280,59 +235,19 @@ final class HomeViewController: ListScreenViewController<HomeRow>, ViewModelHold
     }
   }
 
-  private func tint(for status: ReminderStatus) -> UIColor {
-    switch status {
-    case .pending: return Theme.Color.label
-    case .taken: return Theme.Color.success
-    case .skipped: return Theme.Color.labelSecondary
-    case .missed: return Theme.Color.danger
-    }
-  }
-
   // MARK: - 操作
 
   override func didSelect(_ row: HomeRow) {
     switch row {
-    case .reminder(let id, _, _, _):
-      presentReminderActions(reminderId: id, sourceView: nil)
-
     case .stock(let id, _, _, _, _):
       let detail = MedicaDetailViewController(viewModel: viewModel, medicationId: id)
       navigationController?.pushViewController(detail, animated: true)
     }
   }
 
-  /// 点一条待处理提醒：原生 actionSheet 给 已服用 / 稍后提醒 / 跳过。
-  func presentReminderActions(reminderId: String, sourceView: UIView?) {
-    let alert = UIAlertController(
-      title: L10n.shared.t("home.reminderActions"), message: nil,
-      preferredStyle: .actionSheet)
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("reminder.markTaken"), style: .default) {
-        [weak self] _ in
-        Task { await self?.viewModel.take(reminderId) }
-      })
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("reminder.snooze"), style: .default) {
-        [weak self] _ in
-        Task {
-          await self?.viewModel.snooze(
-            reminderId, minutes: self?.viewModel.settings.snoozeMinutes ?? 10)
-        }
-      })
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("reminder.skip"), style: .destructive) {
-        [weak self] _ in
-        Task { await self?.viewModel.skip(reminderId) }
-      })
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
-    present(alert, anchoredTo: sourceView ?? view, animated: true)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
   }
-
-    required init?(coder: NSCoder) {
-      fatalError("init(coder:) has not been implemented")
-    }
 }
 
 // MARK: - 库存进度条行
@@ -351,11 +266,11 @@ final class StockProgressCell: UITableViewCell {
 
   override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
     super.init(style: style, reuseIdentifier: reuseIdentifier)
-    nameLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+    nameLabel.font = Theme.Font.stockName
     nameLabel.numberOfLines = 1
     nameLabel.lineBreakMode = .byTruncatingTail
     // 等宽数字 + 右对齐：多行的天数成列，不随数值跳动
-    daysLabel.font = UIFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+    daysLabel.font = Theme.Font.stockDays
     daysLabel.textAlignment = .right
     for view in [nameLabel, progressView, daysLabel] {
       view.translatesAutoresizingMaskIntoConstraints = false
@@ -394,9 +309,6 @@ final class StockProgressCell: UITableViewCell {
     }
     progressView.tintColor = color
     daysLabel.textColor = level == .ok ? Theme.Color.labelSecondary : color
-    daysLabel.font =
-      level == .ok
-      ? UIFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-      : UIFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
+    daysLabel.font = level == .ok ? Theme.Font.stockDays : Theme.Font.stockDaysEmphasis
   }
 }

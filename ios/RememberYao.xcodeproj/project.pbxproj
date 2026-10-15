@@ -48,6 +48,7 @@
 		DFCA79E8AC157A3E6E5B219B /* MedicaDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93B46DE92CA2D4918EB6B34 /* MedicaDetailViewController.swift */; };
 		E9DDDCF860E8AD69D2C6791F /* Entities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4722DD45DC710F0B4E803103 /* Entities.swift */; };
 		F3C42F452D09295FA2333642 /* FieldCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0395E5A97C85D55C9B38D0AB /* FieldCell.swift */; };
+		AA02B10000000000000000C1 /* FilterChipRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA02F10000000000000000C1 /* FilterChipRow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -95,6 +96,7 @@
 		AB200B297E494D85BBA9F8B0 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
 		B3CCF8204F6E9B2229FA9997 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		B82A8059A49E53C78FDD87E6 /* GradientView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientView.swift; sourceTree = "<group>"; };
+		AA02F10000000000000000C1 /* FilterChipRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterChipRow.swift; sourceTree = "<group>"; };
 		BA9085859DCC448B21B0A896 /* ProfileViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewController.swift; sourceTree = "<group>"; };
 		C814557757081EED0C36DC83 /* NativeControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeControls.swift; sourceTree = "<group>"; };
 		CBB00716C0245F99B36DDDEB /* MiniArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniArchiveView.swift; sourceTree = "<group>"; };
@@ -144,6 +146,15 @@
 				076B910A76B27EC636EB8FD3 /* Theme.swift */,
 			);
 			path = Theme;
+			sourceTree = "<group>";
+		};
+		AA01G10000000000000000S1 /* Showcase */ = {
+			isa = PBXGroup;
+			children = (
+				CBB00716C0245F99B36DDDEB /* MiniArchiveView.swift */,
+				F6798357448CEEF1D15FABB4 /* ReminderCardStackView.swift */,
+			);
+			path = Showcase;
 			sourceTree = "<group>";
 		};
 		24F52290FEAB519213008238 /* Products */ = {
@@ -282,18 +293,18 @@
 			isa = PBXGroup;
 			children = (
 				20886F8FD056F1E41104E100 /* Theme */,
+				AA01G10000000000000000S1 /* Showcase */,
 				5365609238A495946D0C0A6D /* ClosureSwitch.swift */,
 				0395E5A97C85D55C9B38D0AB /* FieldCell.swift */,
 				4A91194A9F0DE86ABB11F868 /* FormScreenViewController.swift */,
 				B82A8059A49E53C78FDD87E6 /* GradientView.swift */,
 				E9907C18498ED8E0F0302226 /* ListScreenViewController.swift */,
-				CBB00716C0245F99B36DDDEB /* MiniArchiveView.swift */,
 				F67DD6E43ABA60A73BA2C80E /* Motion.swift */,
 				C814557757081EED0C36DC83 /* NativeControls.swift */,
 				56B759F7FF852923A69562D6 /* Presenters.swift */,
 				741310424EFEAA316C1E43F8 /* PressScaleButton.swift */,
-				F6798357448CEEF1D15FABB4 /* ReminderCardStackView.swift */,
 				69A7653A290BF6B814B72C4F /* UILabel+Styled.swift */,
+				AA02F10000000000000000C1 /* FilterChipRow.swift */,
 				AA01F10000000000000000V1 /* ViewModelObservation.swift */,
 			);
 			path = UI;
@@ -459,6 +470,7 @@
 				AA01B10000000000000000R1 /* Repository.swift in Sources */,
 				AA01B10000000000000000A1 /* AppViewModel.swift in Sources */,
 				AA01B10000000000000000V1 /* ViewModelObservation.swift in Sources */,
+				AA02B10000000000000000C1 /* FilterChipRow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

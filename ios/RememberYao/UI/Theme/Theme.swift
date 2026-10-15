@@ -23,6 +23,12 @@ public enum Theme {
     /// 暗色下再用白字会糊在浅青底上看不清。`UIButton.Configuration.filled()`
     /// 不设这条就会退回系统蓝，引导页的主按钮会明显不像这个 App。
     public static let onPrimary = UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark ? #colorLiteral(red: 0.035, green: 0.145, blue: 0.129, alpha: 1) : .white })
+    /// 液态玻璃 chip 选中态的文字色。选中态底是品牌色玻璃（偏深），配白字。
+    ///
+    /// 未选中态**不**给固定色：玻璃的明暗由背后的页面底色决定，暗色模式下未选中
+    /// 那颗玻璃是深的，固定黑字会看不见 —— 那一边走自适应的 `labelSecondary`。
+    /// 与 Expo 版 `theme.onGlassChipActive` 同值。
+    public static let onGlassChipActive = UIColor.white
     /// 已服用。
     public static let success = UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark ? #colorLiteral(red: 0.404, green: 0.808, blue: 0.545, alpha: 1) : #colorLiteral(red: 0.145, green: 0.561, blue: 0.322, alpha: 1) })
     /// 即将到期 / 库存偏低。
@@ -46,7 +52,7 @@ public enum Theme {
 
     /// 发丝线。
     public static let hairline = UIColor.separator
-    /// 描边（输入盒、chip）。
+    /// 描边（输入盒）。
     public static let border = UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark ? #colorLiteral(red: 0.278, green: 0.290, blue: 0.310, alpha: 1) : #colorLiteral(red: 0.855, green: 0.863, blue: 0.867, alpha: 1) })
     /// 输入框底色。
     public static let field = UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark ? #colorLiteral(red: 0.224, green: 0.235, blue: 0.251, alpha: 1) : #colorLiteral(red: 0.961, green: 0.961, blue: 0.957, alpha: 1) })
@@ -153,8 +159,19 @@ public enum Theme {
     public static let caption = UIFont.systemFont(ofSize: 13, weight: .regular)
     /// 徽标 / 胶囊。
     public static let badge = UIFont.systemFont(ofSize: 11, weight: .semibold)
+    /// 胶囊 chip 的文字（design/medications.html 的 .chip：14px / 600）。
+    public static let chip = UIFont.systemFont(ofSize: 14, weight: .semibold)
     /// 等宽小字（药板上的印刷规格）。
     public static let mono = UIFont.monospacedSystemFont(ofSize: 8, weight: .medium)
+    /// 首页库存行药名。
+    public static let stockName = UIFont.systemFont(ofSize: 14, weight: .medium)
+    /// 首页库存行剩余天数（等宽，不随数值跳动）。
+    public static let stockDays = UIFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+    /// 首页库存行告急天数。
+    public static let stockDaysEmphasis = UIFont.monospacedDigitSystemFont(
+      ofSize: 12, weight: .semibold)
+    /// 头像里的姓名首字。
+    public static let avatarInitial = UIFont.systemFont(ofSize: 18, weight: .semibold)
   }
 
   // MARK: 间距
@@ -168,6 +185,14 @@ public enum Theme {
     public static let xxl: CGFloat = 32
     /// 页面左右安全边距。
     public static let page: CGFloat = 20
+    /// 胶囊 chip 的上下内边距（Expo 版 chip.ios.tsx：Spacing.two）。
+    public static let chipVertical: CGFloat = 8
+    /// 胶囊 chip 的左右内边距（Expo 版 chip.ios.tsx：Spacing.three）。
+    public static let chipHorizontal: CGFloat = 16
+    /// 筛选行上下让出的一圈：液态玻璃点击时会轻微放大，给足余量避免被
+    /// 滚动容器裁掉（Expo 版 FilterRow 内层 Row 的 padding 在系统 glass
+    /// 形变下不够用，这里多给一圈）。
+    public static let chipRowInset: CGFloat = 8
   }
 
   // MARK: 圆角

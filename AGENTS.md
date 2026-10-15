@@ -92,7 +92,7 @@ ios/RememberYao/
   Core/       Domain（常量 + 纯派生）+ Decisions（写操作：实体级纯函数）+ Data（Store/SwiftData/AppEnvironment）
               + Model（实体）+ Notification（调度）+ Localization（L10n）
   Features/   每屏一个 ViewController（Home / Medica / Profile / Onboarding）
-  UI/         共享基元与 Theme；MiniArchiveView、ReminderCardStackView 两个动画展示组件
+  UI/         共享基元与 Theme；Showcase/ 下是 MiniArchiveView、ReminderCardStackView
   Resources/   Localizable.xcstrings
 android/app/src/main/java/top/youngxhui/rememberyao/
   core/       domain（纯函数 + Decisions + Repository 接口）+ data/repository（Store）+ model + notification + l10n

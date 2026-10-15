@@ -32,6 +32,7 @@ import { useTranslation } from "@/i18n";
 import {
   addDays,
   medicationUnitLabel,
+  stockLevel,
   stockSummary,
   takeReminder,
   todayKey,
@@ -309,6 +310,8 @@ export function ReminderCardStack({
     const person = persons.find((p) => p.id === reminder.personId);
     const plan = plans.find((p) => p.id === reminder.planId);
     const summary = medication ? stockSummary(medication, plans) : null;
+    // 未设置库存（快速添加只建提醒）：卡片不显示「剩 0 天」这种误导
+    const stockUnset = medication ? stockLevel(medication) === "unset" : false;
     const unit = medication
       ? medicationUnitLabel(medication.unit, t)
       : t("medication.unitTablet");
@@ -329,7 +332,9 @@ export function ReminderCardStack({
     }
 
     let stockLine = t("plan.endDateUnlimited");
-    if (daysLeft !== null) {
+    if (stockUnset) {
+      stockLine = t("medication.stockUnset");
+    } else if (daysLeft !== null) {
       stockLine = t("records.stockDaysLeft", { days: daysLeft });
     } else if (plan?.endDate) {
       const endMonth = Number(plan.endDate.slice(5, 7));
@@ -352,7 +357,7 @@ export function ReminderCardStack({
       accent: person?.avatarColor ?? theme.primary,
       freqLine: t("plan.perDay", { count: plan?.times.length ?? 1 }),
       stockLine,
-      stockLow: summary?.low ?? false,
+      stockLow: !stockUnset && (summary?.low ?? false),
     };
   };
 

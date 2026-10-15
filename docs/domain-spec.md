@@ -36,6 +36,7 @@
 | id | String | 主键 |
 | name | String | 姓名 |
 | avatarColor | String | 头像底色 `#rrggbb` |
+| avatarUri | String? | 头像照片本地 URI；`null` = 没有照片，界面退回底色 + 首字 |
 | gender | Gender? | `male` / `female` / `other`，未填写为 null |
 | age | Int? | 周岁，未填写为 null |
 | allergies | [String] | 过敏原列表 |
@@ -143,6 +144,9 @@
 | `MAX_PACK_COUNT` | 20 | 补货板数上限 |
 | `MAX_PENDING_NOTIFICATIONS` | 60 | iOS「待触发通知」硬上限 64，留 4 条余量给即时通知；只排最近的这么多条 |
 | `PERSON_AVATAR_COLORS` | `#0F766E #D97706 #DC2626 #2563EB #7C3AED #DB2777` | 头像色板 |
+| `SELF_PERSON_ID` | `"self"` | 默认用药人固定 id |
+| `DEFAULT_PERSON_NAMES` | `{"自己", "Self"}` | 各语言默认名集合（首启创建 / 语言切换刷新用） |
+| `defaultPersonName()` | 当前语言下的默认名 | `zh` -> `"自己"`，`en` -> `"Self"` |
 
 `DEFAULT_MEDICATION_CATEGORY = chronic`
 
@@ -295,6 +299,30 @@ inQuietHours(settings, "HH:MM"):
   start > end  -> t >= start || t < end        // 跨零点拆两段
 ```
 
+### 3.9 药品库筛选（读侧纯函数）
+
+```
+// 筛选维度，顺序即 chip 行的视觉顺序
+MedicaFilter = all | chronic | acute | supplement | low
+
+medicaVisible(m, filter, query):
+  filter == category(c) -> m.category == c
+  filter == low         -> stockLevel(m) != ok && m.totalQuantity > 0
+  filter == all         -> true
+  && (query 为空 || m.name 包含 query，忽略大小写)
+```
+
+> 用途分类维度互斥，「库存不足」跨分类；搜索词与维度同时生效（AND）。
+> `totalQuantity == 0`（没记库存）**不**进「库存不足」—— 快速添加的药还没记
+> 库存，不该被筛进去；注意这与 3.5 里 `stockLevel` 把 0 总量判成 `critical`
+> 不矛盾：分级是「显示」，这里是「筛不筛」。
+>
+> 三个端的同名实现：Expo `buildMedicationCards`（`expo/src/screens/medica/`）、
+> iOS `MedicaListViewController.filteredMedications()`、
+> Android `MedicaListScreen` 的 `matchesFilter`。UI 形态两端各自原生
+> （iOS `FilterChipRow` 液态玻璃胶囊横滑行、Android 相连 `FilterChip` 组横滑），
+> 维度集合与命中规则必须一致。
+
 ---
 
 ## 4. 状态机与写操作
@@ -365,10 +393,30 @@ decideSkip(reminder) -> Reminder?
 
 ### 4.6 用药人 CRUD
 
-- `decideAddPerson(input)`：`avatarColor = pickAvatarColor(name)`，`name` 去空格。
+- `decideAddPerson(input)`：`avatarColor = pickAvatarColor(name)`，`name` 去空格；`avatarUri` 透传。
 - `decideUpdatePerson(p, name?, gender?, age?, allergies?, conditions?)`：
   只覆盖传入字段，`nil` = 不改。
 - `deletePerson(id)`（Store 级联）：删 plans / reminders；**usages 永久保留**。
+  `id == SELF_PERSON_ID` 时静默返回，保护默认用户。
+
+### 4.6.1 默认用药人（「自己」）
+
+`ensureDefaultPerson()` 在首启 / 语言切换时调用，行为：
+
+1. 没有任何用药人时，创建 id 为 `SELF_PERSON_ID`、名字为当前语言默认名的记录。
+2. 已存在 `SELF_PERSON_ID` 且名字仍是**任意语言默认名**时，按当前界面语言刷新名字。
+3. 名字已被用户改过（不在 `DEFAULT_PERSON_NAMES` 集合里）时，不动。
+
+默认用户**不可删除**（Store 层保护）：
+界面把「自己」单独放在家庭成员区块之上，标记为「本人」/ `Me`，
+不显示删除入口；家庭成员区块独立管理。
+
+### 4.6.2 快捷加药
+
+`addMedicationWithPlan(name, doseAmount, times)`：
+创建一个最小药品（`type=bottle, category=chronic, totalQuantity=0`）
+加一条 `personId=SELF_PERSON_ID` 的默认配置，单事务内完成，
+返回 `(medication, plan)`。
 
 ### 4.7 配置 CRUD
 

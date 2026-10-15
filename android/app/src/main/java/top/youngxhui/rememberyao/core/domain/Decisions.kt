@@ -59,7 +59,9 @@ data class PersonInput(
     val gender: top.youngxhui.rememberyao.core.model.Gender? = null,
     val age: Int? = null,
     val allergies: List<String> = emptyList(),
-    val underlyingConditions: List<String> = emptyList()
+    val underlyingConditions: List<String> = emptyList(),
+    /** 头像照片本地 URI；`null` 表示没有照片。 */
+    val avatarUri: String? = null
 )
 
 /** 新建用药配置的入参。 */
@@ -421,6 +423,7 @@ fun decideAddPerson(input: PersonInput, now: String = Iso8601.now()): Person = P
     name = input.name.trim(),
     // 头像底色按姓名 hash 取色：同名同色，稳定，且不受他人增删影响
     avatarColor = pickAvatarColor(input.name),
+    avatarUri = input.avatarUri,
     gender = input.gender,
     age = input.age,
     allergies = input.allergies,

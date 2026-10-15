@@ -83,19 +83,23 @@ public struct PersonInput: Sendable {
   public var age: Int?
   public var allergies: [String]
   public var underlyingConditions: [String]
+  /// 头像照片本地 URI；`nil` 表示没有照片。
+  public var avatarUri: String? = nil
 
   public init(
     name: String,
     gender: Gender? = nil,
     age: Int? = nil,
     allergies: [String] = [],
-    underlyingConditions: [String] = []
+    underlyingConditions: [String] = [],
+    avatarUri: String? = nil
   ) {
     self.name = name
     self.gender = gender
     self.age = age
     self.allergies = allergies
     self.underlyingConditions = underlyingConditions
+    self.avatarUri = avatarUri
   }
 }
 
@@ -527,13 +531,13 @@ public func decideAddPerson(_ input: PersonInput, now: String = ISO8601.now()) -
   Person(
     id: ID.generate(),
     name: input.name.trimmingCharacters(in: .whitespacesAndNewlines),
-    // 头像底色按姓名 hash 取色：同名同色，稳定，且不受他人增删影响
     avatarColor: pickAvatarColor(name: input.name),
     gender: input.gender,
     age: input.age,
     allergies: input.allergies,
     underlyingConditions: input.underlyingConditions,
-    createdAt: now
+    createdAt: now,
+    avatarUri: input.avatarUri
   )
 }
 

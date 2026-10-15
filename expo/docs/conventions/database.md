@@ -22,7 +22,7 @@ src/db/
 | 表 | 说明 | 索引 |
 | --- | --- | --- |
 | `medications` | 药品 + 库存 | PK |
-| `persons` | 用药人 | PK |
+| `persons` | 用药人（`avatar_uri` = 本地照片文件路径，null 表示没照片） | PK |
 | `plans` | 用药配置 | `medication_id`、`person_id` |
 | `reminders` | 按天生成的单次提醒 | `date`、`plan_id`、**UNIQUE `(plan_id, date, time)`** |
 | `usages` | 服用记录（快照） | `taken_at`、`reminder_id` |
@@ -108,6 +108,14 @@ useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
 `user_version` 只在建表成功后才写入，中途失败会让版本停留在旧值，下次启动重来。
 开库时固定设 `journal_mode = WAL`（并发读性能）和 `foreign_keys = ON`。
+
+**版本号之外还有一道列名兜底。** 版本号只证明「上次重建过」，证明不了表还是那个
+形状：跑过一版「改了版本号但 CREATE_TABLES 还没改」的包时，`user_version` 已经
+是新值，重建会被跳过，之后写库直接撞 `no such column named xxx`（极难排查）。
+所以开库时除了比版本号，还会用 `PRAGMA table_info` 逐表比对 `schema.ts` 推导出的
+列名（列名从 drizzle 的内部 symbol 取，不手写第二份清单），缺列就整库重建。
+取不到列名（升级 drizzle 改了内部结构）时跳过这道检查，退回只比版本号的老行为 ——
+不会因为读不懂内部结构就把库反复删掉。
 
 ## 并发
 

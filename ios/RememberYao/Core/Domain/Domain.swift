@@ -56,6 +56,20 @@ public enum Domain {
   public static let deletedMedicationName = "已删除的药品"
   /// 用药人已被删除时的历史占位名。
   public static let deletedPersonName = "已删除的用药人"
+
+  /// 默认用药人（「自己」）的固定 id。
+  public static let selfPersonId = "self"
+
+  /// 默认用药人在各语言下的名字：首启动创建、语言切换时按当前界面语言刷新。
+  public static let defaultPersonNames: Set<String> = ["自己", "Self"]
+
+  /// 当前语言下的默认用药人名字。
+  public static func defaultPersonName(for language: Language) -> String {
+    switch language {
+    case .zh: return "自己"
+    case .en: return "Self"
+    }
+  }
 }
 
 // MARK: - 稳定 hash 取色
@@ -183,6 +197,14 @@ public enum Clock {
   /// 取前 n 个默认时间。
   public static func defaultTimes(_ count: Int) -> [String] {
     Array(Domain.defaultTimes.prefix(max(0, count)))
+  }
+
+  /// `"HH:MM"` 是否合法。配置次数、免打扰时段共用，避免各屏各写一份。
+  public static func isValidTime(_ value: String) -> Bool {
+    let parts = value.split(separator: ":")
+    guard parts.count == 2, let hour = Int(parts[0]), let minute = Int(parts[1])
+    else { return false }
+    return (0...23).contains(hour) && (0...59).contains(minute)
   }
 }
 

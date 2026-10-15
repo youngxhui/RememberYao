@@ -46,4 +46,45 @@ extension UIViewController {
       UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
     present(alert, anchoredTo: sourceView ?? view, animated: true)
   }
+
+  /// 弹一个内嵌 `UIDatePicker` 的 actionSheet。
+  ///
+  /// 通过未文档化的 `contentViewController` 把选择器塞进 alert：系统没有
+  /// 公开的「actionSheet + 日期」组合，三处表单都要同一套，收到这里。
+  func presentDatePicker(
+    titleKey: String,
+    current: String?,
+    maximumDate: Date? = nil,
+    showsClear: Bool = false,
+    onPicked: @escaping (String) -> Void,
+    onClear: (() -> Void)? = nil
+  ) {
+    let picker = UIDatePicker()
+    picker.datePickerMode = .date
+    picker.preferredDatePickerStyle = .inline
+    picker.maximumDate = maximumDate
+    if let current, let date = DateKey.date(current) {
+      picker.date = date
+    }
+    let alert = UIAlertController(
+      title: L10n.shared.t(titleKey), message: nil, preferredStyle: .actionSheet)
+    let container = UIViewController()
+    container.view = picker
+    container.preferredContentSize = CGSize(
+      width: view.bounds.width - Theme.Space.xl, height: 420)
+    alert.setValue(container, forKey: "contentViewController")
+    alert.addAction(
+      UIAlertAction(title: L10n.shared.t("common.done"), style: .default) { _ in
+        onPicked(DateKey.key(picker.date))
+      })
+    if showsClear {
+      alert.addAction(
+        UIAlertAction(title: L10n.shared.t("common.clear"), style: .destructive) { _ in
+          onClear?()
+        })
+    }
+    alert.addAction(
+      UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
+    present(alert, anchoredTo: view, animated: true)
+  }
 }

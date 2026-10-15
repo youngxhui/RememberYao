@@ -1,5 +1,12 @@
 import UIKit
 
+enum MedicaFormSection: Int {
+  case basic
+  case stock
+  case other
+  case blister
+}
+
 enum MedicaFormRow: Hashable {
   case name
   case specification
@@ -14,7 +21,6 @@ enum MedicaFormRow: Hashable {
   case blisterRows
   case blisterCols
   case blisterPackCount
-  case save
 }
 
 /// 添加 / 编辑药品。
@@ -47,10 +53,6 @@ final class MedicaFormViewController: FormScreenViewController<MedicaFormRow>, V
     self.viewModel = viewModel
 
     super.init(nibName: nil, bundle: nil)
-  }
-
-  override func viewModelDataChanged() {
-    reloadRows()
   }
 
   @available(*, unavailable)
@@ -91,131 +93,153 @@ final class MedicaFormViewController: FormScreenViewController<MedicaFormRow>, V
   }
 
   override func buildRows() -> [SectionKey: [MedicaFormRow]] {
-    var rows: [MedicaFormRow] = [
-      .name, .specification, .type, .category, .unit,
-      .totalQuantity, .remainingQuantity, .expiryDate, .prescription, .notes,
+    var rows: [SectionKey: [MedicaFormRow]] = [
+      MedicaFormSection.basic.rawValue: [.name, .specification, .type, .category, .unit],
+      MedicaFormSection.stock.rawValue: [.totalQuantity, .remainingQuantity, .expiryDate],
+      MedicaFormSection.other.rawValue: [.prescription, .notes],
     ]
     // 板装药才显示孪生规格。编辑已建孪生的药时，规格只影响之后补充的新板
     if type == .blister {
-      rows.append(contentsOf: [.blisterRows, .blisterCols, .blisterPackCount])
+      rows[MedicaFormSection.blister.rawValue] = [
+        .blisterRows, .blisterCols, .blisterPackCount,
+      ]
     }
-    return [SectionKey.form: rows]
+    return rows
   }
 
-  override func field(for row: MedicaFormRow) -> FieldCell.Field? {
-    switch row {
-    case .name:
-      return FieldCell.Field(
-        id: "name", labelKey: "medication.name", value: name,
-        placeholderKey: "medication.namePlaceholder")
-    case .specification:
-      return FieldCell.Field(
-        id: "specification", labelKey: "medication.specification",
-        value: specification, placeholderKey: "medication.specificationPlaceholder")
-    case .type:
-      return FieldCell.Field(
-        id: "type", labelKey: "medication.type", value: L10n.typeLabel(type),
-        readOnly: true)
-    case .category:
-      return FieldCell.Field(
-        id: "category", labelKey: "medication.categoryField",
-        value: L10n.categoryLabel(category), readOnly: true)
-    case .unit:
-      return FieldCell.Field(
-        id: "unit", labelKey: "medication.unit", value: L10n.unitLabel(unit),
-        readOnly: true)
-    case .totalQuantity:
-      return FieldCell.Field(
-        id: "total", labelKey: "medication.totalStock", value: totalQuantity,
-        placeholderKey: "medication.totalStockPlaceholder",
-        keyboardType: .numberPad)
-    case .remainingQuantity:
-      return FieldCell.Field(
-        id: "remaining", labelKey: "medication.currentStock", value: remainingQuantity,
-        placeholderKey: "medication.currentStockPlaceholder",
-        keyboardType: .numberPad)
-    case .expiryDate:
-      return FieldCell.Field(
-        id: "expiry", labelKey: "medication.expiryDate",
-        value: expiryDate ?? L10n.shared.t("medication.expiryUnset"), readOnly: true)
-    case .notes:
-      return FieldCell.Field(
-        id: "notes", labelKey: "medication.notes", value: notes,
-        placeholderKey: "medication.notesFieldPlaceholder")
-    case .blisterRows:
-      return FieldCell.Field(
-        id: "blisterRows", labelKey: "medication.blisterRows", value: blisterRows,
-        placeholderKey: "medication.blisterRowsPlaceholder",
-        keyboardType: .numberPad)
-    case .blisterCols:
-      return FieldCell.Field(
-        id: "blisterCols", labelKey: "medication.blisterCols", value: blisterCols,
-        placeholderKey: "medication.blisterColsPlaceholder",
-        keyboardType: .numberPad)
-    case .blisterPackCount:
-      return FieldCell.Field(
-        id: "blisterPackCount", labelKey: "medication.blisterPackCount",
-        value: blisterPackCount,
-        placeholderKey: "medication.blisterPackCountPlaceholder",
-        keyboardType: .numberPad)
-    case .prescription, .save:
+  override func sectionTitle(for section: SectionKey) -> String? {
+    switch section {
+    case MedicaFormSection.basic.rawValue:
+      return L10n.shared.t("medication.sectionBasic")
+    case MedicaFormSection.stock.rawValue:
+      return L10n.shared.t("medication.sectionStockManage")
+    case MedicaFormSection.other.rawValue:
+      return L10n.shared.t("medication.sectionOther")
+    case MedicaFormSection.blister.rawValue:
+      return L10n.shared.t("twin.title")
+    default:
       return nil
     }
   }
 
-  override func configureAction(_ cell: UITableViewCell, for row: MedicaFormRow) {
-    var content = UIListContentConfiguration.cell()
+  override func spec(for row: MedicaFormRow) -> FormRowSpec {
     switch row {
-    case .prescription:
-      content.text = L10n.shared.t("medication.prescription")
-      content.secondaryText = L10n.shared.t(
-        prescription ? "medication.prescriptionYes" : "medication.prescriptionNo")
-      // 布尔开关用原生 UISwitch 嵌单元格右侧
-      let toggle = UISwitch()
-      toggle.isOn = prescription
-      toggle.accessibilityIdentifier = "medica-prescription-switch"
-      toggle.addTarget(self, action: #selector(prescriptionChanged), for: .valueChanged)
-      cell.accessoryView = toggle
-      cell.accessibilityIdentifier = "medica-prescription-row"
+    case .name:
+      return .input(
+        FieldCell.Field(
+          id: "name", labelKey: "medication.name", value: name,
+          placeholderKey: "medication.namePlaceholder")
+      ) { [weak self] in self?.name = $0 }
 
-    default:
-      content.text = L10n.shared.t("common.empty")
-      cell.accessoryView = nil
-    }
-    cell.contentConfiguration = content
-  }
+    case .specification:
+      return .input(
+        FieldCell.Field(
+          id: "specification", labelKey: "medication.specification",
+          value: specification, placeholderKey: "medication.specificationPlaceholder")
+      ) { [weak self] in self?.specification = $0 }
 
-  override func didSelect(_ row: MedicaFormRow, at indexPath: IndexPath) {
-    switch row {
     case .type:
-      chooseType(sourceCell: tableView.cellForRow(at: indexPath))
+      return .picker(
+        FieldCell.Field(
+          id: "type", labelKey: "medication.type", value: L10n.typeLabel(type),
+          readOnly: true)
+      ) { [weak self] indexPath in
+        self?.chooseType(sourceCell: self?.tableView.cellForRow(at: indexPath))
+      }
+
     case .category:
-      chooseCategory(sourceCell: tableView.cellForRow(at: indexPath))
+      return .picker(
+        FieldCell.Field(
+          id: "category", labelKey: "medication.categoryField",
+          value: L10n.categoryLabel(category), readOnly: true)
+      ) { [weak self] indexPath in
+        self?.chooseCategory(sourceCell: self?.tableView.cellForRow(at: indexPath))
+      }
+
     case .unit:
-      chooseUnit(sourceCell: tableView.cellForRow(at: indexPath))
+      return .picker(
+        FieldCell.Field(
+          id: "unit", labelKey: "medication.unit", value: L10n.unitLabel(unit),
+          readOnly: true)
+      ) { [weak self] indexPath in
+        self?.chooseUnit(sourceCell: self?.tableView.cellForRow(at: indexPath))
+      }
+
+    case .totalQuantity:
+      return .input(
+        FieldCell.Field(
+          id: "total", labelKey: "medication.totalStock", value: totalQuantity,
+          placeholderKey: "medication.totalStockPlaceholder",
+          keyboardType: .numberPad)
+      ) { [weak self] in self?.totalQuantity = $0 }
+
+    case .remainingQuantity:
+      return .input(
+        FieldCell.Field(
+          id: "remaining", labelKey: "medication.currentStock",
+          value: remainingQuantity,
+          placeholderKey: "medication.currentStockPlaceholder",
+          keyboardType: .numberPad)
+      ) { [weak self] in self?.remainingQuantity = $0 }
+
     case .expiryDate:
-      chooseExpiryDate()
-    default:
-      break
-    }
-  }
+      return .picker(
+        FieldCell.Field(
+          id: "expiry", labelKey: "medication.expiryDate",
+          value: expiryDate ?? L10n.shared.t("medication.expiryUnset"),
+          readOnly: true)
+      ) { [weak self] _ in self?.chooseExpiryDate() }
 
-  // MARK: - 值收集
-  // FieldCell 的闭包由基类在 cellProvider 里挂上，这里按行分发回表单字段
+    case .notes:
+      return .input(
+        FieldCell.Field(
+          id: "notes", labelKey: "medication.notes", value: notes,
+          placeholderKey: "medication.notesFieldPlaceholder")
+      ) { [weak self] in self?.notes = $0 }
 
-  override func setValue(_ value: String, for row: MedicaFormRow) {
-    switch row {
-    case .name: name = value
-    case .specification: specification = value
-    case .totalQuantity: totalQuantity = value
-    case .remainingQuantity: remainingQuantity = value
-    case .notes: notes = value
-    case .blisterRows: blisterRows = value
-    case .blisterCols: blisterCols = value
-    case .blisterPackCount: blisterPackCount = value
-    default: break
+    case .blisterRows:
+      return .input(
+        FieldCell.Field(
+          id: "blisterRows", labelKey: "medication.blisterRows", value: blisterRows,
+          placeholderKey: "medication.blisterRowsPlaceholder",
+          keyboardType: .numberPad)
+      ) { [weak self] in self?.blisterRows = $0 }
+
+    case .blisterCols:
+      return .input(
+        FieldCell.Field(
+          id: "blisterCols", labelKey: "medication.blisterCols", value: blisterCols,
+          placeholderKey: "medication.blisterColsPlaceholder",
+          keyboardType: .numberPad)
+      ) { [weak self] in self?.blisterCols = $0 }
+
+    case .blisterPackCount:
+      return .input(
+        FieldCell.Field(
+          id: "blisterPackCount", labelKey: "medication.blisterPackCount",
+          value: blisterPackCount,
+          placeholderKey: "medication.blisterPackCountPlaceholder",
+          keyboardType: .numberPad)
+      ) { [weak self] in self?.blisterPackCount = $0 }
+
+    case .prescription:
+      return .action { [weak self] cell in
+        guard let self else { return }
+        var content = UIListContentConfiguration.cell()
+        content.text = L10n.shared.t("medication.prescription")
+        content.secondaryText = L10n.shared.t(
+          self.prescription ? "medication.prescriptionYes" : "medication.prescriptionNo")
+        let toggle = ClosureSwitch(
+          isOn: self.prescription, identifier: "medica-prescription-switch")
+        toggle.onChange = { [weak self] isOn in
+          self?.prescription = isOn
+          self?.reloadRows()
+        }
+        cell.accessoryView = toggle
+        cell.accessibilityIdentifier = "medica-prescription-row"
+        cell.contentConfiguration = content
+      }
     }
-    primaryButton.setNeedsUpdateConfiguration()
   }
 
   // MARK: - 选择器
@@ -267,44 +291,19 @@ final class MedicaFormViewController: FormScreenViewController<MedicaFormRow>, V
   }
 
   private func chooseExpiryDate() {
-    let picker = UIDatePicker()
-    picker.datePickerMode = .date
-    picker.preferredDatePickerStyle = .inline
-    if let expiryDate, let date = DateKey.date(expiryDate) {
-      picker.date = date
-    }
-    let alert = UIAlertController(
-      title: L10n.shared.t("medication.expiryDate"), message: nil,
-      preferredStyle: .actionSheet)
-    // actionSheet 里嵌日期选择器是 iOS 原生做法，比推一个新页面轻
-    let container = UIViewController()
-    container.view = picker
-    container.preferredContentSize = CGSize(
-      width: view.bounds.width - Theme.Space.xl, height: 420)
-    alert.setValue(container, forKey: "contentViewController")
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.done"), style: .default) { [weak self] _ in
-        self?.expiryDate = DateKey.key(picker.date)
+    presentDatePicker(
+      titleKey: "medication.expiryDate",
+      current: expiryDate,
+      showsClear: true,
+      onPicked: { [weak self] key in
+        self?.expiryDate = key
         self?.reloadRows()
-      })
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.clear"), style: .destructive) {
-        [weak self] _ in
+      },
+      onClear: { [weak self] in
         self?.expiryDate = nil
         self?.reloadRows()
-      })
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
-    if let popover = alert.popoverPresentationController {
-      popover.sourceView = view
-      popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
-    }
-    present(alert, animated: true)
-  }
-
-  @objc private func prescriptionChanged(_ sender: UISwitch) {
-    prescription = sender.isOn
-    reloadRows()
+      }
+    )
   }
 
   // MARK: - 保存

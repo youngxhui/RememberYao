@@ -1,3 +1,4 @@
+import { Observe } from "expo-observe";
 import {
   useCallback,
   useEffect,
@@ -66,6 +67,7 @@ import { getTranslator, LANGUAGES, translatorFor, type Language } from "@/i18n";
 import {
   addDays,
   dateToTime,
+  DEFAULT_MEDICATION_CATEGORY,
   DEFAULT_SETTINGS,
   nextFullSlots,
   pickAvatarColor,
@@ -139,6 +141,9 @@ async function mutate(fn: (tx: Tx) => Promise<void>): Promise<void> {
     .then(() => withTransaction(fn))
     .catch((error) => {
       console.warn("数据写入失败", error);
+      // 事务已整体回滚、屏幕随后 reload 会看到操作未生效 —— 属于已恢复的
+      // 失败，上报到 Observe 以便在仪表盘里发现（本地库不该写失败）
+      Observe.reportError(error);
     });
   await writeQueue;
   // 即便本次写入失败也重排一次：通知必须和库里的真实状态一致
@@ -828,6 +833,62 @@ export async function addMedication(
   return medication;
 }
 
+/**
+ * 快速添加：一个事务建好「药品 + 一条用药配置 + 未来 7 天提醒」。
+ *
+ * 面向首次使用的核心路径（产品方案第三节「方案 A」）：用户只提供药名与服药
+ * 时间，库存、规格、备注等档案信息一律留到药品详情里按需补，不挡在提醒之前。
+ * 因此这里只落提醒所必需的字段：药品名 + 默认包装 / 分类 / 单位；配置固定给
+ * 传入的用药人（默认「自己」）、每次 1 单位、长期、启用。
+ *
+ * 库存保持 0/0 —— `stockLevel` 据此判为 unset（未设置），新药不会一进药品库
+ * 就被显示成「告急」。剂量默认 1 只是占位：用户没填剂量就不该凭空假设，
+ * 之后在 plan-form 里按医嘱改。
+ */
+export async function addMedicationWithPlan(input: {
+  name: string;
+  personId: string;
+  times: string[];
+  doseAmount: number;
+}): Promise<{ medication: Medication; plan: MedicationPlan }> {
+  const now = nowIso();
+  const medication: Medication = {
+    id: genId(),
+    name: input.name.trim(),
+    type: "bottle",
+    category: DEFAULT_MEDICATION_CATEGORY,
+    specification: "",
+    unit: "tablet",
+    totalQuantity: 0,
+    remainingQuantity: 0,
+    blisterRows: null,
+    blisterCols: null,
+    expiryDate: null,
+    prescription: false,
+    notes: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const plan: MedicationPlan = {
+    id: genId(),
+    medicationId: medication.id,
+    personId: input.personId,
+    doseAmount: input.doseAmount,
+    times: input.times,
+    startDate: todayKey(),
+    endDate: null,
+    enabled: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await mutate(async (tx) => {
+    await insertMedication(medication, tx);
+    await insertPlan(plan, tx);
+    await regeneratePlanReminders(plan, tx);
+  });
+  return { medication, plan };
+}
+
 export async function updateMedication(
   id: string,
   patch: Partial<Omit<Medication, "id" | "createdAt">>,
@@ -876,6 +937,7 @@ export type PersonInput = {
   age?: number;
   allergies?: string[];
   underlyingConditions?: string[];
+  avatarUri?: string;
 };
 
 /**
@@ -926,6 +988,7 @@ export async function addPerson(input: PersonInput): Promise<Person> {
     underlyingConditions: input.underlyingConditions ?? [],
     // 头像底色按姓名 hash 取色：同名同色，稳定，且不受他人增删影响
     avatarColor: pickAvatarColor(input.name),
+    avatarUri: input.avatarUri,
     createdAt: nowIso(),
   };
   await mutate(async (tx) => {
@@ -949,6 +1012,8 @@ export async function updatePerson(
     age?: number;
     allergies?: string[];
     underlyingConditions?: string[];
+    /** 换照片传新 URI；移除照片显式传 null（undefined 表示不改） */
+    avatarUri?: string | null;
   },
 ): Promise<void> {
   await mutate(async (tx) => {
@@ -961,6 +1026,7 @@ export async function updatePerson(
 /** 删除用药人：级联删除配置和提醒；服用记录作为历史永久保留 */
 export async function deletePerson(id: string): Promise<void> {
   await mutate(async (tx) => {
+    const person = await getPerson(id, tx);
     const ownPlans = await listPlansForPerson(id, tx);
     if (ownPlans.length > 0) {
       await deleteRemindersForPlans(
@@ -970,6 +1036,17 @@ export async function deletePerson(id: string): Promise<void> {
     }
     await deletePlansForPerson(id, tx);
     await deletePersonRow(id, tx);
+    // 头像照片是文件、不随行删除：人没了就把沙盒里的图一并清掉，别留孤儿。
+    // 动态 import 是故意的：头像依赖 image-picker / image-manipulator /
+    // file-system 三个原生模块，静态引用会让缺模块的构建把整个数据层带崩
+    // （store 是 App 的唯一数据入口，不能被可选能力拖下水），且删文件失败
+    // 不该让删成员整笔回滚
+    try {
+      const { deleteAvatarPhoto } = await import("@/lib/avatar-photo");
+      if (person?.avatarUri) await deleteAvatarPhoto(person.avatarUri);
+    } catch {
+      // 文件本来就可能不在（用户清过沙盒、换图时删过）
+    }
   });
 }
 
@@ -1205,8 +1282,10 @@ function useQuery<T>(
         // 旧响应直接丢弃（否则聚焦刷新会把自动重查的结果覆盖成旧数据）
         if (!cancelled && seq === seqRef.current) setData(result);
       } catch (error) {
-        // 读失败保留上一份数据：屏幕走 empty / error 态而不是白屏
+        // 读失败保留上一份数据：屏幕走 empty / error 态而不是白屏。
+        // 已恢复但不应发生 —— 上报到 Observe
         console.warn("数据读取失败", error);
+        Observe.reportError(error);
       }
       if (!cancelled && seq === seqRef.current) {
         loadedRef.current = true;

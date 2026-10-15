@@ -7,13 +7,15 @@ import {
   Spacer,
   Text,
 } from "@expo/ui";
+import { useObserve } from "expo-observe";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { AvatarMark } from "@/components/avatar";
 import { MiniArchiveExpoUI } from "@/components/mini-archive";
 import { RoundIconButton } from "@/components/round-icon-button";
 import { roundedBox } from "@/components/rounded-box";
+import { settingsIcon } from "@/components/toolbar-icons";
 import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useExpoUiContentWidth } from "@/hooks/use-expo-ui-content-width";
 import { useTheme } from "@/hooks/use-theme";
@@ -70,6 +72,7 @@ export function Profile() {
   const router = useRouter();
   const theme = useTheme();
   const t = useTranslation();
+  const { markInteractive } = useObserve();
   // 按需读取：成员与配置是全集（概览卡要按人聚合），提醒取保留窗口内的历史
   const {
     data: persons,
@@ -104,6 +107,12 @@ export function Profile() {
     }, [reload]),
   );
 
+  // 深链可能直接落到本 tab：数据落地后记录一次可交互时刻。
+  // 同一会话里只有第一次调用生效，正常从首页进来的会话不会重复记
+  useEffect(() => {
+    if (!loading) markInteractive();
+  }, [loading, markInteractive]);
+
   const today = todayKey();
   // 「本周」只统计到今天：周一到周日的完整区间会把还没到的剂量算成应服未服
   const stats = useMemo(
@@ -134,9 +143,12 @@ export function Profile() {
     <>
       <Stack.Title large>{t("profile.title")}</Stack.Title>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => router.push("/profile/settings")}>
-          <Stack.Toolbar.Icon sf="gearshape" />
-          <Stack.Toolbar.Label>设置</Stack.Toolbar.Label>
+        <Stack.Toolbar.Button
+          icon={settingsIcon}
+          accessibilityLabel={t("settings.title")}
+          onPress={() => router.push("/profile/settings")}
+        >
+          <Stack.Toolbar.Label>{t("settings.title")}</Stack.Toolbar.Label>
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Host
@@ -151,8 +163,6 @@ export function Profile() {
           showsIndicators={false}
           style={{
             backgroundColor: theme.canvas,
-            paddingTop: Spacing.three,
-            paddingBottom: Spacing.five,
           }}
         >
           {/* 原生 ScrollView 会在「直接子元素」之间塞入约 56pt 的固定间距
@@ -461,7 +471,7 @@ function MemberCard({
     <Column
       style={{
         ...box.style,
-        padding: Spacing.three,
+        // padding: Spacing.three,
       }}
       modifiers={box.modifiers}
     >
@@ -469,7 +479,12 @@ function MemberCard({
         testID={`profile-member-${person.id}`}
         onPress={onPress}
         leading={
-          <AvatarMark color={person.avatarColor} name={person.name} size={44} />
+          <AvatarMark
+            color={person.avatarColor}
+            name={person.name}
+            uri={person.avatarUri}
+            size={44}
+          />
         }
         supportingText={
           <Text

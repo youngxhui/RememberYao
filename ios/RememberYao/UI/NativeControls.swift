@@ -1,67 +1,64 @@
 import UIKit
 
+/// 带闭包回调的 `UIButton`。界面上随手放按钮用，不必再写 target-action。
+final class ClosureButton: UIButton {
+  var onTap: (() -> Void)?
+
+  init(identifier: String, onTap: @escaping () -> Void) {
+    super.init(frame: .zero)
+    self.accessibilityIdentifier = identifier
+    self.onTap = onTap
+    addTarget(self, action: #selector(tapped), for: .touchUpInside)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError() }
+
+  @objc private func tapped() {
+    onTap?()
+  }
+}
+
 /// 少量原生控件的薄封装。
 ///
-/// 刻意保持薄：能直接用 `UIButton` / `UITableViewCell` 的地方就直接用，这里只收
-/// 「每次都要重写一遍的那几行」—— 本地化标题、圆角、禁用态。不做设计系统，
-/// 也不自造 chip / 卡片 / 输入盒（那些在 UIKit 侧都有原生对应物）。
+/// 只收「每次都要重写一遍的那几行」。单选走 `presentSingleChoice`，
+/// 日期走 `presentDatePicker`，都在 `Presenters.swift`。
 @MainActor
 public enum NativeControls {
 
-  /// 主操作按钮。系统 `filled` 样式 + 本地化标题。
-  public static func filledButton(
-    titleKey: String, target: Any?, action: Selector
-  ) -> UIButton {
+  enum ButtonRole {
+    case filled
+    case destructive
+  }
+
+  /// 界面上的胶囊主按钮。标题、品牌色、测试标识、点击一次给齐。
+  ///
+  /// 放进视图后自己约束位置；钉在底部安全区用 `UIView.pinBottomCapsule`。
+  /// 导航栏按钮走 `UIBarButtonItem`，表单行内按钮走 `FormRowSpec.button`。
+  static func filledButton(
+    titleKey: String,
+    identifier: String,
+    role: ButtonRole = .filled,
+    onTap: @escaping () -> Void
+  ) -> ClosureButton {
     var configuration = UIButton.Configuration.filled()
     configuration.title = L10n.shared.t(titleKey)
     configuration.cornerStyle = .capsule
     configuration.contentInsets = NSDirectionalEdgeInsets(
       top: Theme.Space.md, leading: Theme.Space.xl, bottom: Theme.Space.md,
       trailing: Theme.Space.xl)
-    let button = UIButton(type: .system)
+    switch role {
+    case .filled:
+      configuration.baseBackgroundColor = Theme.Color.primary
+      configuration.baseForegroundColor = Theme.Color.onPrimary
+    case .destructive:
+      configuration.baseBackgroundColor = Theme.Color.danger
+      configuration.baseForegroundColor = .white
+    }
+    let button = ClosureButton(identifier: identifier, onTap: onTap)
     button.configuration = configuration
-    button.addTarget(target, action: action, for: .touchUpInside)
+    button.translatesAutoresizingMaskIntoConstraints = false
     return button
-  }
-
-  /// 危险操作按钮（删除）。
-  public static func destructiveButton(
-    titleKey: String, target: Any?, action: Selector
-  ) -> UIButton {
-    var configuration = UIButton.Configuration.filled()
-    configuration.title = L10n.shared.t(titleKey)
-    configuration.cornerStyle = .capsule
-    configuration.baseBackgroundColor = Theme.Color.danger
-    configuration.baseForegroundColor = .white
-    let button = UIButton(type: .system)
-    button.configuration = configuration
-    button.addTarget(target, action: action, for: .touchUpInside)
-    return button
-  }
-
-  /// 文字标签（表单字段的 label）。
-  public static func label(_ key: String) -> UILabel {
-    let label = UILabel()
-    label.text = L10n.shared.t(key)
-    label.font = Theme.Font.caption
-    label.textColor = Theme.Color.labelSecondary
-    label.adjustsFontForContentSizeCategory = true
-    return label
-  }
-
-  /// 带圆角描边的输入框。UIKit 没有现成的「label 在上 + 盒子」组合，这一层是
-  /// 唯一值得留的自定义：它只包了 `UITextField` + 外观，不含任何业务。
-  public static func textField(placeholderKey: String, keyboardType: UIKeyboardType = .default)
-    -> UITextField
-  {
-    let field = UITextField()
-    field.borderStyle = .roundedRect
-    field.placeholder = L10n.shared.t(placeholderKey)
-    field.keyboardType = keyboardType
-    field.font = Theme.Font.body
-    field.adjustsFontForContentSizeCategory = true
-    field.heightAnchor.constraint(equalToConstant: Theme.Size.field).isActive = true
-    return field
   }
 
   /// 二次确认删除弹窗。系统 `UIAlertController`，不要自己写 modal。
@@ -84,59 +81,62 @@ public enum NativeControls {
       })
     return alert
   }
+}
 
-  /// 单选菜单。系统 `UIAlertController` 的 actionSheet 就是 iOS 原生单选器，
-  /// 比塞一个 `UIPickerView` 更符合平台习惯（设置页的间隔选择就这么做）。
-  public static func singleChoice(
-    titleKey: String,
-    options: [(key: String, value: String)],
-    selected: String?,
-    onSelect: @escaping (String) -> Void
-  ) -> UIAlertController {
-    let alert = UIAlertController(
-      title: L10n.shared.t(titleKey), message: nil, preferredStyle: .actionSheet)
-    for option in options {
-      let isSelected = option.key == selected
-      alert.addAction(
-        UIAlertAction(
-          title: option.value + (isSelected ? "  ✓" : ""), style: isSelected ? .destructive : .default
-        ) { _ in
-          onSelect(option.key)
-        })
+/// 姓名首字头像。有照片时优先用照片。
+@MainActor
+enum Avatars {
+  static func image(for person: Person) -> UIImage? {
+    if let uri = person.avatarUri, let url = URL(string: uri),
+      let photo = UIImage(contentsOfFile: url.path)
+    {
+      return photo
     }
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
-    return alert
+    return initial(for: person.name)
+  }
+
+  static func initial(for name: String) -> UIImage? {
+    let initial = String(name.prefix(1))
+    let size = CGSize(width: Theme.Size.avatar, height: Theme.Size.avatar)
+    let color = Theme.Color.hex(pickAvatarColor(name: name))
+    let renderer = UIGraphicsImageRenderer(size: size)
+    return renderer.image { _ in
+      color.setFill()
+      UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).fill()
+      let attributes: [NSAttributedString.Key: Any] = [
+        .foregroundColor: UIColor.white,
+        .font: Theme.Font.avatarInitial,
+      ]
+      let textSize = initial.size(withAttributes: attributes)
+      initial.draw(
+        in: CGRect(
+          x: (size.width - textSize.width) / 2,
+          y: (size.height - textSize.height) / 2,
+          width: textSize.width,
+          height: textSize.height
+        ),
+        withAttributes: attributes
+      )
+    }
   }
 }
 
-/// `UITableViewCell` 的原生内容配置快捷方式。
-///
-/// `UIListContentConfiguration` 已经覆盖了「主标题 + 副标题 + 图标 + 右侧值」
-/// 的全部排列，自造单元格只会丢失系统大字号与无障碍适配。
-@MainActor
-public enum CellContent {
-  public static func valueCell(title key: String, value: String? = nil) -> UIListContentConfiguration {
-    var content = UIListContentConfiguration.valueCell()
-    content.text = L10n.shared.t(key)
-    content.secondaryText = value
-    content.textProperties.color = Theme.Color.label
-    content.secondaryTextProperties.color = Theme.Color.labelSecondary
-    return content
-  }
-
-  public static func subtitleCell(title: String, subtitle: String? = nil) -> UIListContentConfiguration {
-    var content = UIListContentConfiguration.subtitleCell()
-    content.text = title
-    content.secondaryText = subtitle
-    content.textProperties.numberOfLines = 1
-    content.secondaryTextProperties.numberOfLines = 2
-    return content
-  }
-
-  public static func cell(title key: String) -> UIListContentConfiguration {
-    var content = UIListContentConfiguration.cell()
-    content.text = L10n.shared.t(key)
-    return content
+extension UIView {
+  /// 把胶囊按钮钉在底部安全区。返回底边约束，键盘顶起时改 `constant`。
+  @discardableResult
+  func pinBottomCapsule(_ button: UIButton) -> NSLayoutConstraint {
+    if button.superview !== self {
+      addSubview(button)
+    }
+    button.translatesAutoresizingMaskIntoConstraints = false
+    let bottom = button.bottomAnchor.constraint(
+      equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -Theme.Space.lg)
+    NSLayoutConstraint.activate([
+      button.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Theme.Space.page),
+      button.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Theme.Space.page),
+      button.heightAnchor.constraint(equalToConstant: Theme.Size.button),
+      bottom,
+    ])
+    return bottom
   }
 }

@@ -49,6 +49,8 @@ data class PersonEntity(
     @PrimaryKey val id: String,
     val name: String,
     val avatarColor: String,
+    /** 头像照片的本地文件 URI；`null` 表示没有照片。 */
+    val avatarUri: String?,
     val gender: Gender?,
     val age: Int?,
     /** 过敏原列表，JSON 列。 */
@@ -183,6 +185,7 @@ fun PersonEntity.toDomain(): Person = Person(
     id = id,
     name = name,
     avatarColor = avatarColor,
+    avatarUri = avatarUri,
     gender = gender,
     age = age,
     allergies = allergies,
@@ -194,6 +197,7 @@ fun Person.toEntity(): PersonEntity = PersonEntity(
     id = id,
     name = name,
     avatarColor = avatarColor,
+    avatarUri = avatarUri,
     gender = gender,
     age = age,
     allergies = allergies,

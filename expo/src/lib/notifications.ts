@@ -1,4 +1,5 @@
 import * as Notifications from "expo-notifications";
+import { Observe } from "expo-observe";
 import { Platform } from "react-native";
 
 import { getTranslator } from "@/i18n";
@@ -276,7 +277,11 @@ export function syncNotificationsWithStore(): Promise<void> {
       await notifyMissedStreaks(data);
       return undefined;
     })
-    .catch(() => {});
+    .catch((error) => {
+      // 通知重排失败不弹给用户，但下次同步前提醒会停留在旧状态 ——
+      // 属于已恢复的失败，上报到 Observe 以便发现
+      Observe.reportError(error);
+    });
   return syncChain;
 }
 

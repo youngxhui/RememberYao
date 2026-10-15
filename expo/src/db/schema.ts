@@ -44,6 +44,8 @@ export const persons = sqliteTable("persons", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   avatarColor: text("avatar_color").notNull(),
+  /** 头像照片的本地文件 URI；null = 未设置，界面退回头像底色 + 姓名首字 */
+  avatarUri: text("avatar_uri"),
   /** 性别；null = 未填写。存库是自由 TEXT，读时按 Gender 收窄 */
   gender: text("gender"),
   /** 年龄（周岁）；null = 未填写 */

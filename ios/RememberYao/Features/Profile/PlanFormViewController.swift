@@ -1,5 +1,13 @@
 import UIKit
 
+enum PlanFormSection: Int {
+  case person
+  case medications
+  case times
+  case dates
+  case status
+}
+
 enum PlanFormRow: Hashable {
   case person
   case medications
@@ -42,10 +50,6 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewM
     self.viewModel = viewModel
 
     super.init(nibName: nil, bundle: nil)
-  }
-
-  override func viewModelDataChanged() {
-    reloadRows()
   }
 
   @available(*, unavailable)
@@ -93,20 +97,43 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewM
   }
 
   override func buildRows() -> [SectionKey: [PlanFormRow]] {
-    var rows: [PlanFormRow] = []
+    var rows: [SectionKey: [PlanFormRow]] = [:]
     // 从成员详情进来时用药人定死，不再给选择器
     if fixedPersonId == nil {
-      rows.append(.person)
+      rows[PlanFormSection.person.rawValue] = [.person]
     }
+    var medications: [PlanFormRow] = []
     // 从药品详情进来时药品定死，不再给多选
     if fixedMedicationId == nil {
-      rows.append(.medications)
+      medications.append(.medications)
     }
     for medicationId in orderedSelectedMedicationIds() {
-      rows.append(.dose(medicationId: medicationId))
+      medications.append(.dose(medicationId: medicationId))
     }
-    rows.append(contentsOf: [.times, .startDate, .endDate, .enabled])
-    return [SectionKey.form: rows]
+    if !medications.isEmpty {
+      rows[PlanFormSection.medications.rawValue] = medications
+    }
+    rows[PlanFormSection.times.rawValue] = [.times]
+    rows[PlanFormSection.dates.rawValue] = [.startDate, .endDate]
+    rows[PlanFormSection.status.rawValue] = [.enabled]
+    return rows
+  }
+
+  override func sectionTitle(for section: SectionKey) -> String? {
+    switch section {
+    case PlanFormSection.person.rawValue:
+      return L10n.shared.t("plan.sectionPerson")
+    case PlanFormSection.medications.rawValue:
+      return L10n.shared.t("plan.sectionMedications")
+    case PlanFormSection.times.rawValue:
+      return L10n.shared.t("plan.sectionTimes")
+    case PlanFormSection.dates.rawValue:
+      return L10n.shared.t("plan.sectionDateRange")
+    case PlanFormSection.status.rawValue:
+      return L10n.shared.t("plan.sectionStatus")
+    default:
+      return nil
+    }
   }
 
   private func orderedSelectedMedicationIds() -> [String] {
@@ -115,107 +142,94 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewM
       .map(\.id)
   }
 
-  override func field(for row: PlanFormRow) -> FieldCell.Field? {
+  override func spec(for row: PlanFormRow) -> FormRowSpec {
     switch row {
     case .person:
       let name = personId.flatMap { id in
         viewModel.persons.first { $0.id == id }?.name
       }
-      return FieldCell.Field(
-        id: "person", labelKey: "plan.person",
-        value: name ?? L10n.shared.t("plan.personPlaceholder"),
-        readOnly: true, showsCheckmark: personId != nil)
+      return .picker(
+        FieldCell.Field(
+          id: "person", labelKey: "plan.person",
+          value: name ?? L10n.shared.t("plan.personPlaceholder"),
+          readOnly: true, showsCheckmark: personId != nil)
+      ) { [weak self] indexPath in
+        self?.choosePerson(sourceCell: self?.tableView.cellForRow(at: indexPath))
+      }
 
     case .dose(let medicationId):
       let medication = viewModel.medications.first { $0.id == medicationId }
-      return FieldCell.Field(
-        id: "dose-\(medicationId)",
-        labelKey: "plan.doseForMedication",
-        value: doses[medicationId] ?? "",
-        placeholderKey: "plan.dosePlaceholder",
-        keyboardType: .numberPad,
-        labelArgs: [
-          "name": medication?.name ?? Domain.deletedMedicationName,
-          "unit": medication.map { L10n.unitLabel($0.unit) } ?? "",
-        ]
+      return .input(
+        FieldCell.Field(
+          id: "dose-\(medicationId)",
+          labelKey: "plan.doseForMedication",
+          value: doses[medicationId] ?? "",
+          placeholderKey: "plan.dosePlaceholder",
+          keyboardType: .numberPad,
+          labelArgs: [
+            "name": medication?.name ?? Domain.deletedMedicationName,
+            "unit": medication.map { L10n.unitLabel($0.unit) } ?? "",
+          ])
+      ) { [weak self] in self?.doses[medicationId] = $0 }
+
+    case .times:
+      return .picker(
+        FieldCell.Field(
+          id: "times", labelKey: "plan.timesPerDay",
+          value: times.joined(separator: " "), readOnly: true)
+      ) { [weak self] _ in self?.chooseTimes() }
+
+    case .startDate:
+      return .picker(
+        FieldCell.Field(
+          id: "startDate", labelKey: "plan.startDate", value: startDate, readOnly: true)
+      ) { [weak self] _ in
+        guard let self else { return }
+        self.chooseDate(titleKey: "plan.startDate", current: self.startDate) { [weak self] key in
+          self?.startDate = key
+          self?.reloadRows()
+        }
+      }
+
+    case .endDate:
+      return .picker(
+        FieldCell.Field(
+          id: "endDate", labelKey: "plan.endDate",
+          value: endDate ?? L10n.shared.t("plan.endDateUnlimited"), readOnly: true)
+      ) { [weak self] _ in self?.chooseEndDate() }
+
+    case .medications:
+      return .action(
+        configure: { [weak self] cell in
+          guard let self else { return }
+          var content = UIListContentConfiguration.valueCell()
+          content.text = L10n.shared.t("plan.medicationsLabel")
+          content.secondaryText = self.doses.isEmpty
+            ? nil
+            : L10n.shared.t("plan.selectedCount", ["count": "\(self.doses.count)"])
+          cell.accessoryType = .disclosureIndicator
+          cell.accessibilityIdentifier = "plan-medication-picker"
+          cell.contentConfiguration = content
+        },
+        onSelect: { [weak self] _ in self?.presentMedicationPicker() }
       )
 
-    case .times:
-      return FieldCell.Field(
-        id: "times", labelKey: "plan.timesPerDay",
-        value: times.joined(separator: " "), readOnly: true)
-
-    case .startDate:
-      return FieldCell.Field(
-        id: "startDate", labelKey: "plan.startDate", value: startDate, readOnly: true)
-
-    case .endDate:
-      return FieldCell.Field(
-        id: "endDate", labelKey: "plan.endDate",
-        value: endDate ?? L10n.shared.t("plan.endDateUnlimited"), readOnly: true)
-
-    case .medications, .enabled:
-      return nil
-    }
-  }
-
-  override func configureAction(_ cell: UITableViewCell, for row: PlanFormRow) {
-    var content = UIListContentConfiguration.valueCell()
-    switch row {
-    case .medications:
-      let count = doses.count
-      content.text = L10n.shared.t("plan.medicationsLabel")
-      content.secondaryText = count == 0
-        ? nil
-        : L10n.shared.t("plan.selectedCount", ["count": "\(count)"])
-      cell.accessoryType = .disclosureIndicator
-      cell.accessibilityIdentifier = "plan-medication-picker"
-
     case .enabled:
-      content.text = L10n.shared.t("plan.enableLabel")
-      content.secondaryText = L10n.shared.t(
-        enabled ? "plan.enabledChip" : "plan.disabledChip")
-      let toggle = ClosureSwitch(isOn: enabled, identifier: "plan-enabled-switch")
-      toggle.onChange = { [weak self] isOn in
-        self?.enabled = isOn
-        self?.reloadRows()
+      return .action { [weak self] cell in
+        guard let self else { return }
+        var content = UIListContentConfiguration.valueCell()
+        content.text = L10n.shared.t("plan.enableLabel")
+        content.secondaryText = L10n.shared.t(
+          self.enabled ? "plan.enabledChip" : "plan.disabledChip")
+        let toggle = ClosureSwitch(isOn: self.enabled, identifier: "plan-enabled-switch")
+        toggle.onChange = { [weak self] isOn in
+          self?.enabled = isOn
+          self?.reloadRows()
+        }
+        cell.accessoryView = toggle
+        cell.accessibilityIdentifier = "plan-enabled-row"
+        cell.contentConfiguration = content
       }
-      cell.accessoryView = toggle
-      cell.accessibilityIdentifier = "plan-enabled-row"
-
-    default:
-      cell.accessoryView = nil
-    }
-    cell.contentConfiguration = content
-  }
-
-  override func setValue(_ value: String, for row: PlanFormRow) {
-    switch row {
-    case .dose(let medicationId):
-      doses[medicationId] = value
-    default:
-      break
-    }
-    primaryButton.setNeedsUpdateConfiguration()
-  }
-
-  override func didSelect(_ row: PlanFormRow, at indexPath: IndexPath) {
-    switch row {
-    case .person:
-      choosePerson(sourceCell: tableView.cellForRow(at: indexPath))
-    case .medications:
-      presentMedicationPicker()
-    case .times:
-      chooseTimes()
-    case .startDate:
-      chooseDate(titleKey: "plan.startDate", current: startDate) { [weak self] key in
-        self?.startDate = key
-        self?.reloadRows()
-      }
-    case .endDate:
-      chooseEndDate()
-    default:
-      break
     }
   }
 
@@ -283,7 +297,7 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewM
         let parsed = (alert.textFields?.first?.text ?? "")
           .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == " " })
           .map { $0.trimmingCharacters(in: .whitespaces) }
-          .filter { Self.isValidTime($0) }
+          .filter { Clock.isValidTime($0) }
         if !parsed.isEmpty {
           self.times = parsed.sorted { DateKey.compareTime($0, $1) == .orderedAscending }
         }
@@ -294,41 +308,10 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewM
     present(alert, animated: true)
   }
 
-  private static func isValidTime(_ value: String) -> Bool {
-    let parts = value.split(separator: ":")
-    guard parts.count == 2,
-      let hour = Int(parts[0]), let minute = Int(parts[1])
-    else { return false }
-    return (0...23).contains(hour) && (0...59).contains(minute)
-  }
-
   private func chooseDate(
     titleKey: String, current: String, onPicked: @escaping (String) -> Void
   ) {
-    let picker = UIDatePicker()
-    picker.datePickerMode = .date
-    picker.preferredDatePickerStyle = .inline
-    if let date = DateKey.date(current) {
-      picker.date = date
-    }
-    let alert = UIAlertController(
-      title: L10n.shared.t(titleKey), message: nil, preferredStyle: .actionSheet)
-    let container = UIViewController()
-    container.view = picker
-    container.preferredContentSize = CGSize(
-      width: view.bounds.width - Theme.Space.xl, height: 420)
-    alert.setValue(container, forKey: "contentViewController")
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.done"), style: .default) { _ in
-        onPicked(DateKey.key(picker.date))
-      })
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
-    if let popover = alert.popoverPresentationController {
-      popover.sourceView = view
-      popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
-    }
-    present(alert, animated: true)
+    presentDatePicker(titleKey: titleKey, current: current, onPicked: onPicked)
   }
 
   private func chooseEndDate() {
@@ -342,85 +325,68 @@ final class PlanFormViewController: FormScreenViewController<PlanFormRow>, ViewM
 
   @objc override func primaryTapped() {
     guard let personId else { return }
-    let selected = Set(doses.keys)
+    let changes = makePlanChanges(personId: personId)
+    Task {
+      await viewModel.applyPlanChanges(changes)
+      navigationController?.popViewController(animated: true)
+    }
+  }
 
-    // patch 是 @Sendable 闭包，不能捕获 self：先把要写的值全部取到本地
+  /// 根据当前勾选与编辑前快照算出 add / update / remove。
+  ///
+  /// patch 是 `@Sendable` 闭包，不能捕获 self：剂量 / 时间等先拷到本地。
+  private func makePlanChanges(personId: String) -> PlanChanges {
+    let selected = Set(doses.keys)
     let times = self.times
     let startDate = self.startDate
     let endDate = self.endDate
     let enabled = self.enabled
+    let originallySelected = self.originallySelected
+    let editingPlanId = self.editingPlanId
+    let existingPlans = viewModel.plans
 
-    // 入口定死了单味药时，只写那一笔；多选时每味药一笔
-    let addInputs: [PlanInput]
-    let updatePatches: [(id: String, patch: (inout MedicationPlan) -> Void)]
-    let removeIds: [String]
-
-    if let fixedMedicationId {
-      // 从药品详情进来：只有一味药
-      let dose = Int(doses[fixedMedicationId] ?? "") ?? 1
-      let input = PlanInput(
-        medicationId: fixedMedicationId, personId: personId, doseAmount: dose,
+    func input(for medicationId: String) -> PlanInput {
+      PlanInput(
+        medicationId: medicationId, personId: personId,
+        doseAmount: Int(doses[medicationId] ?? "") ?? 1,
         times: times, startDate: startDate, endDate: endDate, enabled: enabled)
-      if let editingPlanId {
-        addInputs = []
-        updatePatches = [(editingPlanId, { plan in
-          plan.doseAmount = dose
-          plan.times = times
-          plan.startDate = startDate
-          plan.endDate = endDate
-          plan.enabled = enabled
-        })]
-        removeIds = []
-      } else {
-        addInputs = [input]
-        updatePatches = []
-        removeIds = []
-      }
-    } else {
-      if let editingPlanId {
-        // 编辑态：新勾的走 add，原来有的走 update，取消勾选的走 remove
-        let fresh = selected.subtracting(originallySelected)
-        addInputs = fresh.map { medicationId in
-          PlanInput(
-            medicationId: medicationId, personId: personId,
-            doseAmount: Int(doses[medicationId] ?? "") ?? 1,
-            times: times, startDate: startDate, endDate: endDate, enabled: enabled)
-        }
-        updatePatches = selected.intersection(originallySelected).map { medicationId in
-          // 编辑态一次只改一笔：取该用药人 + 该药的原配置
-          let existing = viewModel.plans.first {
-            $0.personId == personId && $0.medicationId == medicationId
-          }
-          let dose = Int(doses[medicationId] ?? "") ?? 1
-          return (existing?.id ?? editingPlanId, { plan in
-            plan.doseAmount = dose
-            plan.times = times
-            plan.startDate = startDate
-            plan.endDate = endDate
-            plan.enabled = enabled
-          })
-        }
-        removeIds = originallySelected.subtracting(selected).compactMap { medicationId in
-          viewModel.plans.first {
-            $0.personId == personId && $0.medicationId == medicationId
-          }?.id
-        }
-      } else {
-        addInputs = selected.map { medicationId in
-          PlanInput(
-            medicationId: medicationId, personId: personId,
-            doseAmount: Int(doses[medicationId] ?? "") ?? 1,
-            times: times, startDate: startDate, endDate: endDate, enabled: enabled)
-        }
-        updatePatches = []
-        removeIds = []
+    }
+
+    func patch(for medicationId: String) -> (inout MedicationPlan) -> Void {
+      let dose = Int(doses[medicationId] ?? "") ?? 1
+      return { plan in
+        plan.doseAmount = dose
+        plan.times = times
+        plan.startDate = startDate
+        plan.endDate = endDate
+        plan.enabled = enabled
       }
     }
 
-    Task {
-      await viewModel.applyPlanChanges(
-        PlanChanges(add: addInputs, update: updatePatches, remove: removeIds))
-      navigationController?.popViewController(animated: true)
+    let addIds: Set<String>
+    let updateIds: Set<String>
+    let removeMedicationIds: Set<String>
+    if editingPlanId != nil {
+      addIds = selected.subtracting(originallySelected)
+      updateIds = selected.intersection(originallySelected)
+      removeMedicationIds = originallySelected.subtracting(selected)
+    } else {
+      addIds = selected
+      updateIds = []
+      removeMedicationIds = []
     }
+
+    let update = updateIds.map { medicationId -> (id: String, patch: (inout MedicationPlan) -> Void) in
+      let existing = existingPlans.first {
+        $0.personId == personId && $0.medicationId == medicationId
+      }
+      return (existing?.id ?? editingPlanId ?? medicationId, patch(for: medicationId))
+    }
+    let remove = removeMedicationIds.compactMap { medicationId in
+      existingPlans.first {
+        $0.personId == personId && $0.medicationId == medicationId
+      }?.id
+    }
+    return PlanChanges(add: addIds.map(input), update: update, remove: remove)
   }
 }

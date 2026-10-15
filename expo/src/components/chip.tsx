@@ -36,12 +36,7 @@ export function Chip({
       testID={testID}
       onPress={onPress}
       style={{
-        paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.two,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: active ? theme.primary : theme.border,
-        backgroundColor: active ? theme.primary : theme.surface,
       }}
     >
       <Text

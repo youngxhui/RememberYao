@@ -2,6 +2,7 @@ import UIKit
 
 enum ProfileSection: Int, CaseIterable {
   case overview
+  case selfUser
   case family
   case menu
 }
@@ -10,6 +11,7 @@ enum ProfileRow: Hashable {
   case adherence(percent: Int)
   case onTime(count: Int)
   case missed(count: Int)
+  case selfPerson(id: String, name: String, badge: String)
   case person(id: String, name: String, badge: String)
   case addPerson
   case settings
@@ -42,7 +44,7 @@ final class ProfileViewController: ListScreenViewController<ProfileRow>, ViewMod
     add.accessibilityIdentifier = "profile-add-person-button"
     navigationItem.rightBarButtonItem = add
     configureArchiveHeader()
-    registerViewModelObservation()
+    reload()
   }
 
   override func reload() {
@@ -93,18 +95,28 @@ final class ProfileViewController: ListScreenViewController<ProfileRow>, ViewMod
       from: DateKey.weekStart(),
       to: DateKey.today()
     )
-    let persons = viewModel.persons.map { person in
+    let selfPerson = viewModel.persons.first { $0.id == Domain.selfPersonId }
+    let familyPersons = viewModel.persons.filter { $0.id != Domain.selfPersonId }
+    let personRows = familyPersons.map { person in
       ProfileRow.person(id: person.id, name: person.name, badge: badge(for: person))
     }
-    return [
+    var sections: [SectionKey: [ProfileRow]] = [
       ProfileSection.overview.rawValue: [
         .adherence(percent: stats.adherence),
         .onTime(count: stats.taken),
         .missed(count: stats.missed),
       ],
-      ProfileSection.family.rawValue: persons,
-      ProfileSection.menu.rawValue: [.addPerson, .settings, .records, .privacy],
     ]
+    if let selfPerson {
+      sections[ProfileSection.selfUser.rawValue] = [
+        .selfPerson(id: selfPerson.id, name: selfPerson.name, badge: L10n.shared.t("person.selfBadge"))
+      ]
+    }
+    if !personRows.isEmpty {
+      sections[ProfileSection.family.rawValue] = personRows
+    }
+    sections[ProfileSection.menu.rawValue] = [.addPerson, .settings, .records, .privacy]
+    return sections
   }
 
   override func configure(_ cell: UITableViewCell, for row: ProfileRow, at indexPath: IndexPath) {
@@ -128,10 +140,22 @@ final class ProfileViewController: ListScreenViewController<ProfileRow>, ViewMod
       content.secondaryTextProperties.color =
         count > 0 ? Theme.Color.danger : Theme.Color.labelSecondary
 
+    case .selfPerson(let id, let name, let badge):
+      content.text = name
+      content.secondaryText = badge
+      if let person = viewModel.persons.first(where: { $0.id == id }) {
+        content.image = Avatars.image(for: person)
+      }
+      content.imageProperties.cornerRadius = Theme.Size.avatar / 2
+      cell.accessoryType = .disclosureIndicator
+      cell.accessibilityIdentifier = "profile-member-self"
+
     case .person(let id, let name, let badge):
       content.text = name
       content.secondaryText = badge
-      content.image = Self.avatar(for: name)
+      if let person = viewModel.persons.first(where: { $0.id == id }) {
+        content.image = Avatars.image(for: person)
+      }
       content.imageProperties.cornerRadius = Theme.Size.avatar / 2
       cell.accessoryType = .disclosureIndicator
       cell.accessibilityIdentifier = "profile-person-\(id)"
@@ -162,7 +186,7 @@ final class ProfileViewController: ListScreenViewController<ProfileRow>, ViewMod
 
   override func didSelect(_ row: ProfileRow) {
     switch row {
-    case .person(let id, _, _):
+    case .selfPerson(let id, _, _), .person(let id, _, _):
       let detail = PersonDetailViewController(viewModel: viewModel, personId: id) { [weak self] in
         self?.reload()
       }
@@ -193,33 +217,6 @@ final class ProfileViewController: ListScreenViewController<ProfileRow>, ViewMod
       ? L10n.shared.t("profile.badgeWatch") : L10n.shared.t("profile.badgeOk")
   }
 
-  /// 姓名首字做头像。用 `UIImage` 渲染而不是自造 UIView：单元格的
-  /// `UIListContentConfiguration` 原生支持 image 槽，系统会处理尺寸与圆角。
-  private static func avatar(for name: String) -> UIImage? {
-    let initial = String(name.prefix(1))
-    let size = CGSize(width: Theme.Size.avatar, height: Theme.Size.avatar)
-    let color = Theme.Color.hex(pickAvatarColor(name: name))
-    let renderer = UIGraphicsImageRenderer(size: size)
-    return renderer.image { _ in
-      color.setFill()
-      UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).fill()
-      let attributes: [NSAttributedString.Key: Any] = [
-        .foregroundColor: UIColor.white,
-        .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
-      ]
-      let textSize = initial.size(withAttributes: attributes)
-      initial.draw(
-        in: CGRect(
-          x: (size.width - textSize.width) / 2,
-          y: (size.height - textSize.height) / 2,
-          width: textSize.width,
-          height: textSize.height
-        ),
-        withAttributes: attributes
-      )
-    }
-  }
-
   @objc private func addPersonTapped() {
     let form = PersonsViewController(viewModel: viewModel) { [weak self] in
       self?.reload()
@@ -227,7 +224,7 @@ final class ProfileViewController: ListScreenViewController<ProfileRow>, ViewMod
     navigationController?.pushViewController(form, animated: true)
   }
 
-    required init?(coder: NSCoder) {
-      fatalError("init(coder:) has not been implemented")
-    }
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
 }

@@ -54,6 +54,8 @@ export type Person = {
   name: string;
   /** 头像底色（取姓名首字展示） */
   avatarColor: string;
+  /** 头像照片的本地文件 URI；undefined = 没传照片，界面退回头像底色 + 姓名首字 */
+  avatarUri?: string;
   /** 性别；未填写为 undefined */
   gender?: Gender;
   /** 年龄（周岁）；未填写为 undefined */
@@ -433,17 +435,16 @@ export function planStatusLabel(plan: MedicationPlan, t: Translate): string {
  * 自身，列表的色条与状态胶囊、以及「库存不足」筛选都取这里。
  * 阈值来自 design/medications.html 的 stockStatus()。
  *
- * `totalQuantity` 为 0（没记库存）时按 critical 处理：设计稿的 stockStatus()
- * 在这里是 0/0 → NaN，三个比较全 false，会显示成「库存充足」；把 0 库存
- * 说成充足比说成缺货更糟。
+ * `totalQuantity` 为 0 = 从没记过库存（快速添加只建提醒、不填库存就是这种），
+ * 归为中性的 `unset` 而不是 `critical`：没记过库存不等于没有药，把刚建的药
+ * 显示成「告急」比显示「未设置」更糟。用户真的手填 0 总库存也走这一档 ——
+ * 0 总库存本身没有意义，同样不该读成「告急」。
  */
-export type StockLevel = "ok" | "low" | "critical";
+export type StockLevel = "ok" | "low" | "critical" | "unset";
 
 export function stockLevel(medication: Medication): StockLevel {
-  const ratio =
-    medication.totalQuantity > 0
-      ? medication.remainingQuantity / medication.totalQuantity
-      : 0;
+  if (medication.totalQuantity <= 0) return "unset";
+  const ratio = medication.remainingQuantity / medication.totalQuantity;
   if (ratio <= 0.15) return "critical";
   if (ratio <= 0.3) return "low";
   return "ok";

@@ -14,7 +14,10 @@ final class OnboardingViewController: UIViewController {
   ]
 
   private let pageControl = UIPageControl()
-  private let primaryButton = UIButton(type: .system)
+  private lazy var primaryButton = NativeControls.filledButton(
+    titleKey: "onboarding.next",
+    identifier: "onboarding-primary-button"
+  ) { [weak self] in self?.primaryTapped() }
 
   private var pageViewController: UIPageViewController!
   private var currentIndex = 0
@@ -142,41 +145,19 @@ final class OnboardingViewController: UIViewController {
   // MARK: - 主按钮
 
   private func configurePrimaryButton() {
-    var configuration = UIButton.Configuration.filled()
-    configuration.cornerStyle = .capsule
-    // 不显式给色就会退回系统蓝：filled() 的底色取自 tintColor，而引导页在
-    // tab 组之外、没有 tab 栏注入品牌 tint
-    configuration.baseBackgroundColor = Theme.Color.primary
-    configuration.baseForegroundColor = Theme.Color.onPrimary
-    configuration.contentInsets = NSDirectionalEdgeInsets(
-      top: Theme.Space.md, leading: Theme.Space.xl, bottom: Theme.Space.md,
-      trailing: Theme.Space.xl)
-    primaryButton.configuration = configuration
+    view.pinBottomCapsule(primaryButton).constant = -Theme.Space.xl
+    // 标题随页码变：工厂给的是「下一步」，最后一页换成「开始使用」
     primaryButton.configurationUpdateHandler = { [weak self] button in
       guard let self else { return }
-      var config = button.configuration ?? configuration
-      config.title = L10n.shared.t(
+      var config = button.configuration
+      config?.title = L10n.shared.t(
         self.currentIndex == self.pages.count - 1
           ? "onboarding.start" : "onboarding.next")
       button.configuration = config
     }
-    primaryButton.addTarget(self, action: #selector(primaryTapped), for: .touchUpInside)
-    primaryButton.accessibilityIdentifier = "onboarding-primary-button"
-    primaryButton.translatesAutoresizingMaskIntoConstraints = false
-    view.addSubview(primaryButton)
-
-    NSLayoutConstraint.activate([
-      primaryButton.leadingAnchor.constraint(
-        equalTo: view.leadingAnchor, constant: Theme.Space.page),
-      primaryButton.trailingAnchor.constraint(
-        equalTo: view.trailingAnchor, constant: -Theme.Space.page),
-      primaryButton.bottomAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -Theme.Space.xl),
-      primaryButton.heightAnchor.constraint(equalToConstant: Theme.Size.button),
-    ])
   }
 
-  @objc private func primaryTapped() {
+  private func primaryTapped() {
     let next = currentIndex + 1
     if next >= pages.count {
       onFinish()

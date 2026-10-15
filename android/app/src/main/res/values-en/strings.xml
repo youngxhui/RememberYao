@@ -207,6 +207,8 @@
     <string name="person_basicInfo">Basic info</string>
     <string name="person_conditionsPlaceholder">e.g. hypertension, diabetes</string>
     <string name="person_deleteButtonAlt">Delete member</string>
+    <string name="person_defaultName">Self</string>
+    <string name="person_selfBadge">Me</string>
     <string name="person_formSubtitle">Save, then schedule dose reminders for them</string>
     <string name="person_gender">Gender</string>
     <string name="person_genderFemale">Female</string>

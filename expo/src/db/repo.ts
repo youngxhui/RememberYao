@@ -126,6 +126,7 @@ function fromPersonRow(row: PersonRow): Person {
     ...row,
     gender: parseGender(row.gender),
     age: row.age ?? undefined,
+    avatarUri: row.avatarUri ?? undefined,
     allergies: safeParseTags(row.allergies),
     underlyingConditions: safeParseTags(row.underlyingConditions),
   };
@@ -184,6 +185,7 @@ function toPersonRow(person: Person): typeof persons.$inferInsert {
     ...person,
     gender: person.gender ?? null,
     age: person.age ?? null,
+    avatarUri: person.avatarUri ?? null,
     allergies: JSON.stringify(person.allergies),
     underlyingConditions: JSON.stringify(person.underlyingConditions),
   };
@@ -208,7 +210,7 @@ function toUsageRow(usage: MedicationUsage): typeof usages.$inferInsert {
 /** 用药人 / 配置的更新补丁 → 列值。JSON 列（过敏 / 基础病 / 服用时间）
  *  在这里序列化；未传的键保持 undefined，由 definedValues 丢掉。
  *  返回行值类型（$inferSelect 的形状）：JSON 列已经是字符串 */
-function personSetValues(patch: Partial<Person>): Partial<PersonRow> {
+function personSetValues(patch: PersonPatch): Partial<PersonRow> {
   return definedValues({
     ...patch,
     allergies:
@@ -313,9 +315,17 @@ export async function insertPerson(person: Person, db?: Handle): Promise<void> {
   await h.insert(persons).values(toPersonRow(person));
 }
 
+/**
+ * 用药人更新补丁。`avatarUri` 多一个 null：移除照片要显式写 NULL，
+ * 而 `definedValues` 只丢 undefined —— 这正是「不改」与「清空」的分界。
+ */
+export type PersonPatch = Partial<Omit<Person, "avatarUri">> & {
+  avatarUri?: string | null;
+};
+
 export async function updatePerson(
   id: string,
-  patch: Partial<Person>,
+  patch: PersonPatch,
   db?: Handle,
 ): Promise<void> {
   const h = db ?? (await getDb());

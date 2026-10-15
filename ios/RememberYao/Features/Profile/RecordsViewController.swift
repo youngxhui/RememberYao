@@ -33,7 +33,6 @@ final class RecordsViewController: ListScreenViewController<RecordRow>, ViewMode
     navigationController?.navigationBar.prefersLargeTitles = false
     configureDateNavigation()
     reload()
-    registerViewModelObservation()
   }
 
   override func reload() {
@@ -95,30 +94,14 @@ final class RecordsViewController: ListScreenViewController<RecordRow>, ViewMode
   }
 
   @objc private func pickDateTapped() {
-    let picker = UIDatePicker()
-    picker.datePickerMode = .date
-    picker.preferredDatePickerStyle = .inline
-    picker.maximumDate = Date()
-    if let date = DateKey.date(day) {
-      picker.date = date
+    presentDatePicker(
+      titleKey: "records.pickDate",
+      current: day,
+      maximumDate: Date()
+    ) { [weak self] key in
+      self?.day = key
+      self?.reload()
     }
-
-    let alert = UIAlertController(
-      title: L10n.shared.t("records.pickDate"), message: nil,
-      preferredStyle: .actionSheet)
-    let container = UIViewController()
-    container.view = picker
-    container.preferredContentSize = CGSize(
-      width: view.bounds.width - Theme.Space.xl, height: 420)
-    alert.setValue(container, forKey: "contentViewController")
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.done"), style: .default) { [weak self] _ in
-        self?.day = DateKey.key(picker.date)
-        self?.reload()
-      })
-    alert.addAction(
-      UIAlertAction(title: L10n.shared.t("common.cancel"), style: .cancel))
-    present(alert, anchoredTo: view, animated: true)
   }
 
   // MARK: - 快照
@@ -217,7 +200,7 @@ final class RecordsViewController: ListScreenViewController<RecordRow>, ViewMode
     }
   }
 
-    required init?(coder: NSCoder) {
-      fatalError("init(coder:) has not been implemented")
-    }
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
 }

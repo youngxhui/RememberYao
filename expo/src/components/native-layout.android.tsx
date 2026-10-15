@@ -85,7 +85,9 @@ export function NativeOnboardingPager({
   const pagerRef = useRef<HorizontalPagerHandle>(null);
 
   useEffect(() => {
-    void pagerRef.current?.animateScrollToPage(selectedIndex);
+    // TODO: Expo UI Android 的 animateScrollToPage 当前会抛类型拒绝错误，
+    // 先注释掉，保证 onboarding 至少能渲染出来；后续再研究正确调用方式。
+    // void pagerRef.current?.animateScrollToPage(selectedIndex);
   }, [selectedIndex]);
 
   return (

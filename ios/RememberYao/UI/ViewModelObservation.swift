@@ -9,25 +9,24 @@ import Observation
 protocol ViewModelHolder: AnyObject {
   var viewModel: AppViewModel { get }
 
-  /// ViewModel 数据变更后调用。默认空实现，子类按需覆盖。
+  /// ViewModel 数据变更后调用。
+  ///
+  /// 列表 / 表单基类已有默认实现（刷新本屏）。不给协议默认空实现：
+  /// 否则 existential 分派会走空默认，盖住基类的刷新。
   func viewModelDataChanged()
-}
-
-extension ViewModelHolder {
-  func viewModelDataChanged() {}
 }
 
 extension UIViewController {
 
   /// 注册对 ViewModel 数据变更的持续观察。
   ///
-  /// 在 [viewDidLoad] 末尾调用一次。`withObservationTracking` 是**一次性**的：
-  /// 第一次变更后就停止跟踪，所以 onChange 里重新注册自己，形成持续观察
-  /// —— 否则只有第一笔写入能通知到屏幕，之后的变更就哑掉了。
+  /// **只在基类 `viewDidLoad` 调一次**（`ListScreenViewController` /
+  /// `FormScreenViewController`）。子类不要再调：`withObservationTracking`
+  /// 每次变更会再注册自己，重复调用会让回调按 2、4、8 增长。
+  /// 没有走这两个基类的屏幕（板装孪生）自己调一次。
   ///
-  /// 观察粒度是属性级：屏幕在 `viewModelDataChanged()` / `reload()` 里只读
-  /// 自己关心的集合，无关集合的变更虽然也会触发回调，但重算只发生在读到的
-  /// 那些数据上。
+  /// `withObservationTracking` 是一次性的：第一次变更后就停止跟踪，
+  /// 所以 onChange 里重新注册自己，形成持续观察。
   func registerViewModelObservation() {
     guard let holder = self as? any ViewModelHolder else { return }
     let viewModel = holder.viewModel

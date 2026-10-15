@@ -327,6 +327,7 @@ export default function PlanFormScreen() {
                   <MemberAvatar
                     color={presetPerson.avatarColor}
                     name={presetPerson.name}
+                    uri={presetPerson.avatarUri}
                     size={36}
                   />
                   <Text

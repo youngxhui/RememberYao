@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.youngxhui.rememberyao.R
 import top.youngxhui.rememberyao.core.domain.DateKey
+import top.youngxhui.rememberyao.core.domain.Domain
 import top.youngxhui.rememberyao.core.domain.missedStreaks
 import top.youngxhui.rememberyao.core.domain.weekStats
 import top.youngxhui.rememberyao.core.l10n.L10n
@@ -123,6 +124,8 @@ fun ProfileScreen(
         val stats = weekStats(reminders, weekStart, today)
         val watched = missedStreaks(reminders, settings.missedAlertStreak)
         val plansByPerson = plans.groupBy { it.personId }
+        val selfPerson = persons.firstOrNull { it.id == Domain.SELF_PERSON_ID }
+        val family = persons.filter { it.id != Domain.SELF_PERSON_ID }
 
         // 说明书条目在屏幕层拼好（含词条），组件只负责摆 —— 与 ReminderCard
         // 一族「派生数据在屏幕」的分工一致。只展示 store 里真实存在的字段。
@@ -224,6 +227,21 @@ fun ProfileScreen(
                 }
             }
 
+            // MARK: 默认用户「自己」（独立区块，不可删除）
+            selfPerson?.let { person ->
+                item {
+                    PersonListItem(
+                        person = person,
+                        planCount = plansByPerson[person.id]?.size ?: 0,
+                        watched = person.id in watched,
+                        shape = MaterialTheme.shapes.extraLarge,
+                        onClick = { onOpenPerson(person.id) },
+                        isSelf = true,
+                        testId = "profile-member-self"
+                    )
+                }
+            }
+
             // MARK: 家庭成员（标题 + 添加按钮同一行，按钮拉伸占满剩余宽度）
             item {
                 Row(
@@ -258,7 +276,7 @@ fun ProfileScreen(
                 }
             }
 
-            if (persons.isEmpty()) {
+            if (family.isEmpty() && selfPerson == null) {
                 item {
                     EmptyState(
                         text = stringResource(R.string.profile_emptyFamily),
@@ -268,14 +286,14 @@ fun ProfileScreen(
             }
 
             itemsIndexed(
-                persons,
+                family,
                 key = { _, person -> person.id }
             ) { index, person ->
                 PersonListItem(
                     person = person,
                     planCount = plansByPerson[person.id]?.size ?: 0,
                     watched = person.id in watched,
-                    shape = connectedListItemShape(index, persons.size),
+                    shape = connectedListItemShape(index, family.size),
                     onClick = { onOpenPerson(person.id) }
                 )
             }
@@ -337,18 +355,20 @@ private fun StatBox(
     }
 }
 
-/** 家庭成员一项：person 图标 + 姓名 + 配置数 + chevron；连续漏服的姓名转红。 */
+/** 家庭成员一项：person 图标 + 姓名 + 配置数 / 「本人」+ chevron；连续漏服的姓名转红。 */
 @Composable
 private fun PersonListItem(
     person: Person,
     planCount: Int,
     watched: Boolean,
     shape: Shape,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isSelf: Boolean = false,
+    testId: String? = null
 ) {
     ConnectedListItem(
         headline = person.name,
-        supporting = stringResource(R.string.person_planCount, planCount),
+        supporting = if (isSelf) stringResource(R.string.person_selfBadge) else stringResource(R.string.person_planCount, planCount),
         shape = shape,
         headlineColor = if (watched) {
             MaterialTheme.colorScheme.error
@@ -364,6 +384,6 @@ private fun PersonListItem(
             )
         },
         onClick = onClick,
-        testId = "profile-person-${person.id}"
+        testId = testId ?: "profile-person-${person.id}"
     )
 }

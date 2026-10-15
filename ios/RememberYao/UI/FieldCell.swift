@@ -102,7 +102,8 @@ final class FieldCell: UITableViewCell, UITextFieldDelegate {
     textField.isUserInteractionEnabled = !field.readOnly
     textField.textColor = field.readOnly ? Theme.Color.labelSecondary : Theme.Color.label
     accessoryType = field.showsCheckmark ? .checkmark : .none
-    // 只读字段：点整行弹选择器
+    // reloadRows 会再次 configure 而不走 prepareForReuse，手势必须先清再加
+    contentView.gestureRecognizers?.forEach(contentView.removeGestureRecognizer)
     if field.readOnly {
       let tap = UITapGestureRecognizer(target: self, action: #selector(rowTapped))
       contentView.addGestureRecognizer(tap)

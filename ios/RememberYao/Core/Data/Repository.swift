@@ -89,6 +89,11 @@ public protocol Repository: AnyObject {
 
   func deletePerson(id: String) async
 
+  // MARK: - 默认用药人
+
+  /// 首启创建 / 语言切换时刷新默认用药人（「自己」）：id 固定 `SELF_PERSON_ID`。
+  func ensureDefaultPerson() async
+
   // MARK: - 用药配置
 
   func addPlan(_ input: PlanInput) async

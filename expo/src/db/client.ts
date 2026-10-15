@@ -12,7 +12,7 @@ export const DATABASE_NAME = "rememberyao.db";
  * 代价是本地数据丢失，开发阶段换表结构本就要重来，比留着半张旧表崩在
  * `no such column` 上好。
  */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /** 建表 SQL：与 `schema.ts` 一一对应，只在这份开发用的最新结构上执行 */
 const CREATE_TABLES = `
@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS persons (
   id TEXT PRIMARY KEY NOT NULL,
   name TEXT NOT NULL,
   avatar_color TEXT NOT NULL,
+  avatar_uri TEXT,
   gender TEXT,
   age INTEGER,
   allergies TEXT NOT NULL DEFAULT '[]',
@@ -133,6 +134,46 @@ const TABLES = [
   "settings",
 ] as const;
 
+/**
+ * 每张表应有的 DB 列名，直接从 `schema.ts` 推导 —— 不手写第二份清单，
+ * 加列时只改 schema 就够，两边不可能对不上。
+ *
+ * 走 drizzle 的内部 symbol（`drizzle:Name` / `drizzle:Columns`）而不是 `_`
+ * 属性：这个版本的 Table 只把内部状态挂在 symbol 上，`_` 运行时不存在。
+ * 取不到就得到空 Map，调用方据此跳过形状检查 —— 升级 drizzle 后最多退回
+ * 「只比版本号」的老行为，不会因为读不懂内部结构就把库反复删掉。
+ */
+const EXPECTED_COLUMNS = new Map<string, string[]>(
+  Object.values(schema).flatMap((table) => {
+    const internal = table as unknown as Partial<Record<symbol, unknown>>;
+    const name = internal[Symbol.for("drizzle:Name")];
+    const columns = internal[Symbol.for("drizzle:Columns")] as
+      | Record<string, { name: string }>
+      | undefined;
+    if (typeof name !== "string" || !columns) return [];
+    return [[name, Object.values(columns).map((column) => column.name)]];
+  }),
+);
+
+/**
+ * 逐表比对列名：返回缺列的表名清单。
+ *
+ * 版本号只证明「上次重建过」，证明不了表还是那个形状 —— 加过列但版本已经被
+ * 写成新值（改了列忘改版本，或跑过一版只改版本的包）时，`user_version` 一致
+ * 会让重建被跳过，写库直接撞 `no such column`。所以版本之外再查一遍真实形状。
+ */
+async function staleTables(db: SQLite.SQLiteDatabase): Promise<string[]> {
+  const stale: string[] = [];
+  for (const [table, expected] of EXPECTED_COLUMNS) {
+    const rows = await db.getAllAsync<{ name: string }>(
+      `PRAGMA table_info(${table})`,
+    );
+    const actual = new Set(rows.map((row) => row.name));
+    if (expected.some((column) => !actual.has(column))) stale.push(table);
+  }
+  return stale;
+}
+
 /** 打开数据库并确保表结构与 `SCHEMA_VERSION` 一致；并发调用只会真正执行一次 */
 export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
@@ -151,7 +192,7 @@ export async function getDb(): Promise<NonNullable<typeof drizzleDb>> {
 }
 
 /**
- * 版本不符就整库重建，一致则补齐缺失的表。
+ * 版本不符、或表结构与 `schema.ts` 对不上，就整库重建；一致则补齐缺失的表。
  *
  * `user_version` 只在建表成功后才写入，所以中途失败会让版本停留在旧值，
  * 下次启动重来一遍。失败直接抛给上层显示 error 态，不带着半张表继续跑。
@@ -164,8 +205,9 @@ async function ensureSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     "PRAGMA user_version",
   );
   const stored = row?.user_version ?? 0;
+  const stale = await staleTables(db);
 
-  if (stored !== SCHEMA_VERSION) {
+  if (stored !== SCHEMA_VERSION || stale.length > 0) {
     for (const table of TABLES) {
       await db.execAsync(`DROP TABLE IF EXISTS ${table}`);
     }

@@ -63,10 +63,12 @@ public final class PersonEntity {
   /// 基础病 / 慢性病史列表，JSON 字符串。
   public var underlyingConditions: String
   public var createdAt: String
+  public var avatarUri: String?
 
   public init(
     id: String, name: String, avatarColor: String, gender: String?, age: Int?,
-    allergies: String, underlyingConditions: String, createdAt: String
+    allergies: String, underlyingConditions: String, createdAt: String,
+    avatarUri: String? = nil
   ) {
     self.id = id
     self.name = name
@@ -76,6 +78,7 @@ public final class PersonEntity {
     self.allergies = allergies
     self.underlyingConditions = underlyingConditions
     self.createdAt = createdAt
+    self.avatarUri = avatarUri
   }
 }
 
@@ -306,7 +309,8 @@ extension Person {
       age: entity.age,
       allergies: Self.decodeTags(entity.allergies),
       underlyingConditions: Self.decodeTags(entity.underlyingConditions),
-      createdAt: entity.createdAt
+      createdAt: entity.createdAt,
+      avatarUri: entity.avatarUri
     )
   }
 

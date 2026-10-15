@@ -94,6 +94,7 @@ public final class Store: Repository {
   // MARK: - 生命周期
 
   public func load() async {
+    await ensureDefaultPerson()
     syncRemindersIncremental()
     await NotificationScheduler.shared.resync()
     loading = false
@@ -266,8 +267,9 @@ public final class Store: Repository {
     await commit(context)
   }
 
-  /// 删除用药人：级联删除配置和提醒；服用记录作为历史永久保留。
+  /// 删除用药人：默认用户「自己」不可删除，保护固定 id。
   public func deletePerson(id: String) async {
+    guard id != Domain.selfPersonId else { return }
     let context = makeContext()
     let planRows = planEntities(personId: id, in: context)
     for reminder in reminderEntities(planIds: planRows.map(\.id), in: context) {
@@ -276,6 +278,42 @@ public final class Store: Repository {
     for plan in planRows { context.delete(plan) }
     if let entity = personEntity(id, in: context) { context.delete(entity) }
     await commit(context)
+  }
+
+  // MARK: - 默认用药人
+
+  /// 首启创建 / 语言切换时刷新默认用药人：
+  /// 1. 无人时创建 id 为 `SELF_PERSON_ID` 的「自己」；
+  /// 2. 「自己」名字仍是某语言默认名时，随当前界面语言刷新。
+  public func ensureDefaultPerson() async {
+    let context = makeContext()
+    let rows = (try? context.fetch(FetchDescriptor<PersonEntity>())) ?? []
+    let defaultNames = Domain.defaultPersonNames
+    let currentDefault = L10n.defaultPersonName()
+
+    if rows.isEmpty {
+      context.insert(
+        PersonEntity(
+          id: Domain.selfPersonId,
+          name: currentDefault,
+          avatarColor: pickAvatarColor(name: currentDefault),
+          gender: nil,
+          age: nil,
+          allergies: "[]",
+          underlyingConditions: "[]",
+          createdAt: ISO8601.now(),
+          avatarUri: nil
+        )
+      )
+      try? context.save()
+      return
+    }
+
+    guard let selfEntity = rows.first(where: { $0.id == Domain.selfPersonId }) else { return }
+    guard selfEntity.name != currentDefault && defaultNames.contains(selfEntity.name) else { return }
+
+    selfEntity.name = currentDefault
+    try? context.save()
   }
 
   // MARK: - 用药配置
@@ -290,6 +328,56 @@ public final class Store: Repository {
 
   public func deletePlan(id: String) async {
     await applyPlanChanges(PlanChanges(remove: [id]))
+  }
+
+  // MARK: - 快捷加药
+
+  private static var todayKey: String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd"
+    formatter.timeZone = TimeZone.current
+    return formatter.string(from: Date())
+  }
+
+  public func addMedicationWithPlan(
+    name: String, doseAmount: Int, times: [String]
+  ) async -> (medication: Medication, plan: MedicationPlan) {
+    let context = makeContext()
+    let now = ISO8601.now()
+    let medication = Medication(
+      id: ID.generate(),
+      name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+      type: .bottle,
+      category: .default,
+      specification: "",
+      unit: .tablet,
+      totalQuantity: 0,
+      remainingQuantity: 0,
+      blisterRows: nil,
+      blisterCols: nil,
+      expiryDate: nil,
+      prescription: false,
+      notes: "",
+      createdAt: now,
+      updatedAt: now
+    )
+    let plan = MedicationPlan(
+      id: ID.generate(),
+      medicationId: medication.id,
+      personId: Domain.selfPersonId,
+      doseAmount: doseAmount,
+      times: times,
+      startDate: Self.todayKey,
+      endDate: nil,
+      enabled: true,
+      createdAt: now,
+      updatedAt: now
+    )
+    context.insert(makeMedicationEntity(medication))
+    context.insert(makePlanEntity(plan))
+    try? context.save()
+    await NotificationScheduler.shared.resync()
+    return (medication: medication, plan: plan)
   }
 
   public func applyPlanChanges(_ changes: PlanChanges) async {
@@ -573,7 +661,8 @@ public final class Store: Repository {
     PersonEntity(
       id: p.id, name: p.name, avatarColor: p.avatarColor, gender: p.gender?.rawValue,
       age: p.age, allergies: p.encodeTags(),
-      underlyingConditions: p.encodeConditions(), createdAt: p.createdAt)
+      underlyingConditions: p.encodeConditions(), createdAt: p.createdAt,
+      avatarUri: p.avatarUri)
   }
 
   private func apply(_ p: Person, to entity: PersonEntity) {
@@ -584,6 +673,7 @@ public final class Store: Repository {
     entity.allergies = p.encodeTags()
     entity.underlyingConditions = p.encodeConditions()
     entity.createdAt = p.createdAt
+    entity.avatarUri = p.avatarUri
   }
 
   private func makePlanEntity(_ plan: MedicationPlan) -> PlanEntity {

@@ -198,6 +198,8 @@ private enum Grad {
 /// Mini Archive 收藏夹：闭合时居中一个文件夹，点按或右滑展开成说明书横排。
 /// 设计基准 `design/profile.html` 的「Mini Archive」区块。
 ///
+/// 放在 `UI/Showcase/`：这是「我的」页的 tableHeaderView，不是列表/表单原语。
+///
 /// 开合状态完全由滚动进度驱动 —— 点按只是发起一次平滑滚动，点按与手滑
 /// 因此走同一条链路，观感一致（与 Expo 版同一设计）。
 ///

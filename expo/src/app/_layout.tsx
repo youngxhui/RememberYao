@@ -1,9 +1,11 @@
+import { Observe, ObserveRoot } from "expo-observe";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
 import { Stack } from "expo-router/stack";
 import { useEffect, useMemo } from "react";
 import { AppState, StatusBar, useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { ObserveErrorFallback } from "@/components/observe-error-fallback";
 import { useTheme } from "@/hooks/use-theme";
 import { I18nProvider, useI18n } from "@/i18n";
 import {
@@ -14,7 +16,30 @@ import {
 } from "@/lib/notifications";
 import { ensureDefaultPerson, setPostMutationHook } from "@/lib/store";
 
-export default function RootLayout() {
+// 按路由分别上报渲染 / 交互耗时。集成开关运行期不能改（挂载后再调 configure 会抛），
+// 必须放在模块作用域，且早于任何屏幕挂载
+Observe.configure({
+  integrations: { "expo-router": true },
+  // 开发构建（npx expo run:ios / development profile）默认不上报，验证集成时
+  // 打开这个开关。仅影响 debug 构建，release 不受影响 —— 但上线前必须删掉它，
+  // 否则开发机的性能数据会污染仪表盘
+  dispatchInDebug: true,
+});
+
+/**
+ * Observe 根包裹：自动测首屏渲染耗时（TTR），并用错误边界兜住渲染期崩溃
+ * （错误连同 React 组件栈一起上报）。用组件形式而不是 `ObserveRoot.wrap()`
+ * —— wrap() 传不了 props，也就给不了兜底界面。
+ */
+export default function ObservedRootLayout() {
+  return (
+    <ObserveRoot errorBoundaryFallback={ObserveErrorFallback}>
+      <RootLayout />
+    </ObserveRoot>
+  );
+}
+
+function RootLayout() {
   return (
     // GestureHandler 的 Pan 需要根视图承载，缺了手势会静默失效
     <GestureHandlerRootView style={{ flex: 1 }}>

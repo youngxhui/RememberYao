@@ -35,17 +35,12 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
     super.init(nibName: nil, bundle: nil)
   }
 
-  override func viewModelDataChanged() {
-    reload()
-  }
-
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError() }
 
   override func viewDidLoad() {
     super.viewDidLoad()
     reload()
-    registerViewModelObservation()
   }
 
   override func reload() {
@@ -95,11 +90,14 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
       }
     plans.append(.addPlan)
 
-    return [
+    var result: [SectionKey: [PersonDetailRow]] = [
       PersonDetailSection.basic.rawValue: basic,
       PersonDetailSection.plans.rawValue: plans,
-      PersonDetailSection.actions.rawValue: [.delete],
     ]
+    if person.id != Domain.selfPersonId {
+      result[PersonDetailSection.actions.rawValue] = [.delete]
+    }
+    return result
   }
 
   override func configure(_ cell: UITableViewCell, for row: PersonDetailRow, at indexPath: IndexPath) {
@@ -107,7 +105,9 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
     switch row {
     case .avatar(_, let name):
       content.text = name
-      content.image = Self.avatar(for: name)
+      if let person {
+        content.image = Avatars.image(for: person)
+      }
       content.imageProperties.cornerRadius = Theme.Size.avatar / 2
       cell.selectionStyle = .none
 
@@ -134,31 +134,6 @@ final class PersonDetailViewController: ListScreenViewController<PersonDetailRow
       cell.accessibilityIdentifier = "person-delete-button"
     }
     cell.contentConfiguration = content
-  }
-
-  private static func avatar(for name: String) -> UIImage? {
-    let initial = String(name.prefix(1))
-    let size = CGSize(width: Theme.Size.avatar, height: Theme.Size.avatar)
-    let color = Theme.Color.hex(pickAvatarColor(name: name))
-    let renderer = UIGraphicsImageRenderer(size: size)
-    return renderer.image { _ in
-      color.setFill()
-      UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).fill()
-      let attributes: [NSAttributedString.Key: Any] = [
-        .foregroundColor: UIColor.white,
-        .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
-      ]
-      let textSize = initial.size(withAttributes: attributes)
-      initial.draw(
-        in: CGRect(
-          x: (size.width - textSize.width) / 2,
-          y: (size.height - textSize.height) / 2,
-          width: textSize.width,
-          height: textSize.height
-        ),
-        withAttributes: attributes
-      )
-    }
   }
 
   override func didSelect(_ row: PersonDetailRow) {

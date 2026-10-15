@@ -179,14 +179,17 @@ export default function PersonDetailScreen() {
           >
             {/* 头像居中不能靠 Column 的 alignment：收缩成内容宽后会贴左，
                 左右各一个弹性 Spacer 才能压到中线。
-                用 MemberAvatar（纯 universal 组件）而不是 Avatar（RNHostView）——
-                iOS 不转发 RNHostView 的 style，没有死尺寸的头像插在弹性 Spacer
-                里会把外层 Column 的理想宽度带崩，整页卡片被顶出屏外 */}
+                没照片时用 MemberAvatar（纯 universal 组件）而不是 Avatar
+                （RNHostView）—— iOS 不转发 RNHostView 的 style，没有死尺寸的
+                头像插在弹性 Spacer 里会把外层 Column 的理想宽度带崩，整页卡片
+                被顶出屏外。有照片时 universal 层没有图片组件，只能退到
+                RNHostView + matchContents（avatar.tsx 内部已按文档写法接好） */}
             <Row alignment="center" style={{ paddingVertical: Spacing.two }}>
               <Spacer flexible />
               <MemberAvatar
                 color={person.avatarColor}
                 name={person.name}
+                uri={person.avatarUri}
                 size={64}
               />
               <Spacer flexible />

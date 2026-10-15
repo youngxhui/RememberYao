@@ -48,7 +48,7 @@ modifier 工厂是纯 JS —— `frame(params)` 只是 `return { $type: "frame",
 
 除了 modifier 名称不通约，**同一件 UI 在两端的原生组件也可能完全不是同一个东西**（分段筛选：iOS 是 `Picker` + `pickerStyle('segmented')`，Android 是 `SingleChoiceSegmentedButtonRow` + `SegmentedButton`，props 也要自己抹平）。拆之前先问一句值不值得：
 
-- **universal 层的选项枚举可能本来就够用。** 成员筛选试过拆平台分段控件，最终退回 universal `Picker appearance="menu"` —— segmented 到 4 段以上每段被压成细条，而成员数量不可控；菜单只占一行、选项还能纵向滚动。
+- **universal 层的选项枚举可能本来就够用。** 成员筛选试过拆平台分段控件，最终退回 universal `Picker appearance="menu"` —— segmented 到 4 段以上每段被压成细条，而成员数量不可控；菜单只占一行、选项还能纵向滚动。（首页的成员筛选后来挪进了系统工具栏右上角的 `Stack.Toolbar.Menu`，但「选项多、每项有名字就用菜单而不是分段控件」的结论不变，plan-form 的用药人单选也仍是 `Picker`。）
 - **平台专属路径无法用静态检查验证。** `android/` 目录还没生成时，拆出去的 Android 实现是纯盲写。
 
 所以定位是：**universal 能满足就用 universal，实在满足不了（比如 `TabView`、SwiftUI 独有的 `.insetGrouped`）才拆**。拆之前读 `node_modules/@expo/ui/src/universal/<组件>/types.d.ts` 确认选项真的没有 —— 包里的类型比文档更权威。
@@ -121,6 +121,8 @@ const theme = useTheme();
 - 语义色：`primary`（品牌/主按钮/激活 tab）、`success`（已服）、`warning`（即将到期）、`danger`（漏服），各自带 `*Soft` 底色变体。
 - 间距用 `Spacing`，底部 tab 遮挡补偿用 `BottomTabInset`。
 - 图标不要用 emoji。iOS 用 SF Symbol，Android 用 Material icon。
+  - 内容树里的图标走 `@expo/ui` 的 `Icon` + `Icon.select({ ios, android })`。
+  - **工具栏图标**（`Stack.Toolbar.Button` / `Stack.Toolbar.Menu` 的 `icon` prop）没有跨平台双槽，只接受「SF Symbol 字符串 或 图片源」，只给 `sf` 时 Android 端整颗按钮不渲染 —— 两端取值收敛在 `src/components/toolbar-icons.{ts,android.ts}`（Android 侧是 `@expo/material-symbols` 的 `.xml` 矢量图）。
 
 ### 现状与官方建议的差异（待收敛）
 

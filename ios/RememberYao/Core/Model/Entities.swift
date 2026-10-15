@@ -140,6 +140,8 @@ public struct Person: Identifiable, Codable, Sendable, Equatable {
   /// 基础病 / 慢性病史列表；空数组表示未填写。
   public var underlyingConditions: [String]
   public var createdAt: String
+  /// 头像照片的本地文件 URI；`nil` 表示没有照片，界面退回底色 + 姓名首字。
+  public var avatarUri: String?
 
   public init(
     id: String,
@@ -149,7 +151,8 @@ public struct Person: Identifiable, Codable, Sendable, Equatable {
     age: Int? = nil,
     allergies: [String] = [],
     underlyingConditions: [String] = [],
-    createdAt: String
+    createdAt: String,
+    avatarUri: String? = nil
   ) {
     self.id = id
     self.name = name
@@ -159,6 +162,7 @@ public struct Person: Identifiable, Codable, Sendable, Equatable {
     self.allergies = allergies
     self.underlyingConditions = underlyingConditions
     self.createdAt = createdAt
+    self.avatarUri = avatarUri
   }
 }
 

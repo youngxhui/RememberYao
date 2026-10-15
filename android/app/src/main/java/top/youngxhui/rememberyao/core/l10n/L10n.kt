@@ -180,6 +180,9 @@ object L10n {
     fun listSeparator(language: AppLanguage): String =
         if (language.resolve() == AppLanguage.CHINESE) "、" else ", "
 
+    /** 默认用药人（「自己」）的展示名字：跟随当前界面语言。 */
+    fun defaultName(context: Context): String = get(context, "person_defaultName")
+
     private fun resId(key: String): Int = try {
         R.string::class.java.getField(key.replace('.', '_')).getInt(null)
     } catch (_: Exception) {

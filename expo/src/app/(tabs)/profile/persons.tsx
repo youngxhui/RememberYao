@@ -93,6 +93,13 @@ export default function PersonsScreen() {
   const [namePreview, setNamePreview] = useState("");
   // 性别走 React state（chip 选择的取值），其余输入走 native state
   const [gender, setGender] = useState<Gender | "">("");
+  // 头像照片：undefined = 没照片。与库里「未设置」同形，保存时按需写 null 清库
+  const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
+  // 是否动过头像：没动过就不把 avatarUri 放进补丁，避免「不改」被写成「清空」
+  const [photoTouched, setPhotoTouched] = useState(false);
+  const [photoDenied, setPhotoDenied] = useState(false);
+  // 选图链路本身出错（原生模块缺失 / 相册不可用）：与「没权限」分开提示
+  const [photoFailed, setPhotoFailed] = useState(false);
   const name = useNativeState("");
   const age = useNativeState("");
   const allergies = useNativeState("");
@@ -106,11 +113,36 @@ export default function PersonsScreen() {
     name.value = editingPerson.name;
     setNamePreview(editingPerson.name);
     setGender(editingPerson.gender ?? "");
+    setPhotoUri(editingPerson.avatarUri);
     if (editingPerson.age != null) age.value = String(editingPerson.age);
     allergies.value = editingPerson.allergies.join("、");
     conditions.value = editingPerson.underlyingConditions.join("、");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, loading, editingPerson]);
+
+  const choosePhoto = async () => {
+    // 动态 import：头像依赖三个原生模块，静态引用会让缺模块的构建把整个
+    // 添加 / 编辑成员屏带崩（连姓名都存不进去）
+    let result: Awaited<
+      ReturnType<typeof import("@/lib/avatar-photo").pickAvatarPhoto>
+    >;
+    try {
+      const { pickAvatarPhoto } = await import("@/lib/avatar-photo");
+      result = await pickAvatarPhoto();
+    } catch {
+      setPhotoFailed(true);
+      return;
+    }
+    if (result.status === "cancelled") return;
+    if (result.status === "denied") {
+      setPhotoDenied(true);
+      return;
+    }
+    setPhotoDenied(false);
+    setPhotoFailed(false);
+    setPhotoUri(result.uri);
+    setPhotoTouched(true);
+  };
 
   const save = async () => {
     if (!name.value.trim()) {
@@ -129,17 +161,32 @@ export default function PersonsScreen() {
       allergies: splitTags(allergies.value),
       underlyingConditions: splitTags(conditions.value),
     };
+    // 头像只在动过时才进补丁：没动 = 不改；编辑态动过 = 新 URI 或 null（移除）
     if (isEditing && params.id) {
-      await updatePerson(params.id, values);
+      await updatePerson(params.id, {
+        ...values,
+        ...(photoTouched ? { avatarUri: photoUri ?? null } : {}),
+      });
+      // 换图 / 移除后旧文件已成孤儿：等库写成功再删，中途取消也不会指向失效文件
+      if (photoTouched && editingPerson?.avatarUri) {
+        try {
+          const { deleteAvatarPhoto } = await import("@/lib/avatar-photo");
+          await deleteAvatarPhoto(editingPerson.avatarUri);
+        } catch {
+          // 删不掉旧文件不该让保存失败：库里已经指向新图了
+        }
+      }
       // 详情页靠 useFocusEffect 重读，返回即刷新
       router.back();
       return;
     }
-    const person = await addPerson(values);
+    const person = await addPerson({ ...values, avatarUri: photoUri });
     // 清空表单，方便连续添加
     name.value = "";
     setNamePreview("");
     setGender("");
+    setPhotoUri(undefined);
+    setPhotoTouched(false);
     age.value = "";
     allergies.value = "";
     conditions.value = "";
@@ -208,15 +255,10 @@ export default function PersonsScreen() {
             />
 
             <FormSection title={t("person.basicInfo")}>
-              {/* 姓名是这一页的主字段：头像预览充当左侧锚点（不是文本标签），
-                  右侧输入填满剩余 */}
+              {/* 姓名是这一页的主字段：右侧输入填满剩余。头像预览在下面单独
+                  一行（原来它挤在姓名框左侧当锚点，有了独立头像行就重复了） */}
               <Field label={t("person.name")}>
-                <InputShell spacing={Spacing.rowGap}>
-                  <MemberAvatar
-                    color={previewColor}
-                    name={namePreview}
-                    size={36}
-                  />
+                <InputShell>
                   <TextInput
                     testID="person-name-input"
                     placeholder={t("person.nameInputPlaceholder")}
@@ -231,6 +273,61 @@ export default function PersonsScreen() {
                 </InputShell>
               </Field>
               {nameError ? <ErrorText text={t("person.nameRequired")} /> : null}
+
+              {/* 头像：预览 + 选照片。没照片时预览就是「底色 + 姓名首字」，
+                  跟着姓名实时变色（与库里按姓名 hash 取色同一套） */}
+              <Field label={t("person.avatar")}>
+                <Row alignment="center" spacing={Spacing.rowGap}>
+                  <MemberAvatar
+                    color={previewColor}
+                    name={namePreview}
+                    uri={photoUri}
+                    size={48}
+                  />
+                  <Column spacing={Spacing.two}>
+                    <Button
+                      testID="person-avatar-picker-button"
+                      variant="outlined"
+                      label={
+                        photoUri
+                          ? t("person.avatarChange")
+                          : t("person.avatarChoose")
+                      }
+                      onPress={() => {
+                        void choosePhoto();
+                      }}
+                    />
+                    {photoUri ? (
+                      <Button
+                        testID="person-avatar-remove-button"
+                        variant="text"
+                        onPress={() => {
+                          setPhotoUri(undefined);
+                          setPhotoTouched(true);
+                        }}
+                      >
+                        <Text
+                          textStyle={{
+                            fontSize: 14,
+                            fontWeight: "600",
+                            color: theme.danger,
+                            textAlign: "center",
+                          }}
+                        >
+                          {t("person.avatarRemove")}
+                        </Text>
+                      </Button>
+                    ) : null}
+                  </Column>
+                </Row>
+              </Field>
+              {photoDenied ? (
+                <ErrorText text={t("person.avatarPermission")} />
+              ) : photoFailed ? (
+                <ErrorText text={t("person.avatarFailed")} />
+              ) : (
+                <HintText text={t("person.avatarHint")} />
+              )}
 
               <ChipField
                 label={t("person.gender")}

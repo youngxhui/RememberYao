@@ -84,9 +84,9 @@ Core/
   Localization/  L10n（词条查询、语言偏好）
 Features/   每屏一个 ViewController（Home / Medica / Profile / Onboarding）
 UI/         共享基元：ListScreenViewController、FormScreenViewController、
-            FieldCell、原生控件封装、Theme；两个带动画的展示组件
-            （MiniArchiveView 收藏夹、ReminderCardStackView 提醒卡堆叠）
-            + Motion（cubic-bezier）/ GradientView / PressScaleButton
+            FieldCell、Presenters、Theme；Motion / GradientView /
+            PressScaleButton 给展示组件用
+  Showcase/ MiniArchiveView（收藏夹）、ReminderCardStackView（提醒卡堆叠）
 Resources/   Localizable.xcstrings
 ```
 
@@ -213,8 +213,8 @@ tools/gen_strings.py  由 expo/ 里的 Expo 词典生成 res/values/strings.xml
 - **形状**：整体缩小比例（卡片 8dp、对话框 12dp、大容器 28dp；按钮与导航指示器
   交给标准组件的胶囊形）。
 - **五屏结构**：首页（日期应用栏 + 今日待处理牌堆容器 + 今日安排 + 药品库存进度
-  行）、药品（搜索栏 + 慢性病 / 保健品 / 库存不足标签片组 + 相连列表 + 扩展
-  FAB）、我的（本周概览大卡 + 家庭成员 + 相连列表）、添加药品（拆分按钮保存 +
+  行）、药品（搜索栏 + 全部 / 慢性病 / 临时用药 / 保健品 / 库存不足标签片组 + 相连
+  列表 + 扩展 FAB）、我的（本周概览大卡 + 家庭成员 + 相连列表）、添加药品（拆分按钮保存 +
   可撤销消息条）、设置（相连列表 + 语言暴露式下拉菜单）。
 - **组件**：相连列表（3dp 间距、外侧 28dp / 内侧 8dp）、56dp 全圆角搜索栏
   （右端麦克风走系统语音识别）、SplitButton、Snackbar + 撤销。

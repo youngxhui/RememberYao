@@ -8,6 +8,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.Dispatchers
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import top.youngxhui.rememberyao.core.domain.DateKey
+import top.youngxhui.rememberyao.core.domain.Domain
+import top.youngxhui.rememberyao.core.domain.pickAvatarColor
+import top.youngxhui.rememberyao.core.l10n.AppLanguage
+import top.youngxhui.rememberyao.core.l10n.L10n
 import top.youngxhui.rememberyao.core.domain.BlisterSpec
 import top.youngxhui.rememberyao.core.domain.MedicationInput
 import top.youngxhui.rememberyao.core.domain.PersonInput
@@ -36,8 +44,13 @@ import top.youngxhui.rememberyao.core.domain.decideUpdatePerson
 import top.youngxhui.rememberyao.core.domain.decideVoidSlot
 import top.youngxhui.rememberyao.core.model.BlisterPack
 import top.youngxhui.rememberyao.core.model.BlisterSlot
+import top.youngxhui.rememberyao.core.model.IdGenerator
+import top.youngxhui.rememberyao.core.model.Iso8601
 import top.youngxhui.rememberyao.core.model.Medication
+import top.youngxhui.rememberyao.core.model.MedicationCategory
 import top.youngxhui.rememberyao.core.model.MedicationPlan
+import top.youngxhui.rememberyao.core.model.MedicationType
+import top.youngxhui.rememberyao.core.model.MedicationUnit
 import top.youngxhui.rememberyao.core.model.MedicationUsage
 import top.youngxhui.rememberyao.core.model.Person
 import top.youngxhui.rememberyao.core.model.Reminder
@@ -60,7 +73,8 @@ import javax.inject.Singleton
 @Singleton
 class Store @Inject constructor(
     private val db: AppDatabase,
-    private val scheduler: NotificationScheduler
+    private val scheduler: NotificationScheduler,
+    @ApplicationContext private val context: Context
 ) : Repository {
 
     private val medicationDao get() = db.medicationDao()
@@ -116,6 +130,34 @@ class Store @Inject constructor(
         writeMutex.withLock { syncRemindersIncremental() }
         scheduler.resync(scheduleInput())
         _loading.value = false
+    }
+
+    override suspend fun ensureDefaultPerson(language: AppLanguage) = write {
+        val persons = personDao.getAll()
+        val defaultNames = Domain.DEFAULT_PERSON_NAMES
+        val currentDefault = L10n.defaultName(context = context)
+
+        if (persons.isEmpty()) {
+            personDao.upsert(
+                Person(
+                    id = Domain.SELF_PERSON_ID,
+                    name = currentDefault,
+                    avatarColor = pickAvatarColor(currentDefault),
+                    avatarUri = null,
+                    gender = null,
+                    age = null,
+                    allergies = emptyList(),
+                    underlyingConditions = emptyList(),
+                    createdAt = Iso8601.now()
+                ).toEntity()
+            )
+            return@write
+        }
+
+        val self = persons.firstOrNull { it.id == Domain.SELF_PERSON_ID } ?: return@write
+        if (self.name == currentDefault || self.name !in defaultNames) return@write
+
+        personDao.upsert(self.toDomain().copy(name = currentDefault).toEntity())
     }
 
     override suspend fun reload() {
@@ -247,8 +289,9 @@ class Store @Inject constructor(
         personDao.upsert(decideUpdatePerson(person, patch).toEntity())
     }
 
-    /** 删除用药人：级联删除配置和提醒；服用记录作为历史永久保留。 */
+    /** 删除用药人：默认用户「自己」不可删除，保护固定 id。 */
     override suspend fun deletePerson(id: String) = write {
+        if (id == Domain.SELF_PERSON_ID) return@write
         val planIds = planDao.byPerson(id).map { it.id }
         if (planIds.isNotEmpty()) {
             reminderDao.deleteByIds(reminderDao.byPlanIds(planIds).map { it.id })
@@ -267,6 +310,46 @@ class Store @Inject constructor(
 
     override suspend fun deletePlan(id: String) =
         applyPlanChanges(PlanChanges(remove = listOf(id)))
+
+    override suspend fun addMedicationWithPlan(
+        name: String,
+        doseAmount: Int,
+        times: List<String>
+    ): Pair<Medication, MedicationPlan> = write {
+        val now = Iso8601.now()
+        val medication = Medication(
+            id = IdGenerator.generate(),
+            name = name.trim(),
+            type = MedicationType.BOTTLE,
+            category = MedicationCategory.DEFAULT,
+            specification = "",
+            unit = MedicationUnit.TABLET,
+            totalQuantity = 0,
+            remainingQuantity = 0,
+            blisterRows = null,
+            blisterCols = null,
+            expiryDate = null,
+            prescription = false,
+            notes = "",
+            createdAt = now,
+            updatedAt = now
+        )
+        val plan = MedicationPlan(
+            id = IdGenerator.generate(),
+            medicationId = medication.id,
+            personId = Domain.SELF_PERSON_ID,
+            doseAmount = doseAmount,
+            times = times,
+            startDate = DateKey.today(),
+            endDate = null,
+            enabled = true,
+            createdAt = now,
+            updatedAt = now
+        )
+        medicationDao.upsert(medication.toEntity())
+        planDao.upsert(plan.toEntity())
+        medication to plan
+    }
 
     override suspend fun applyPlanChanges(changes: PlanChanges) = write {
         val decision = decideApplyPlanChanges(

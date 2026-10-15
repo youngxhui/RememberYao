@@ -4,6 +4,7 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -52,7 +54,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import top.youngxhui.rememberyao.R
 import top.youngxhui.rememberyao.core.domain.stockLevel
-import top.youngxhui.rememberyao.core.domain.stockSummary
 import top.youngxhui.rememberyao.core.l10n.L10n
 import top.youngxhui.rememberyao.core.model.Medication
 import top.youngxhui.rememberyao.core.model.MedicationCategory
@@ -66,13 +67,17 @@ import top.youngxhui.rememberyao.ui.components.connectedListItemShape
 import top.youngxhui.rememberyao.ui.components.testId
 
 /**
- * 分类 / 低库存筛选。null = 全部。
+ * 分类 / 低库存筛选。维度与 Expo 版 `screens/medica/filter-row.tsx` 的
+ * `MEDICA_FILTERS` 逐项对齐、顺序一致：全部 → 三个用途分类 → 库存不足。
  *
- * 标签片组按设计稿固定三枚：慢性病 / 保健品 / 库存不足。单选带Toggle：
- * 再点一次当前项即取消筛选回到全部，不需要额外占一枚「全部」。
+ * 单选：永远恰好一枚选中（默认「全部」）。早期版本没有「全部」这一枚，靠
+ * "再点一次当前项即取消" 回全部 —— 芯片补全后这条路和「全部」chip 语义重叠，
+ * 去掉。
  */
 private enum class MedicaFilter(val labelRes: Int) {
+    ALL(R.string.medication_filterAll),
     CHRONIC(R.string.medication_categoryChronic),
+    ACUTE(R.string.medication_categoryAcute),
     SUPPLEMENT(R.string.medication_categorySupplement),
     LOW(R.string.medication_filterLow)
 }
@@ -92,7 +97,6 @@ fun MedicaListScreen(
     onAddMedication: () -> Unit
 ) {
     val medications by viewModel.medications.collectAsStateWithLifecycle()
-    val plans by viewModel.plans.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.reload() }
 
@@ -102,7 +106,8 @@ fun MedicaListScreen(
     val voiceUnavailable = stringResource(R.string.voice_unavailable)
 
     var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf<MedicaFilter?>(null) }
+    // 默认「全部」：与 Expo 版一致，永远恰好一枚选中
+    var filter by remember { mutableStateOf(MedicaFilter.ALL) }
 
     // 语音搜索：系统识别 Intent 回填查询。没有语音识别应用的设备直接提示，
     // 不让麦克风按钮点了没反应。
@@ -148,12 +153,16 @@ fun MedicaListScreen(
                 val matchesQuery = query.isBlank() ||
                     medication.name.contains(query, ignoreCase = true)
                 val matchesFilter = when (filter) {
-                    null -> true
+                    MedicaFilter.ALL -> true
                     MedicaFilter.CHRONIC -> medication.category == MedicationCategory.CHRONIC
-                    MedicaFilter.SUPPLEMENT -> medication.category == MedicationCategory.SUPPLEMENT
+                    MedicaFilter.ACUTE -> medication.category == MedicationCategory.ACUTE
+                    MedicaFilter.SUPPLEMENT ->
+                        medication.category == MedicationCategory.SUPPLEMENT
+                    // 「库存不足」只收真的偏低 / 告急；没记库存（totalQuantity 为 0）
+                    // 不算 —— 快速添加的药还没记库存，不该被筛进「库存不足」
+                    // （与 Expo 版 buildMedicationCards 同规则）
                     MedicaFilter.LOW ->
-                        stockSummary(medication, plans).low ||
-                            medication.stockLevel != StockLevel.OK
+                        medication.stockLevel != StockLevel.OK && medication.totalQuantity > 0
                 }
                 matchesQuery && matchesFilter
             }
@@ -195,7 +204,7 @@ fun MedicaListScreen(
             item {
                 MedicaFilterRow(
                     selected = filter,
-                    onSelect = { picked -> filter = if (filter == picked) null else picked }
+                    onSelect = { picked -> filter = picked }
                 )
             }
 
@@ -203,10 +212,11 @@ fun MedicaListScreen(
                 item {
                     EmptyState(
                         text = stringResource(
-                            if (medications.isEmpty()) {
-                                R.string.medication_emptyTitle
-                            } else {
-                                R.string.medication_emptySearch
+                            when {
+                                medications.isEmpty() -> R.string.medication_emptyTitle
+                                query.isNotBlank() -> R.string.medication_emptySearch
+                                filter == MedicaFilter.LOW -> R.string.medication_emptyLow
+                                else -> R.string.medication_emptyCategory
                             }
                         ),
                         hint = if (medications.isEmpty()) {
@@ -230,15 +240,22 @@ fun MedicaListScreen(
     }
 }
 
-/** 标签片组：慢性病 / 保健品 / 库存不足，高 40dp、居中、相连（内侧圆角 4dp）。 */
+/**
+ * 标签片组：全部 / 慢性病 / 临时用药 / 保健品 / 库存不足，高 40dp、相连（内侧圆角 4dp）。
+ *
+ * 五枚芯片加间距超出屏宽，所以整行横向可滑：相连的形状语言不变，只是从
+ * "居中铺满" 改成 "左对齐 + 横滑"（Expo 版的 chip 行同样必须横滑）。
+ */
 @Composable
 private fun MedicaFilterRow(
-    selected: MedicaFilter?,
+    selected: MedicaFilter,
     onSelect: (MedicaFilter) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         MedicaFilter.entries.forEachIndexed { index, option ->

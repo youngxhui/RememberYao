@@ -40,7 +40,13 @@
       "expo-status-bar",
       "expo-web-browser",
       "expo-sqlite",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "选择用药人的头像照片"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

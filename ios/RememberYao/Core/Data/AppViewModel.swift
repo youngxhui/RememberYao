@@ -8,7 +8,7 @@ import Observation
 /// 一处写入只让读了相关集合的屏幕刷新，不再是一整份快照变更、全app重算。
 ///
 /// 数据流：`Repository` 按集合拉取 → ViewModel 属性（写操作后自动刷新）。
-/// 屏幕通过 `registerViewModelObservation()` 观察属性变化。
+/// 屏幕通过基类的 `registerViewModelObservation()` 观察属性变化。
 @Observable
 @MainActor
 public final class AppViewModel {

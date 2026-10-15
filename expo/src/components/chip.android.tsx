@@ -1,8 +1,6 @@
 import { FilterChip, Text } from "@expo/ui/jetpack-compose";
 import { testID as testIDModifier } from "@expo/ui/jetpack-compose/modifiers";
 
-import { useTheme } from "@/hooks/use-theme";
-
 /**
  * 胶囊标签的 Android 实现：Material 3 官方 `FilterChip`（`@expo/ui/jetpack-compose`）。
  *
@@ -40,19 +38,10 @@ export function Chip({
   active: boolean;
   onPress?: () => void;
 }) {
-  const theme = useTheme();
-
   return (
     <FilterChip
       selected={active}
       onClick={onPress}
-      colors={{
-        containerColor: theme.surface,
-        labelColor: theme.textSecondary,
-        selectedContainerColor: theme.primary,
-        selectedLabelColor: theme.onPrimary,
-      }}
-      border={{ color: active ? theme.primary : theme.border, width: 1 }}
       modifiers={testID ? [testIDModifier(testID)] : undefined}
     >
       <FilterChip.Label>

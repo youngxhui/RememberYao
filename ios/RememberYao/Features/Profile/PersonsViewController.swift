@@ -10,9 +10,8 @@ enum PersonsRow: Hashable {
 
 /// 添加家庭成员。
 ///
-/// 原生表单：`UITableView` inset grouped + `UITextField` + `UISwitch` /
-/// `UISegmentedControl`。多项用逗号分隔的字段（过敏史、基础病）仍是单行输入，
-/// 与 Expo 版一致 —— 做成标签输入器会显著增加复杂度，收益不大。
+/// 原生表单：`UITableView` inset grouped + `UITextField`。多项用逗号分隔的
+/// 字段（过敏史、基础病）仍是单行输入，与 Expo 版一致。
 final class PersonsViewController: FormScreenViewController<PersonsRow>, ViewModelHolder {
   let viewModel: AppViewModel
   private let onSaved: () -> Void
@@ -30,10 +29,6 @@ final class PersonsViewController: FormScreenViewController<PersonsRow>, ViewMod
     super.init(nibName: nil, bundle: nil)
   }
 
-  override func viewModelDataChanged() {
-    reloadRows()
-  }
-
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError() }
 
@@ -41,7 +36,6 @@ final class PersonsViewController: FormScreenViewController<PersonsRow>, ViewMod
     super.viewDidLoad()
     title = L10n.shared.t("person.addMember")
     applyRows()
-    registerViewModelObservation()
   }
 
   override var primaryTitleKey: String { "person.addMemberButton" }
@@ -51,58 +45,57 @@ final class PersonsViewController: FormScreenViewController<PersonsRow>, ViewMod
   }
 
   override func buildRows() -> [SectionKey: [PersonsRow]] {
-    [SectionKey.form: [.name, .gender, .age, .allergies, .conditions]]
+    [0: [.name, .gender, .age, .allergies, .conditions]]
   }
 
-  override func field(for row: PersonsRow) -> FieldCell.Field? {
+  override func spec(for row: PersonsRow) -> FormRowSpec {
     switch row {
     case .name:
-      return FieldCell.Field(
-        id: "name", labelKey: "person.name", value: name,
-        placeholderKey: "person.nameInputPlaceholder")
+      return .input(
+        FieldCell.Field(
+          id: "name", labelKey: "person.name", value: name,
+          placeholderKey: "person.nameInputPlaceholder")
+      ) { [weak self] in self?.name = $0 }
+
     case .gender:
-      return FieldCell.Field(
-        id: "gender", labelKey: "person.gender",
-        value: gender.map { L10n.shared.t(Self.genderKey($0)) }
-          ?? L10n.shared.t("common.none"),
-        readOnly: true)
-    case .age:
-      return FieldCell.Field(
-        id: "age", labelKey: "person.age", value: age,
-        placeholderKey: "person.agePlaceholder", keyboardType: .numberPad)
-    case .allergies:
-      return FieldCell.Field(
-        id: "allergies", labelKey: "person.allergies", value: allergies,
-        placeholderKey: "person.allergiesPlaceholder")
-    case .conditions:
-      return FieldCell.Field(
-        id: "conditions", labelKey: "person.underlyingConditions", value: conditions,
-        placeholderKey: "person.conditionsPlaceholder")
-    }
-  }
-
-  override func setValue(_ value: String, for row: PersonsRow) {
-    switch row {
-    case .name: name = value
-    case .age: age = value
-    case .allergies: allergies = value
-    case .conditions: conditions = value
-    case .gender: break
-    }
-    primaryButton.setNeedsUpdateConfiguration()
-  }
-
-  override func didSelect(_ row: PersonsRow, at indexPath: IndexPath) {
-    if row == .gender {
-      presentSingleChoice(
-        titleKey: "person.gender",
-        options: Gender.allCases.map { (key: $0.rawValue, label: L10n.genderLabel($0)) },
-        selectedKey: gender?.rawValue,
-        sourceView: tableView.cellForRow(at: indexPath)
-      ) { [weak self] key in
-        self?.gender = Gender(rawValue: key)
-        self?.reloadRows()
+      return .picker(
+        FieldCell.Field(
+          id: "gender", labelKey: "person.gender",
+          value: gender.map(L10n.genderLabel) ?? L10n.shared.t("common.none"),
+          readOnly: true)
+      ) { [weak self] indexPath in
+        guard let self else { return }
+        self.presentSingleChoice(
+          titleKey: "person.gender",
+          options: Gender.allCases.map { (key: $0.rawValue, label: L10n.genderLabel($0)) },
+          selectedKey: self.gender?.rawValue,
+          sourceView: self.tableView.cellForRow(at: indexPath)
+        ) { [weak self] key in
+          self?.gender = Gender(rawValue: key)
+          self?.reloadRows()
+        }
       }
+
+    case .age:
+      return .input(
+        FieldCell.Field(
+          id: "age", labelKey: "person.age", value: age,
+          placeholderKey: "person.agePlaceholder", keyboardType: .numberPad)
+      ) { [weak self] in self?.age = $0 }
+
+    case .allergies:
+      return .input(
+        FieldCell.Field(
+          id: "allergies", labelKey: "person.allergies", value: allergies,
+          placeholderKey: "person.allergiesPlaceholder")
+      ) { [weak self] in self?.allergies = $0 }
+
+    case .conditions:
+      return .input(
+        FieldCell.Field(
+          id: "conditions", labelKey: "person.underlyingConditions",
+          value: conditions, placeholderKey: "person.conditionsPlaceholder")
+      ) { [weak self] in self?.conditions = $0 }
     }
   }
 
@@ -128,13 +121,5 @@ final class PersonsViewController: FormScreenViewController<PersonsRow>, ViewMod
     raw.split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" })
       .map { $0.trimmingCharacters(in: .whitespaces) }
       .filter { !$0.isEmpty }
-  }
-
-  private static func genderKey(_ gender: Gender) -> String {
-    switch gender {
-    case .male: return "person.genderMale"
-    case .female: return "person.genderFemale"
-    case .other: return "person.genderOther"
-    }
   }
 }
