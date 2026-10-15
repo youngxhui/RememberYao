@@ -1,18 +1,8 @@
-import {
-  Button,
-  Column,
-  Host,
-  Row,
-  ScrollView,
-  Spacer,
-  Text,
-  TextInput,
-  useNativeState,
-} from "@expo/ui";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { Pressable, Text, TextInput, View, ScrollView } from "react-native";
 
-import { MemberAvatar } from "@/components/avatar";
+import { AvatarMark } from "@/components/avatar";
 import {
   ChipField,
   ErrorText,
@@ -20,13 +10,9 @@ import {
   FormSection,
   HintText,
   Subtitle,
-} from "@/components/form";
-import { InputShell } from "@/components/input-shell";
-import {
-  nativeButtonModifiers,
-  nativeLayout,
-} from "@/components/native-layout";
-import { BottomTabInset, Spacing } from "@/constants/theme";
+} from "@/components/rn-form";
+import { InputShell } from "@/components/rn-input-shell";
+import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import {
@@ -68,14 +54,8 @@ function parseAge(raw: string): number | null | undefined {
  * 同一个屏，路由参数 `id` 区分 —— 与 plan-form / medica-form 的「新建/编辑同屏」
  * 同一套模式。编辑覆盖全部家庭成员与默认用户「自己」（改名也走这里）。
  *
- * 排版与添加药品（`src/app/(tabs)/medica/form.tsx`）共用 `@/components/form` 的
- * 基元：`ScrollView` + 分区卡片（label 在上、控件收在圆角描边盒子里）。原来这里
- * 用的是原生 `FieldGroup`（iOS = SwiftUI Form），满屏「左标签 + 整行分隔」的设置
- * 风，和自家表单对不上；且 `Picker` 性别要从菜单里选两步，三个取值直接铺 chip。
- *
- * ⚠️ 不要再把 `FieldGroup` / `List` 嵌进外层 `ScrollView`：它们在 iOS 上是
- * SwiftUI Form / List，本身就是滚动容器，嵌进去会塌成零高（项目已记录的真机
- * bug）。
+ * 排版与添加药品共用 rn-form 基元：ScrollView + 分区卡片（label 在上、控件收在
+ * 圆角描边盒子里）。
  */
 export default function PersonsScreen() {
   const router = useRouter();
@@ -84,45 +64,35 @@ export default function PersonsScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const isEditing = Boolean(params.id);
   const { data: editingPerson, loading: personLoading } = usePerson(params.id);
-  // 编辑态等 SQLite 载入再渲染：直接渲染会把回填闪成空表单
   const loading = isEditing && personLoading;
   const [nameError, setNameError] = useState(false);
   const [ageError, setAgeError] = useState(false);
-  // 头像预览用的 React 镜像：useNativeState 在原生端不触发 React 重渲染，
-  // 输入实时预览要在 onChangeText 里单独存一份
   const [namePreview, setNamePreview] = useState("");
-  // 性别走 React state（chip 选择的取值），其余输入走 native state
   const [gender, setGender] = useState<Gender | "">("");
-  // 头像照片：undefined = 没照片。与库里「未设置」同形，保存时按需写 null 清库
   const [photoUri, setPhotoUri] = useState<string | undefined>(undefined);
-  // 是否动过头像：没动过就不把 avatarUri 放进补丁，避免「不改」被写成「清空」
   const [photoTouched, setPhotoTouched] = useState(false);
   const [photoDenied, setPhotoDenied] = useState(false);
-  // 选图链路本身出错（原生模块缺失 / 相册不可用）：与「没权限」分开提示
   const [photoFailed, setPhotoFailed] = useState(false);
-  const name = useNativeState("");
-  const age = useNativeState("");
-  const allergies = useNativeState("");
-  const conditions = useNativeState("");
+  const [name, setName] = useState("");
+  const [age, setAge] = useState("");
+  const [allergies, setAllergies] = useState("");
+  const [conditions, setConditions] = useState("");
 
-  // 数据就绪后只回填一次：filledRef 防着用户已经开始改又被覆盖
   const filledRef = useRef(false);
   useEffect(() => {
     if (filledRef.current || !isEditing || loading || !editingPerson) return;
     filledRef.current = true;
-    name.value = editingPerson.name;
+    setName(editingPerson.name);
     setNamePreview(editingPerson.name);
     setGender(editingPerson.gender ?? "");
     setPhotoUri(editingPerson.avatarUri);
-    if (editingPerson.age != null) age.value = String(editingPerson.age);
-    allergies.value = editingPerson.allergies.join("、");
-    conditions.value = editingPerson.underlyingConditions.join("、");
+    if (editingPerson.age != null) setAge(String(editingPerson.age));
+    setAllergies(editingPerson.allergies.join("、"));
+    setConditions(editingPerson.underlyingConditions.join("、"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, loading, editingPerson]);
 
   const choosePhoto = async () => {
-    // 动态 import：头像依赖三个原生模块，静态引用会让缺模块的构建把整个
-    // 添加 / 编辑成员屏带崩（连姓名都存不进去）
     let result: Awaited<
       ReturnType<typeof import("@/lib/avatar-photo").pickAvatarPhoto>
     >;
@@ -145,29 +115,27 @@ export default function PersonsScreen() {
   };
 
   const save = async () => {
-    if (!name.value.trim()) {
+    if (!name.trim()) {
       setNameError(true);
       return;
     }
-    const parsedAge = parseAge(age.value);
+    const parsedAge = parseAge(age);
     if (parsedAge === null) {
       setAgeError(true);
       return;
     }
     const values = {
-      name: name.value,
+      name,
       gender: gender || undefined,
       age: parsedAge,
-      allergies: splitTags(allergies.value),
-      underlyingConditions: splitTags(conditions.value),
+      allergies: splitTags(allergies),
+      underlyingConditions: splitTags(conditions),
     };
-    // 头像只在动过时才进补丁：没动 = 不改；编辑态动过 = 新 URI 或 null（移除）
     if (isEditing && params.id) {
       await updatePerson(params.id, {
         ...values,
         ...(photoTouched ? { avatarUri: photoUri ?? null } : {}),
       });
-      // 换图 / 移除后旧文件已成孤儿：等库写成功再删，中途取消也不会指向失效文件
       if (photoTouched && editingPerson?.avatarUri) {
         try {
           const { deleteAvatarPhoto } = await import("@/lib/avatar-photo");
@@ -176,20 +144,18 @@ export default function PersonsScreen() {
           // 删不掉旧文件不该让保存失败：库里已经指向新图了
         }
       }
-      // 详情页靠 useFocusEffect 重读，返回即刷新
       router.back();
       return;
     }
     const person = await addPerson({ ...values, avatarUri: photoUri });
-    // 清空表单，方便连续添加
-    name.value = "";
+    setName("");
     setNamePreview("");
     setGender("");
     setPhotoUri(undefined);
     setPhotoTouched(false);
-    age.value = "";
-    allergies.value = "";
-    conditions.value = "";
+    setAge("");
+    setAllergies("");
+    setConditions("");
     router.push({
       pathname: "/(tabs)/profile/person-detail",
       params: { id: person.id },
@@ -199,210 +165,250 @@ export default function PersonsScreen() {
   // 预览将要分配的头像底色：与 store.addPerson 同一套按姓名 hash 取色
   const previewColor = pickAvatarColor(namePreview);
 
-  // 编辑态数据未就绪 / 用药人已不存在：不给空表单，也不给保存
   if (loading) {
     return (
-      <>
+      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
         <Stack.Screen.BackButton displayMode="minimal" />
-        <Host style={{ flex: 1 }} />
-      </>
+        <Stack.Title large>
+          {isEditing ? t("person.editTitle") : t("person.addMember")}
+        </Stack.Title>
+      </View>
     );
   }
 
   if (isEditing && !editingPerson) {
     return (
-      <>
+      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
         <Stack.Screen.BackButton displayMode="minimal" />
-        <Host style={{ flex: 1 }}>
-          {/* 同详情页的居中写法：HStack + 弹性 Spacer 才能把文案压到中线 */}
-          <Row alignment="center" style={{ paddingTop: 120 }}>
-            <Spacer flexible />
-            <Text textStyle={{ color: theme.textSecondary }}>
-              {t("person.notFound")}
-            </Text>
-            <Spacer flexible />
-          </Row>
-        </Host>
-      </>
+        <Stack.Title large>
+          {isEditing ? t("person.editTitle") : t("person.addMember")}
+        </Stack.Title>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingTop: 120,
+          }}
+        >
+          <Text style={{ color: theme.textSecondary, fontSize: 15 }}>
+            {t("person.notFound")}
+          </Text>
+        </View>
+      </View>
     );
   }
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
       <Stack.Screen.BackButton displayMode="minimal" />
       <Stack.Title large>
         {isEditing ? t("person.editTitle") : t("person.addMember")}
       </Stack.Title>
-      <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <ScrollView
-          showsIndicators={false}
-          style={{ backgroundColor: theme.canvas }}
-        >
-          <Column
-            spacing={Spacing.four}
-            style={{
-              paddingHorizontal: Spacing.screen,
-              paddingVertical: Spacing.three,
-              // 表单在 (tabs) 组内，尾部必须让开原生 tab 栏的高度，
-              // 否则「添加家庭成员」会被压在 tab 栏底下点不到
-              paddingBottom: BottomTabInset + Spacing.four,
-            }}
-          >
-            <Subtitle
-              text={t(
-                isEditing ? "person.editSubtitle" : "person.formSubtitle",
-              )}
-            />
 
-            <FormSection title={t("person.basicInfo")}>
-              {/* 姓名是这一页的主字段：右侧输入填满剩余。头像预览在下面单独
-                  一行（原来它挤在姓名框左侧当锚点，有了独立头像行就重复了） */}
-              <Field label={t("person.name")}>
-                <InputShell>
-                  <TextInput
-                    testID="person-name-input"
-                    placeholder={t("person.nameInputPlaceholder")}
-                    autoFocus
-                    value={name}
-                    onChangeText={(text) => {
-                      setNamePreview(text);
-                      setNameError(false);
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingTop: Spacing.three,
+          paddingBottom: BottomTabInset + Spacing.four,
+        }}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ paddingHorizontal: Spacing.screen, gap: Spacing.four }}>
+          <Subtitle
+            text={t(isEditing ? "person.editSubtitle" : "person.formSubtitle")}
+          />
+
+          <FormSection title={t("person.basicInfo")}>
+            <Field label={t("person.name")}>
+              <InputShell>
+                <TextInput
+                  testID="person-name-input"
+                  placeholder={t("person.nameInputPlaceholder")}
+                  autoFocus
+                  value={name}
+                  onChangeText={(text) => {
+                    setName(text);
+                    setNamePreview(text);
+                    setNameError(false);
+                  }}
+                  style={{ fontSize: 17, color: theme.text, padding: 0 }}
+                />
+              </InputShell>
+            </Field>
+            {nameError ? <ErrorText text={t("person.nameRequired")} /> : null}
+
+            <Field label={t("person.avatar")}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: Spacing.rowGap,
+                }}
+              >
+                <AvatarMark
+                  color={previewColor}
+                  name={namePreview || t("person.defaultName")}
+                  uri={photoUri}
+                  size={48}
+                />
+                <View style={{ gap: Spacing.two }}>
+                  <Pressable
+                    testID="person-avatar-picker-button"
+                    onPress={() => {
+                      void choosePhoto();
                     }}
-                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                  />
-                </InputShell>
-              </Field>
-              {nameError ? <ErrorText text={t("person.nameRequired")} /> : null}
-
-              {/* 头像：预览 + 选照片。没照片时预览就是「底色 + 姓名首字」，
-                  跟着姓名实时变色（与库里按姓名 hash 取色同一套） */}
-              <Field label={t("person.avatar")}>
-                <Row alignment="center" spacing={Spacing.rowGap}>
-                  <MemberAvatar
-                    color={previewColor}
-                    name={namePreview}
-                    uri={photoUri}
-                    size={48}
-                  />
-                  <Column spacing={Spacing.two}>
-                    <Button
-                      testID="person-avatar-picker-button"
-                      variant="outlined"
-                      label={
-                        photoUri
-                          ? t("person.avatarChange")
-                          : t("person.avatarChoose")
-                      }
-                      onPress={() => {
-                        void choosePhoto();
+                    style={({ pressed }) => ({
+                      paddingHorizontal: Spacing.three,
+                      paddingVertical: Spacing.two,
+                      borderRadius: Radius.card,
+                      borderCurve: "continuous",
+                      backgroundColor: pressed
+                        ? theme.backgroundSelected
+                        : theme.surface,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 44,
+                    })}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: theme.text,
                       }}
-                    />
-                    {photoUri ? (
-                      <Button
-                        testID="person-avatar-remove-button"
-                        variant="text"
-                        onPress={() => {
-                          setPhotoUri(undefined);
-                          setPhotoTouched(true);
+                    >
+                      {photoUri
+                        ? t("person.avatarChange")
+                        : t("person.avatarChoose")}
+                    </Text>
+                  </Pressable>
+                  {photoUri ? (
+                    <Pressable
+                      testID="person-avatar-remove-button"
+                      onPress={() => {
+                        setPhotoUri(undefined);
+                        setPhotoTouched(true);
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: theme.danger,
+                          textAlign: "center",
                         }}
                       >
-                        <Text
-                          textStyle={{
-                            fontSize: 14,
-                            fontWeight: "600",
-                            color: theme.danger,
-                            textAlign: "center",
-                          }}
-                        >
-                          {t("person.avatarRemove")}
-                        </Text>
-                      </Button>
-                    ) : null}
-                  </Column>
-                </Row>
-              </Field>
-              {photoDenied ? (
-                <ErrorText text={t("person.avatarPermission")} />
-              ) : photoFailed ? (
-                <ErrorText text={t("person.avatarFailed")} />
-              ) : (
-                <HintText text={t("person.avatarHint")} />
-              )}
+                        {t("person.avatarRemove")}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+            </Field>
+            {photoDenied ? (
+              <ErrorText text={t("person.avatarPermission")} />
+            ) : photoFailed ? (
+              <ErrorText text={t("person.avatarFailed")} />
+            ) : (
+              <HintText text={t("person.avatarHint")} />
+            )}
 
-              <ChipField
-                label={t("person.gender")}
-                testID="person-gender"
-                value={gender}
-                onChange={(value) => {
-                  setGender(value as Gender);
-                }}
-                options={[
-                  { value: "male", label: t("person.genderMale") },
-                  { value: "female", label: t("person.genderFemale") },
-                  { value: "other", label: t("person.genderOther") },
-                ]}
-              />
-
-              <Field label={t("person.age")}>
-                <InputShell>
-                  <TextInput
-                    testID="person-age-input"
-                    placeholder={t("person.agePlaceholder")}
-                    keyboardType="number-pad"
-                    value={age}
-                    onChangeText={() => {
-                      setAgeError(false);
-                    }}
-                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                  />
-                </InputShell>
-              </Field>
-              {ageError ? <ErrorText text={t("person.ageInvalid")} /> : null}
-
-              <HintText text={t("person.optionalHint")} />
-            </FormSection>
-
-            <FormSection title={t("person.healthInfo")}>
-              <Field label={t("person.allergies")}>
-                <InputShell>
-                  <TextInput
-                    testID="person-allergies-input"
-                    placeholder={t("person.allergiesPlaceholder")}
-                    multiline
-                    numberOfLines={2}
-                    value={allergies}
-                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                  />
-                </InputShell>
-              </Field>
-              <Field label={t("person.underlyingConditions")}>
-                <InputShell>
-                  <TextInput
-                    testID="person-conditions-input"
-                    placeholder={t("person.conditionsPlaceholder")}
-                    multiline
-                    numberOfLines={2}
-                    value={conditions}
-                    modifiers={[nativeLayout({ unconstrainedWidth: true })]}
-                  />
-                </InputShell>
-              </Field>
-              <HintText text={t("person.multiValueHint")} />
-            </FormSection>
-
-            <Button
-              testID={isEditing ? "person-save-button" : "person-add-button"}
-              label={t(
-                isEditing ? "person.saveButton" : "person.addMemberButton",
-              )}
-              onPress={() => {
-                void save();
+            <ChipField
+              label={t("person.gender")}
+              testID="person-gender"
+              value={gender}
+              onChange={(value) => {
+                setGender(value as Gender);
               }}
-              modifiers={nativeButtonModifiers({ fullWidth: true })}
+              options={[
+                { value: "male", label: t("person.genderMale") },
+                { value: "female", label: t("person.genderFemale") },
+                { value: "other", label: t("person.genderOther") },
+              ]}
             />
-          </Column>
-        </ScrollView>
-      </Host>
-    </>
+
+            <Field label={t("person.age")}>
+              <InputShell>
+                <TextInput
+                  testID="person-age-input"
+                  placeholder={t("person.agePlaceholder")}
+                  keyboardType="number-pad"
+                  value={age}
+                  onChangeText={(text) => {
+                    setAge(text);
+                    setAgeError(false);
+                  }}
+                  style={{ fontSize: 15, color: theme.text, padding: 0 }}
+                />
+              </InputShell>
+            </Field>
+            {ageError ? <ErrorText text={t("person.ageInvalid")} /> : null}
+
+            <HintText text={t("person.optionalHint")} />
+          </FormSection>
+
+          <FormSection title={t("person.healthInfo")}>
+            <Field label={t("person.allergies")}>
+              <InputShell>
+                <TextInput
+                  testID="person-allergies-input"
+                  placeholder={t("person.allergiesPlaceholder")}
+                  multiline
+                  numberOfLines={2}
+                  value={allergies}
+                  onChangeText={setAllergies}
+                  style={{ fontSize: 15, color: theme.text, padding: 0 }}
+                />
+              </InputShell>
+            </Field>
+            <Field label={t("person.underlyingConditions")}>
+              <InputShell>
+                <TextInput
+                  testID="person-conditions-input"
+                  placeholder={t("person.conditionsPlaceholder")}
+                  multiline
+                  numberOfLines={2}
+                  value={conditions}
+                  onChangeText={setConditions}
+                  style={{ fontSize: 15, color: theme.text, padding: 0 }}
+                />
+              </InputShell>
+            </Field>
+            <HintText text={t("person.multiValueHint")} />
+          </FormSection>
+
+          <Pressable
+            testID={isEditing ? "person-save-button" : "person-add-button"}
+            onPress={() => {
+              void save();
+            }}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? theme.primarySoft : theme.primary,
+              borderRadius: Radius.card,
+              borderCurve: "continuous",
+              paddingVertical: Spacing.three,
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 44,
+            })}
+          >
+            <Text
+              style={{
+                color: theme.onPrimary,
+                fontSize: 15,
+                fontWeight: "600",
+              }}
+            >
+              {isEditing ? t("person.saveButton") : t("person.addMemberButton")}
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
