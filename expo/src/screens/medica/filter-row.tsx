@@ -1,10 +1,11 @@
-import { StyleSheet, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
+import { GlassContainer } from "expo-glass-effect";
+import { StyleSheet, View } from "react-native";
+
 import { GlassChip } from "@/components/glass-chip";
+import { Spacing } from "@/constants/theme";
 import { useTranslation, type Path } from "@/i18n";
 import type { MedicationCategory } from "@/lib/store";
-import { GlassContainer } from "expo-glass-effect";
-import { Spacing } from "@/constants/theme";
 
 export type MedicaFilter = "all" | "low" | MedicationCategory;
 

@@ -1,8 +1,9 @@
+import { GlassView } from "expo-glass-effect";
 import { Pressable as RNPressable, Text as RNText } from "react-native";
 
 import { Spacing, Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { GlassView } from "expo-glass-effect";
+
 import { useLiquidGlassEnabled } from "./content-glass";
 
 /**
