@@ -20,7 +20,24 @@ export function ScreenScaffold({
   const theme = useTheme();
   const style = { flex: 1, backgroundColor: theme.canvas } as const;
   if (!scroll) {
-    return <View style={style}>{children}</View>;
+    return (
+      <ScrollView
+        style={style}
+        scrollEnabled={false}
+        contentContainerStyle={[
+          {
+            paddingTop: Spacing.three,
+            paddingBottom: BottomTabInset + Spacing.five,
+          },
+          contentContainerStyle,
+        ]}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {children}
+      </ScrollView>
+    );
   }
   return (
     <ScrollView
