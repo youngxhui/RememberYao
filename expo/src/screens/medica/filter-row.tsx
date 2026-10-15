@@ -1,4 +1,4 @@
-import { ScrollView as RNScrollView } from "react-native";
+import { ScrollView as RNScrollView, View as RNView } from "react-native";
 
 import { GlassChip } from "@/components/glass-chip";
 import { Spacing } from "@/constants/theme";
@@ -22,8 +22,8 @@ const MEDICA_FILTERS: { key: MedicaFilter; label: Path }[] = [
 /**
  * 分类筛选：横向可滑动的胶囊行（design/medications.html 的 .chip-row）。
  *
- * RN ScrollView 自己就是原生横向滚动容器，chip 行不随内容滚动。
- * 左右呼吸挂在内层 contentContainerStyle 的 paddingHorizontal 上（滚动时
+ * RN ScrollView 自己就是原生横向滚动容器；chip 行排在内层横向 View 里，
+ * 左右呼吸挂在外层 contentContainerStyle 的 paddingHorizontal 上（滚动时
  * 跟着内容走）：首颗 chip 不顶左边、滑到底时末颗 chip 与右缘之间也留得出呼吸。
  */
 export function FilterRow({
@@ -42,20 +42,21 @@ export function FilterRow({
       contentContainerStyle={{
         paddingHorizontal: Spacing.screen,
         paddingVertical: Spacing.one,
-        gap: Spacing.two,
       }}
     >
-      {MEDICA_FILTERS.map((item) => (
-        <GlassChip
-          key={item.key}
-          testID={`medica-filter-${item.key}`}
-          label={t(item.label)}
-          active={filter === item.key}
-          onPress={() => {
-            onSelect(item.key);
-          }}
-        />
-      ))}
+      <RNView style={{ flexDirection: "row", gap: Spacing.two }}>
+        {MEDICA_FILTERS.map((item) => (
+          <GlassChip
+            key={item.key}
+            testID={`medica-filter-${item.key}`}
+            label={t(item.label)}
+            active={filter === item.key}
+            onPress={() => {
+              onSelect(item.key);
+            }}
+          />
+        ))}
+      </RNView>
     </RNScrollView>
   );
 }
