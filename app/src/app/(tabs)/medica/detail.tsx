@@ -8,7 +8,7 @@ import { useCallback, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
-import { GlassHostButton } from "@/components/expo-ui-island";
+import { GlassHostButton } from "@/components/glass-host-button";
 import { ProgressBarRn } from "@/components/progress-bar";
 import { InputShell } from "@/components/rn-input-shell";
 import {

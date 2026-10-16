@@ -8,7 +8,7 @@ import { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
-import { GlassHostButton } from "@/components/expo-ui-island";
+import { GlassHostButton } from "@/components/glass-host-button";
 import { FormSection } from "@/components/rn-form";
 import { HairLine } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";

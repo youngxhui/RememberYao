@@ -1,10 +1,10 @@
 # `@expo/ui` 与 React Native 混合布局指南
 
-> **适用范围（2026-10 迁移后）**：本文只对**残留 Expo UI 岛**有效 —— 即
+> **适用范围（2026-10 迁移后）**：本文只对**残留 Expo UI 岛**有效 —— 只剩
 > `src/app/onboarding.tsx` 整屏（默认不迁）与孪生铝箔岛两处。`settings.tsx` 已迁纯 RN
-> （PR13）；5 处用药人 / 语言 / 次数菜单 `Picker` 也已换成 `RnPicker`（迁移计划 §6.7），
-> `ExpoUiIsland` 自此生产零调用、只剩 playground 在演示（`GlassHostButton` 与它同文件，
-> 但玻璃按钮本来就不需要 `ExpoUiIsland` 包裹，detail / twin / person-detail 仍在用）。
+> （PR13）；5 处用药人 / 语言 / 次数菜单 `Picker` 换成 `RnPicker`（§6.7）后
+> `ExpoUiIsland` 生产零调用，已整段删除（§6.8）；`GlassHostButton` 改用 RN `Pressable`
+> + `expo-glass-effect` 的 `GlassView` 后也不再需要 `Host`。
 > **生产内容树已全部是纯 RN**（见
 > `docs/plans/迁移计划.md`）：新屏直接用 RN Yoga + `useTheme()` + `ScreenScaffold`，
 > 宽度用 `width: '100%'` / `flex` / 父级 `onLayout`，**不要再套 `Host` 测宽**。
@@ -290,7 +290,7 @@ type MeasuredWidth = {
 - `src/app/playground`：整屏纯 RN 的例子（Reanimated 提醒卡堆叠手势、横向 chip 滚动、`ContentGlass` / `GlassChip` 对照）。
 - `src/screens/home`、`src/screens/profile`：**已迁成纯 RN**（迁移计划 PR4 / PR5）。曾经是「Expo UI 为主的整屏 + `useExpoUiContentWidth` 喂宽」，现在牌堆 / 库存 / Mini Archive 直接挂 RN 树，宽度走 `onLayout` 与 `flex`；`ScreenScaffold` 默认无水平 padding，通栏用 `FullBleed`、内缩用 `Padded`。
 - `src/screens/medica/twin.tsx`：**残留岛的正确样本** —— 铝箔网格与图例仍活在 `TwinFoilIsland` 的 `Host` 里（SwiftUI 径向渐变，`LiquidGlassView` 替代不了），宽度由 RN 父级 `onLayout` 实测喂入；页头 / 进度 / 开启表单 / 格子都是 RN。
-- `src/components/expo-ui-island.tsx`：RN 父树里挂 `@expo/ui` 原生控件的唯一边界（`Host matchContents` + `seedColor`）。`glass-chip.tsx` 的 `GlassChipRow` 同理 —— 屏幕不得自己 import 玻璃包。
+- ~~`src/components/expo-ui-island.tsx`：RN 父树里挂 `@expo/ui` 原生控件的唯一边界~~ —— **已删除**（§6.8）。`glass-chip.tsx` 的 `GlassChipRow` 同理：屏幕不得自己 import 玻璃包，需要时用共享组件。
 - `src/components/mini-archive.tsx`：RN island 的固有尺寸、safe-area fallback、宽度缓存失效和 `matchContents`。
 - `src/components/avatar.tsx`、`src/components/progress-bar.tsx`：曾是小型 RN island 的 `RNHostView` 边界示例；双轨包装已删，现在分别只剩 `AvatarMark` 与 `ProgressBarRn`，都是纯 RN 组件。
 - `src/components/rn-round-icon-button.tsx`：圆形图标按钮的 RN 版。旧版是原生 `Row` + `onPress`，坑在于 SwiftUI `Button` 的热区只包住 label，撑大 frame 后热区反而缩回图标 —— 这条经验对残留岛里的原生按钮仍然有效。

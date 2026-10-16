@@ -1,4 +1,3 @@
-import { Button } from "@expo/ui";
 import { GlassContainer, GlassView } from "expo-glass-effect";
 import { supportsNativeGlass } from "expo-liquid-glass-view";
 import { Stack, useRouter } from "expo-router";
@@ -13,7 +12,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ContentGlass } from "@/components/content-glass";
-import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { GlassChip } from "@/components/glass-chip";
 import {
   MiniArchive,
@@ -417,26 +415,6 @@ export default function PlaygroundScreen() {
                       onPress={() => {}}
                     />
                   </RNView>
-                </RNView>
-
-                {/* ExpoUiIsland */}
-                <RNView style={{ gap: Spacing.two }}>
-                  <RNText
-                    style={{
-                      color: theme.text,
-                      fontSize: 15,
-                      fontWeight: "600",
-                    }}
-                  >
-                    ExpoUiIsland（RN 树里的 Host 边界）
-                  </RNText>
-                  <ExpoUiIsland>
-                    <Button
-                      testID="playground-island-button"
-                      label="Expo UI Island Button"
-                      onPress={() => {}}
-                    />
-                  </ExpoUiIsland>
                 </RNView>
 
                 {/* ScreenScaffold 效果 */}

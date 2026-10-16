@@ -10,8 +10,8 @@ import {
   View as RNView,
 } from "react-native";
 
-import { GlassHostButton } from "@/components/expo-ui-island";
 import { GlassChip } from "@/components/glass-chip";
+import { GlassHostButton } from "@/components/glass-host-button";
 import { ICONS, type IconKey } from "@/components/icons";
 import {
   nativeContinuousShape,

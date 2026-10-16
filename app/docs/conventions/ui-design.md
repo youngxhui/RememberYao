@@ -14,8 +14,8 @@
 
 1. **系统 chrome** —— `NativeTabs` / `Stack.Title` / `Toolbar` / `SearchBar`。系统自带 iOS 26 液态玻璃，不拆。
 2. **内容树** —— RN 的 `View`/`Text`/`Pressable`/`ScrollView`/`FlatList` + `useTheme()`；骨架用 `ScreenScaffold`（+ `Padded` / `FullBleed`），分组用 `SectionCard` / `SectionTitle` / `HairLine`。
-3. **内容玻璃** —— `@/components/glass-chip` 的 `GlassChip` / `GlassChipRow`，`@/components/expo-ui-island` 的 `GlassHostButton`。**屏幕禁止直接 import `expo-liquid-glass-view` / `expo-glass-effect`**。
-4. **原生控件小岛** —— 菜单 `Picker` 已清零：`@expo/ui` 的 universal `Picker` 的 `appearance` 默认就是 `'menu'`（iOS 落成 SwiftUI `.pickerStyle(.menu)` 原生 Menu 胶囊，**不吃 RN `style`** 还必须住在 `Host` 里），twin / plan-form / settings 的 5 处已全部换成 `@/components/rn-picker` 的 `RnPicker`。`ExpoUiIsland`（`Host matchContents` + `seedColor`）保留为 RN 父树挂 `@expo/ui` 原生控件的唯一边界，目前只有 playground 在演示。
+3. **内容玻璃** —— `@/components/glass-chip` 的 `GlassChip` / `GlassChipRow`，`@/components/glass-host-button` 的 `GlassHostButton`。**屏幕禁止直接 import `expo-liquid-glass-view` / `expo-glass-effect`**。
+4. **原生控件小岛** —— 菜单 `Picker` 已清零：`@expo/ui` 的 universal `Picker` 的 `appearance` 默认就是 `'menu'`（iOS 落成 SwiftUI `.pickerStyle(.menu)` 原生 Menu 胶囊，**不吃 RN `style`** 还必须住在 `Host` 里），twin / plan-form / settings 的 5 处已全部换成 `@/components/rn-picker` 的 `RnPicker`。`ExpoUiIsland`（RN 父树挂 `@expo/ui` 原生控件的边界封装）已随之删除 —— 它生产零调用，留着只会诱使新屏往 RN 树里塞 `Host`。真绕不过时再新建最小 `Host matchContents` 岛，并写清为什么 RN 做不到。
 5. **sheet** —— `@lodev09/react-native-true-sheet`（真原生 sheet：iOS `UISheetPresentationController` / Android `ModalBottomSheet`）。**不要**用 `@expo/ui` 的 `BottomSheet`（已弃用）、`@expo/ui/community/bottom-sheet`（default export 挂载即打开）、`@gorhom/bottom-sheet`（JS 渲染，视觉对不齐系统）。
 
 `flex` 是当年 `@expo/ui` 唯一的硬缺口（universal `style` 只映射 SwiftUI/Compose 固定属性），
@@ -31,6 +31,7 @@
 | 开关 | RN `Switch`（`trackColor` / `thumbColor` 走 theme token；oxlint 的禁用规则面向 Expo UI 屏，纯 RN 屏单行豁免并注明原因） |
 | 日期时间选择 | `@/components/rn-datetime-picker` |
 | 菜单（选项 ≤ 6） | `@/components/rn-picker` 的 `RnPicker`（胶囊触发器 + TrueSheet 选项列表） |
+| 玻璃按钮 | `@/components/glass-host-button` 的 `GlassHostButton` |
 | 表单输入 | `InputShell`（只有文字输入套盒，原生自绘控件裸放） |
 | 长列表 | `FlatList` / `FlashList` |
 
@@ -119,10 +120,10 @@ return (
 
 ## 内容玻璃：GlassChip / GlassHostButton
 
-筛选 chip、胶囊按钮一律用共享组件，**屏幕禁止直接 import `expo-liquid-glass-view` / `expo-glass-effect`**（allowlist 只允许 `glass-chip.tsx` 与 `expo-ui-island.tsx` 引玻璃包）：
+筛选 chip、胶囊按钮一律用共享组件，**屏幕禁止直接 import `expo-liquid-glass-view` / `expo-glass-effect`**（allowlist 只允许 `glass-chip.tsx` 与 `glass-host-button.tsx` 引玻璃包）：
 
 - **chip** —— `@/components/glass-chip` 的 `GlassChip`；横滑一排 chip 用 `GlassChipRow`（内含 `GlassContainer spacing={2}`，chip 间距 8pt、2pt 阈值下谁也融不到谁，容器只是分组边界）。
-- **玻璃按钮** —— `@/components/expo-ui-island` 的 `GlassHostButton`（详情页补货那一类）。
+- **玻璃按钮** —— `@/components/glass-host-button` 的 `GlassHostButton`（详情页补货那一类）。
 
 两条硬约束：
 
