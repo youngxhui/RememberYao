@@ -1,9 +1,11 @@
 # `@expo/ui` 与 React Native 混合布局指南
 
 > **适用范围（2026-10 迁移后）**：本文只对**残留 Expo UI 岛**有效 —— 即
-> `src/app/onboarding.tsx` 整屏（默认不迁）、孪生铝箔岛、以及 `ExpoUiIsland` 里的
-> 原生控件（用药人菜单 `Picker`、玻璃按钮）。`settings.tsx` 已迁纯 RN（PR13），
-> 不再是 Expo UI 父树。**生产内容树已全部是纯 RN**（见
+> `src/app/onboarding.tsx` 整屏（默认不迁）与孪生铝箔岛两处。`settings.tsx` 已迁纯 RN
+> （PR13）；5 处用药人 / 语言 / 次数菜单 `Picker` 也已换成 `RnPicker`（迁移计划 §6.7），
+> `ExpoUiIsland` 自此生产零调用、只剩 playground 在演示（`GlassHostButton` 与它同文件，
+> 但玻璃按钮本来就不需要 `ExpoUiIsland` 包裹，detail / twin / person-detail 仍在用）。
+> **生产内容树已全部是纯 RN**（见
 > `docs/plans/迁移计划.md`）：新屏直接用 RN Yoga + `useTheme()` + `ScreenScaffold`，
 > 宽度用 `width: '100%'` / `flex` / 父级 `onLayout`，**不要再套 `Host` 测宽**。
 > `useExpoUiContentWidth`、`ReminderCardStackExpoUI` / `StockPanelExpoUI` /

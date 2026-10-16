@@ -167,13 +167,12 @@ maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 →
 - **断言优先用 testID**，只有真正渲染出来的业务文案才用文本匹配。
 - **`@expo/ui` 的 `Text` 是例外：`testID` 在 iOS 上静默失效**。`TextView.body` 只调了 `applyModifiers`，漏掉 `applyAccessibilityIdentifier`（见 `node_modules/@expo/ui/ios/TextView.swift`），而 `UIBaseView.body` 是调了的。实测：`Column`/`Row`/`Button`/`ListItem`/`TextInput`/`Picker`/`Switch`/`ScrollView` 都正常，只有 `Text` 不行。给 `Text` 加 testID 不报错也不生效，只能按文案断言。其余组件均已实机验证可用。
 - **切 tab 用 `repeat` 兜一下**：过引导页后第一次点底部 tab 会被吞（`router.replace` 之后首次触摸不生效），第二次就正常，`waitForAnimationToEnd` 救不了。写法见 `dashboard.yaml`。
-- **表单里 `inputText` 之后不能直接点主操作按钮**：数字键盘会盖住「保存」。`hideKeyboard` 对 `@expo/ui` 原生 `TextInput` 无效（不暴露标准 dismiss action），点静态文案也不收键盘，上滑会被当成返回手势 —— 需要 app 侧给表单加 `scrollDismissesKeyboard`（见下方待办）。
+- **表单里 `inputText` 之后不能直接点主操作按钮**：数字键盘会盖住「保存」（Expo UI 表单时代的实测：`hideKeyboard` 对 `@expo/ui` 原生 `TextInput` 无效，点静态文案也不收键盘，上滑会被当成返回手势）。表单迁纯 RN 后 `ScreenScaffold` 自带 `keyboardShouldPersistTaps="handled"`，但真机未复验，见文末「flow 当前状态」。
 - **动态 id 在 flow 里写成正则**：列表行 id 拼了实体 id（如 `dose-take-<reminderId>`），flow 里写 `id: "dose-take-.*"`。`id` 字段本身按正则编译，所以 `mini-archive-entry-.*` 这种后缀通配是合法的。
-- **别用只在上一步页面出现的文案做等待**：`assertVisible: "维生素C"` 在药品表单页也能匹配到（它就在「药品名称」输入框里），会假通过。要用列表页独有的文案（如 `全部 1`、空态提示）确认真的回到了列表。
-- **动态 id 在 flow 里写成正则**：列表行 id 拼了实体 id（如 `dose-take-<reminderId>`），flow 里写 `id: "dose-take-.*"`。`id` 字段本身按正则编译，所以 `mini-archive-entry-.*` 这种后缀通配是合法的。
+- **别用只在上一步页面出现的文案做等待**：`assertVisible: "维生素C"` 在药品表单页也能匹配到（它就在「药品名称」输入框里），会假通过。要用列表页独有的文案（如筛选 chip「全部」、空态「暂无药品」/「没有库存不足的药品」）确认真的回到了列表。
 - **系统弹窗用 `label` 匹配并标 `optional: true`**：权限弹窗文案随系统语言变（「允许」/「Allow」）。
 - 首页（今日）现在是**纯 RN 树**（`src/screens/home`），`Pressable` / `RNView` 的 `testID` 正常落到 `accessibilityIdentifier`，不受上面「@expo/ui 的 Text 不行」的限制。首页关键 id：`home-add-medication-button`（Hero 加号）、`home-empty-add-button`（空态）、`home-notification-enable`（通知横幅）、`home-refill-button`（库存速览补货）、`stack-card-take-<reminderId>`（牌堆服用）。`dose-take-*` / `dose-skip-*` / `dose-snooze-*` / `home-gap-row-*` 随 `dose-rail.tsx` 一起删除（迁移计划 PR6），`dose-timeline.tsx` 里的两个 id 只有 records 页在用。
-- 首页进度文本是 `已完成 N/M`，`M === 0` 时照常渲染 `已完成 0/0`；数字随当日配置变化，只断言 `N/M` 这个结构。空态文案是「今天没有用药安排」。
+- 首页有两种空态：一种药都没有时走 `FirstRunEmpty`（文案 `home.emptyTitle` / `emptyBody` / `emptyAction` + `home.privacyNote`，按钮 `home-empty-add-button`）；有药但今天没有安排时走 `NoScheduleToday`（文案「今天没有用药安排」+ 一句提示，无按钮）。「已完成 N/M」进度文本随 `dose-rail.tsx` 一起删除（迁移计划 PR6），断言时不要再找它。
 - flow 文件名用连字符（kebab-case），与路由和组件保持一致。
 
 ### testID 命名规范
@@ -188,7 +187,7 @@ maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 →
 | --- | --- | --- |
 | `-button` | 按钮 | `medication-save-button` |
 | `-input` | 文本 / 数字输入 | `plan-dose-input` |
-| `-picker` | 下拉选择 | `plan-medication-picker` |
+| `-picker` | 下拉选择 | `plan-person-picker`（`RnPicker` 选项为 `<testID>-option-<value>`） |
 | `-switch` | 开关 | `plan-enabled-switch` |
 | `-filter-*` | 筛选 chip | `medica-filter-low` |
 | `-item-<id>` / `-<id>` | 列表行、行内按钮 | `person-item-<id>`、`dose-take-<reminderId>` |
@@ -221,8 +220,10 @@ maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 →
 
 `maestro/dashboard.yaml` —— 通过，连跑 4 次稳定。其余 flow 已删除。
 
-待办（app 侧，非测试问题）：给药品表单（`medica/form.tsx`）与用药配置表单（`profile/plan-form.tsx`）
-加上 `scrollDismissesKeyboard`，修掉「键盘盖住保存按钮」。这是规则 36
-「表单主操作不能被键盘挡住」目前唯一的违反点 —— 实测 `hideKeyboard` 对 `@expo/ui`
-原生 `TextInput` 无效，点静态文案不收键盘，上滑会被当成返回手势，所以补药品/主流程
-这类带表单的 flow 在修好之前写不出来。
+待办（app 侧，非测试问题）：「键盘盖住保存按钮」这条**2026-10 迁移后待重新评估**。
+原结论写在 Expo UI 表单时代：实测 `hideKeyboard` 对 `@expo/ui` 原生 `TextInput` 无效
+（不暴露标准 dismiss action），点静态文案也不收键盘，上滑会被当成返回手势。现在表单
+全是纯 RN（`ScreenScaffold` 的 `ScrollView` 已带 `keyboardShouldPersistTaps="handled"`，
+RN `TextInput` 也认 `keyboardDismissMode` / `blurOnSubmit`），但**迁移后的表单没在真机上
+复验过键盘行为** —— 下次跑 `medica.yaml` / `plan.yaml` 时重点看：输入中点保存是否触发、
+保存按钮会不会被键盘挡住。修好之前补药品 / 主流程这类带表单的 flow 仍写不全。

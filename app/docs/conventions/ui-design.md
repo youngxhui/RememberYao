@@ -5,8 +5,9 @@
 ## 选型阶梯：内容树默认纯 RN
 
 > **2026-10 起 `@expo/ui` 不再是默认画布。** 生产内容树已全部迁到 RN Yoga + `useTheme()`，
-> 见 `docs/plans/迁移计划.md`。`@expo/ui` 只剩三处合法残留：`onboarding.tsx` 的 `TabView` pager、
-> 孪生铝箔岛的 `nativeGradientBackground`、以及少数几处**原生菜单 `Picker`**（经 `ExpoUiIsland`）。
+> 见 `docs/plans/迁移计划.md`。`@expo/ui` 在生产屏只剩两处合法残留：`onboarding.tsx` 的整屏
+> `TabView` pager、孪生铝箔岛的 `nativeGradientBackground`（菜单 `Picker` 已于 2026-10-16
+> 换成 `RnPicker`，`ExpoUiIsland` 生产零调用）。
 > **新屏一律用 RN 写**，不要再写整屏 `Host`+`Column`+`ScrollView`。
 
 选型阶梯，从上往下，第一个满足需求就停：
@@ -54,8 +55,8 @@ modifier 工厂是纯 JS —— `frame(params)` 只是 `return { $type: "frame",
 
 除了 modifier 名称不通约，**同一件 UI 在两端的原生组件也可能完全不是同一个东西**（分段筛选：iOS 是 `Picker` + `pickerStyle('segmented')`，Android 是 `SingleChoiceSegmentedButtonRow` + `SegmentedButton`，props 也要自己抹平）。拆之前先问一句值不值得：
 
-- **universal 层的选项枚举可能本来就够用。** 成员筛选试过拆平台分段控件，最终退回 universal `Picker appearance="menu"` —— segmented 到 4 段以上每段被压成细条，而成员数量不可控；菜单只占一行、选项还能纵向滚动。（首页的成员筛选后来挪进了系统工具栏右上角的 `Stack.Toolbar.Menu`，但「选项多、每项有名字就用菜单而不是分段控件」的结论不变，plan-form 的用药人单选也仍是 `Picker`。）
-- **平台专属路径无法用静态检查验证。** `android/` 目录还没生成时，拆出去的 Android 实现是纯盲写。
+- **universal 层的选项枚举可能本来就够用。** 成员筛选试过拆平台分段控件，最终退回 universal `Picker appearance="menu"` —— segmented 到 4 段以上每段被压成细条，而成员数量不可控；菜单只占一行、选项还能纵向滚动。（首页的成员筛选后来挪进了系统工具栏右上角的 `Stack.Toolbar.Menu`，「选项多、每项有名字就用菜单而不是分段控件」的结论不变；但 **2026-10-16 起菜单也不再直接用 `@expo/ui` 的 `Picker`** —— 它不吃 RN `style` 还必须住 `Host`，plan-form / twin / settings 的 5 处已换成 `RnPicker`，见迁移计划 §6.7。）
+- **平台专属路径无法用静态检查验证。** `android/` 目录生成后，拆出去的 Android 实现仍只能在真机上验。
 
 所以定位是：**universal 能满足就用 universal，实在满足不了（比如 `TabView`、SwiftUI 独有的 `.insetGrouped`）才拆**。拆之前读 `node_modules/@expo/ui/src/universal/<组件>/types.d.ts` 确认选项真的没有 —— 包里的类型比文档更权威。
 
@@ -169,19 +170,15 @@ const theme = useTheme();
 
 ## 原生自绘控件不要套外盒
 
-`@expo/ui` 里有一部分控件**自己就带 chrome**：菜单 `Picker`（`appearance="menu"`）是一颗
-约 34pt 的品牌色胶囊，compact 日期/时间选择器（`@expo/ui/community/datetime-picker` +
-`display="compact"`）是一颗灰底胶囊。把它们再塞进 `InputShell` 就是「盒子里嵌盒子」——
-双重描边、双重内边距，控件读起来还是不可点的标签。
+有一类控件**自己就带 chrome**：`RnPicker`（`@/components/rn-picker`）的灰底胶囊触发器、
+`RnDateTimePicker`（`@/components/rn-datetime-picker`）的灰底胶囊。把它们再塞进
+`InputShell` 就是「盒子里嵌盒子」—— 双重描边、双重内边距，控件读起来还是不可点的标签。
 
-规则：**只有文字输入套 `InputShell`**；原生自绘控件一律裸放，需要强调时用
-`accentColor={theme.primary}` 上品牌色（日期选择器）、或靠 `Host` 的 `seedColor`
-（菜单 Picker）。
+规则：**只有文字输入套 `InputShell`**；这两个胶囊触发器一律裸放（`plan-form.tsx` 的头注释记着这条）。
 
-另外，原生日期/时间选择器的**格式跟随 App 语言**，不跟随系统 locale —— 中文界面里弹
-「8:00 AM」很违和。用 `@/i18n` 的 `pickerFormat(language)`：iOS 走 `locale`，Android 的
-12/24 小时制没有 locale 可依，只能显式给 `is24Hour`（`locale` 仍用来格式化 Android 那颗
-胶囊上显示的值）。
+> 历史：2026-10 之前这条规则面向 `@expo/ui` 的菜单 `Picker`（`appearance="menu"`，约 34pt
+> 品牌色胶囊）与社区 compact 日期选择器；两者都已退场（Picker → `RnPicker`，日期 →
+> `RnDateTimePicker`，见迁移计划 §6.7），规则本身不变。
 
 ### 日期/时间选择器走 `RnDateTimePicker`
 
