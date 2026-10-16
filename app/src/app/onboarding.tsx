@@ -1,23 +1,17 @@
-import {
-  Button,
-  Column,
-  Host,
-  Icon,
-  Row,
-  ScrollView,
-  Spacer,
-  Text,
-  type IconName,
-} from "@expo/ui";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  type ScrollViewInstance,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  NativeOnboardingPager,
-  nativeButtonModifiers,
-  nativeLayout,
-} from "@/components/native-layout";
+import { GlassHostButton } from "@/components/glass-host-button";
+import { SYMBOL_ICONS } from "@/components/icons";
+import { SymbolIcon } from "@/components/symbol-icon";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation, type Path } from "@/i18n";
@@ -28,35 +22,54 @@ import { markOnboardingSeen } from "@/lib/onboarding";
 const PAGES = [
   {
     value: "brand",
-    icon: Icon.select({
-      ios: "capsule.fill",
-      android: require("@expo/material-symbols/medication.xml"),
-    }),
+    icon: SYMBOL_ICONS.onboardingBrand,
     titleKey: "onboarding.page1Title",
     subtitleKey: "onboarding.page1Subtitle",
   },
   {
     value: "intro",
-    icon: Icon.select({
-      ios: "cross.case.fill",
-      android: require("@expo/material-symbols/emergency.xml"),
-    }),
+    icon: SYMBOL_ICONS.onboardingIntro,
     titleKey: "onboarding.page2Title",
     subtitleKey: "onboarding.page2Subtitle",
   },
 ] as const satisfies ReadonlyArray<{
   value: string;
-  icon: IconName;
+  icon: (typeof SYMBOL_ICONS)[keyof typeof SYMBOL_ICONS];
   titleKey: Path;
   subtitleKey: Path;
 }>;
 
+/** 图标底块边长与圆角（原 Expo UI 版写死的 128 / 32） */
+const HERO_SIZE = 128;
+const HERO_RADIUS = 32;
+
+/**
+ * 首次启动引导页：两页横滑（品牌 → 能做什么），末页按钮变「开始使用」。
+ *
+ * 早先整屏是 `@expo/ui`（`Host` + SwiftUI `ScrollView` / `Column` / `Row` +
+ * `TabView(.pageStyle)` pager + `.buttonStyle(.glassProminent)` 按钮）。2026-10-16
+ * 迁纯 RN：
+ *
+ * - **pager** 用 RN `ScrollView` + `pagingEnabled`：容器实测宽度后每页等宽，
+ *   跟手滑动用 `onMomentumScrollEnd` 回读页码，「下一步」用 `scrollTo` 程序化翻页。
+ *   iOS 的 SwiftUI `TabView(.pageStyle)` 与 Android 的 `HorizontalPager` 行为略有
+ *   差异，RN 这套两端同构 —— 代价是回弹 / 边缘手势的细节不如原生 pager 精致。
+ * - **玻璃主按钮** 用 `GlassHostButton`（iOS `UIGlassEffect`，Android 实心主按钮），
+   与详情页补货、孪生加板同一颗。
+ * - **「跳过」** 现在能落 `testID` 了 —— `@expo/ui` 的 `Text` 在 iOS 上不转发
+ *   accessibilityIdentifier（`TextView.swift` 漏调 `applyAccessibilityIdentifier`），
+ *   Maestro 只能按中文文案定位；RN `Text` 没这个问题。yaml 里既有的
+ *   `tapOn: "跳过"` 仍然有效（文案没动），此处只是多给一个稳定入口。
+ */
 export default function OnboardingScreen() {
   const theme = useTheme();
   const t = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [page, setPage] = useState<string>(PAGES[0].value);
+  // pager 宽度：pagingEnabled 要求每页宽 == 容器宽，用 onLayout 实测
+  const [pagerWidth, setPagerWidth] = useState(0);
+  const pagerRef = useRef<ScrollViewInstance>(null);
   const isFirst = page === PAGES[0].value;
   const isLast = page === PAGES[PAGES.length - 1].value;
 
@@ -68,89 +81,132 @@ export default function OnboardingScreen() {
   const next = () => {
     if (isLast) {
       void finish();
-    } else {
-      setPage(PAGES[1].value);
+      return;
     }
+    const index = PAGES.findIndex((item) => item.value === PAGES[1].value);
+    setPage(PAGES[index].value);
+    pagerRef.current?.scrollTo({ x: index * pagerWidth, animated: true });
+  };
+
+  /** 跟手滑动结束：按偏移量反算页码，回头同步按钮文案 */
+  const onSwipeEnd = (offsetX: number) => {
+    if (pagerWidth <= 0) return;
+    const index = Math.round(offsetX / pagerWidth);
+    const target = PAGES[Math.min(Math.max(index, 0), PAGES.length - 1)];
+    if (target) setPage(target.value);
   };
 
   return (
-    // 引导页在 tab 组之外，没有 tab 栏给的 tint，seedColor 让原生控件继续跟随品牌色
-    <Host seedColor={theme.primary} style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
       <ScrollView
-        showsIndicators={false}
-        style={{
-          backgroundColor: theme.canvas,
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
           paddingTop: insets.top + Spacing.three,
+          flexGrow: 1,
         }}
       >
-        <Column spacing={0}>
-          <Row style={{ padding: 16 }}>
-            <Spacer />
-            {/* @expo/ui 的 Text 在 iOS 上不落 accessibilityIdentifier（TextView.swift
-                漏调 applyAccessibilityIdentifier），所以「跳过」给不了 testID，
-                Maestro 只能按文案定位 */}
-            {!isFirst ? (
-              <Text
-                textStyle={{ fontSize: 14, color: theme.textSecondary }}
-                onPress={() => void finish()}
-              >
+        <View
+          style={{
+            flexDirection: "row",
+            padding: Spacing.three,
+          }}
+        >
+          <View style={{ flex: 1 }} />
+          {!isFirst ? (
+            <Pressable
+              testID="onboarding-skip-button"
+              accessibilityRole="button"
+              onPress={() => {
+                void finish();
+              }}
+              hitSlop={Spacing.three}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <Text style={{ fontSize: 14, color: theme.textSecondary }}>
                 {t("onboarding.skip")}
               </Text>
-            ) : null}
-          </Row>
+            </Pressable>
+          ) : null}
+        </View>
 
-          <NativeOnboardingPager selection={page} onSelectionChange={setPage}>
+        <View
+          style={{ flex: 1, justifyContent: "center" }}
+          onLayout={(event) => {
+            setPagerWidth(event.nativeEvent.layout.width);
+          }}
+        >
+          <ScrollView
+            ref={pagerRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={pagerWidth > 0}
+            onMomentumScrollEnd={(event) => {
+              onSwipeEnd(event.nativeEvent.contentOffset.x);
+            }}
+          >
             {PAGES.map((item) => (
-              <NativeOnboardingPager.Tab key={item.value} value={item.value}>
-                <Column
-                  alignment="center"
-                  spacing={20}
-                  modifiers={[
-                    nativeLayout({
-                      fullWidth: true,
-                      fullHeight: process.env.EXPO_OS !== "android",
-                    }),
-                  ]}
-                  style={{ paddingVertical: 60 }}
+              <View
+                key={item.value}
+                style={{
+                  width: pagerWidth > 0 ? pagerWidth : undefined,
+                  flex: pagerWidth > 0 ? undefined : 1,
+                  alignItems: "center",
+                  gap: Spacing.five,
+                  paddingVertical: Spacing.six,
+                  paddingHorizontal: Spacing.five,
+                }}
+              >
+                <View
+                  style={{
+                    width: HERO_SIZE,
+                    height: HERO_SIZE,
+                    borderRadius: HERO_RADIUS,
+                    borderCurve: "continuous",
+                    backgroundColor: theme.primarySoft,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
-                  <Column
-                    alignment="center"
-                    style={{
-                      width: 128,
-                      height: 128,
-                      borderRadius: 32,
-                      backgroundColor: theme.primarySoft,
-                    }}
-                  >
-                    <Icon name={item.icon} size={60} color={theme.primary} />
-                  </Column>
-                  <Text textStyle={{ fontSize: 26, fontWeight: "700" }}>
-                    {t(item.titleKey)}
-                  </Text>
-                  <Text
-                    textStyle={{ fontSize: 14, color: theme.textSecondary }}
-                  >
-                    {t(item.subtitleKey)}
-                  </Text>
-                </Column>
-              </NativeOnboardingPager.Tab>
+                  <SymbolIcon
+                    name={item.icon}
+                    size={60}
+                    color={theme.primary}
+                  />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 26,
+                    fontWeight: "700",
+                    color: theme.text,
+                    textAlign: "center",
+                  }}
+                >
+                  {t(item.titleKey)}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: theme.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
+                  {t(item.subtitleKey)}
+                </Text>
+              </View>
             ))}
-          </NativeOnboardingPager>
+          </ScrollView>
+        </View>
 
-          <Column style={{ padding: 24 }}>
-            {/* 文案在「下一步 / 开始使用」之间切换，测试靠 testID 稳定定位 */}
-            <Button
-              testID="onboarding-next-button"
-              label={isLast ? t("onboarding.start") : t("onboarding.next")}
-              onPress={next}
-              modifiers={nativeButtonModifiers({
-                style: "glassProminent",
-                fullWidth: true,
-              })}
-            />
-          </Column>
-        </Column>
+        <View style={{ padding: Spacing.four }}>
+          <GlassHostButton
+            testID="onboarding-next-button"
+            label={isLast ? t("onboarding.start") : t("onboarding.next")}
+            onPress={next}
+            fullWidth
+          />
+        </View>
       </ScrollView>
-    </Host>
+    </View>
   );
 }

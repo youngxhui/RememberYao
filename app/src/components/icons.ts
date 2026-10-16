@@ -21,6 +21,9 @@ export const SYMBOL_ICONS = {
   xmark: { ios: "xmark", android: "close" },
   // 泡罩坑里的「历史消耗」标记（twin-foil.tsx 的 SlotMark）
   minusSlot: { ios: "minus", android: "remove" },
+  // 引导页两枚大图标（onboarding.tsx）
+  onboardingBrand: { ios: "capsule.fill", android: "medication" },
+  onboardingIntro: { ios: "cross.case.fill", android: "emergency" },
   // 设置页分组行（design/settings.html 的 .setting-icon）
   settingsLanguage: { ios: "globe", android: "language" },
   settingsNotification: { ios: "bell.fill", android: "notifications" },

@@ -12,7 +12,7 @@ import { useTheme } from "@/hooks/use-theme";
  *
  * 历史：早先这里是 `ExpoUiIsland`（`@expo/ui` 的 `Host matchContents`，RN 树里挂
  * 原生控件的唯一边界）+ `GlassHostButton` 两个导出，玻璃按钮用 `@expo/ui` 的
- * `Button` + `nativeButtonModifiers({ style: "glass" })` 实现。2026-10-16 菜单
+ * `@expo/ui` 的 `Button` + `nativeButtonModifiers` 实现。2026-10-16 菜单
  * `Picker` 全部换成 `RnPicker` 后 `ExpoUiIsland` 生产零调用，整段删除；玻璃按钮也
  * 改成 RN `Pressable` + `GlassView`，不再需要 `Host`。文件随之改名为
  * `glass-host-button.tsx`。
