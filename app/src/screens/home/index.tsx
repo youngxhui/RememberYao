@@ -40,7 +40,6 @@ function weekdayName(date: Date, locale: string): string {
  * 首页（今天）：巨型日期 + 工具栏右上角的家庭成员筛选 + 提醒卡堆叠 + 药品库存。
  */
 export function Home() {
-  const _theme = useTheme();
   const t = useTranslation();
   const router = useRouter();
   const checkingOnboarding = useOnboardingGate();

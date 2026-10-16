@@ -1,5 +1,15 @@
 # `@expo/ui` 与 React Native 混合布局指南
 
+> **适用范围（2026-10 迁移后）**：本文只对**未迁屏与残留 Expo UI 岛**有效 —— 即
+> `src/screens/profile/settings.tsx`（冻结）、`src/app/onboarding.tsx`（冻结）、
+> 孪生铝箔岛、`ExpoUiIsland` 里的原生控件。**生产内容树已全部是纯 RN**（见
+> `docs/plans/迁移计划.md`）：新屏直接用 RN Yoga + `useTheme()` + `ScreenScaffold`，
+> 宽度用 `width: '100%'` / `flex` / 父级 `onLayout`，**不要再套 `Host` 测宽**。
+> `useExpoUiContentWidth`、`ReminderCardStackExpoUI` / `StockPanelExpoUI` /
+> `MiniArchiveExpoUI`、`Avatar`（RNHostView 包装）、`ProgressBar`（RNHostView 包装）、
+> 旧 `chip.*` / `form.tsx` / `section-card.tsx` / `round-icon-button.tsx` 均已删除，
+> 文中凡提到它们的地方都只是历史记录。
+
 本文记录 `@expo/ui` 原生视图和 React Native 视图混用时的布局边界、尺寸测量和尺寸同步规则。适用于 `Host`、`RNHostView`、原生滚动容器和 RN 动画组件组合使用的场景。
 
 ## 1. 先确定布局边界
@@ -129,7 +139,7 @@
 4. 对所有有效宽度取保守的最小值，避免旧的展开宽度在折叠后继续撑开父容器。
 5. 把最终数字宽度显式传给 RN 子树，不要让 RN island 自行猜测父容器宽度。
 
-可以抽成通用 hook（当前实现在 `src/hooks/use-expo-ui-content-width.ts`，首页与「我的」共用）：
+可以抽成通用 hook（**已删除**：内容树迁纯 RN 后宽度改用 Yoga `flex` / `onLayout`，`src/hooks/use-expo-ui-content-width.ts` 随 PR10 移除。保留这段实现只为说明「三方取最小值」的推导过程）：
 
 ```tsx
 import { useCallback, useState } from "react";
@@ -274,10 +284,10 @@ type MeasuredWidth = {
 
 ## 10. 当前项目参考实现
 
-- `src/app/playground`：整屏纯 RN 的例子（Reanimated 提醒卡堆叠手势、横向 chip 滚动）。
-- `src/screens/home`、`src/screens/profile`：Expo UI 为主的整屏（`Host` + 原生 `ScrollView`）。universal style 没有 flex，通栏行靠 `Spacer flexible` 撑开，宽度取值都是第 4 节的 `useExpoUiContentWidth` hook（`src/hooks/use-expo-ui-content-width.ts`）。
-  - 首页有两块 island，都靠 `containerWidth` 喂实测宽度：`ReminderCardStackExpoUI`（Reanimated 绝对位移）与 `StockPanelExpoUI`（行内药名 `flex: 1`）。屏幕左右边距统一挂在外层 `Column` 的 `paddingHorizontal` 上，两块的 `islandWidth` 就等于同一个值。
-  - 我的页的 island 是 Mini Archive（`MiniArchiveExpoUI`）与成员卡头像（`ListItem` 的 leading 槽自行 `RNHostView` 托管）；三等分统计卡按实测内容宽度算固定卡宽。
-  - `src/components/round-icon-button.tsx`：原生 `Row` + `onPress` 做的圆形图标按钮 —— SwiftUI `Button` 的热区只包住 label，撑大 frame 后热区反而缩回图标。
-- `src/components/mini-archive.tsx`：RN island 的固有尺寸、safe-area fallback、宽度缓存失效和 `matchContents`；`MiniArchiveSwiftUI` 是把它嵌进 `Host` 的写法。
-- `src/components/avatar.tsx`、`src/components/progress-bar.tsx`：小型 RN island 的 `RNHostView` 边界示例（`Avatar` 只在原生树里用，纯 RN 屏用同文件的 `AvatarMark`）。
+- `src/app/playground`：整屏纯 RN 的例子（Reanimated 提醒卡堆叠手势、横向 chip 滚动、`ContentGlass` / `GlassChip` 对照）。
+- `src/screens/home`、`src/screens/profile`：**已迁成纯 RN**（迁移计划 PR4 / PR5）。曾经是「Expo UI 为主的整屏 + `useExpoUiContentWidth` 喂宽」，现在牌堆 / 库存 / Mini Archive 直接挂 RN 树，宽度走 `onLayout` 与 `flex`；`ScreenScaffold` 默认无水平 padding，通栏用 `FullBleed`、内缩用 `Padded`。
+- `src/screens/medica/twin.tsx`：**残留岛的正确样本** —— 铝箔网格与图例仍活在 `TwinFoilIsland` 的 `Host` 里（SwiftUI 径向渐变，`LiquidGlassView` 替代不了），宽度由 RN 父级 `onLayout` 实测喂入；页头 / 进度 / 开启表单 / 格子都是 RN。
+- `src/components/expo-ui-island.tsx`：RN 父树里挂 `@expo/ui` 原生控件的唯一边界（`Host matchContents` + `seedColor`）。`glass-chip.tsx` 的 `GlassChipRow` 同理 —— 屏幕不得自己 import 玻璃包。
+- `src/components/mini-archive.tsx`：RN island 的固有尺寸、safe-area fallback、宽度缓存失效和 `matchContents`。
+- `src/components/avatar.tsx`、`src/components/progress-bar.tsx`：曾是小型 RN island 的 `RNHostView` 边界示例；双轨包装已删，现在分别只剩 `AvatarMark` 与 `ProgressBarRn`，都是纯 RN 组件。
+- `src/components/rn-round-icon-button.tsx`：圆形图标按钮的 RN 版。旧版是原生 `Row` + `onPress`，坑在于 SwiftUI `Button` 的热区只包住 label，撑大 frame 后热区反而缩回图标 —— 这条经验对残留岛里的原生按钮仍然有效。

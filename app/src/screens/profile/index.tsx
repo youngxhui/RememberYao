@@ -40,7 +40,6 @@ type MemberTone = "ok" | "watch" | "none";
 
 export function Profile() {
   const router = useRouter();
-  const _theme = useTheme();
   const t = useTranslation();
   const { markInteractive } = useObserve();
   const {

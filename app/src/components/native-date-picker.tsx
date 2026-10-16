@@ -27,14 +27,10 @@ export type NativeDatePickerProps = {
   is24Hour?: boolean;
   accentColor?: string;
   testID?: string;
-  /** RN 父树里必须传 true：iOS 的 SwiftUI `DatePicker` 离开 `Host` 会
-   *  `Unable to get view config`，这时自动套一层 `ExpoUiIsland`。
-   *  仍是 Expo UI 父树（settings 的 FieldGroup）时不传，避免多一层桥 */
-  embedInHost?: boolean;
   onValueChange: (date: Date) => void;
 };
 
-/** web / 兜底：社区组件（各平台实现一致的那一层）。RN 组件不需要 Host，`embedInHost` 忽略 */
+/** web / 兜底：社区组件（各平台实现一致的那一层）。 */
 export function NativeDatePicker({
   value,
   mode,
@@ -42,7 +38,6 @@ export function NativeDatePicker({
   is24Hour,
   accentColor,
   testID,
-  embedInHost: _embedInHost,
   onValueChange,
 }: NativeDatePickerProps) {
   return (

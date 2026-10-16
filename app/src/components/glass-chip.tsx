@@ -1,4 +1,8 @@
-import { GlassView } from "expo-glass-effect";
+import {
+  GlassContainer,
+  GlassView,
+  type GlassContainerProps,
+} from "expo-glass-effect";
 import { Pressable as RNPressable, Text as RNText } from "react-native";
 
 import { Spacing, Radius } from "@/constants/theme";
@@ -80,5 +84,26 @@ export function GlassChip({
         {label}
       </RNText>
     </RNPressable>
+  );
+}
+
+/**
+ * 玻璃 chip 行的融合容器：屏幕要横滑一排 chip 时套这一层，
+ * 不要自己 import `expo-glass-effect`（迁移计划 §3 的 allowlist 只允许共享组件层引玻璃包）。
+ *
+ * `spacing={2}` 是**故意**的：chip 间距 8pt，2pt 阈值下谁也融不到谁，
+ * 容器只是个分组边界，不会出现「两颗 chip 糊成一颗」。
+ */
+export function GlassChipRow({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: GlassContainerProps["style"];
+}) {
+  return (
+    <GlassContainer spacing={2} style={style}>
+      {children}
+    </GlassContainer>
   );
 }

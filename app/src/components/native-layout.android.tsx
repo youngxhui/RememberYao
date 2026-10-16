@@ -7,13 +7,7 @@ import {
   fillMaxWidth,
   wrapContentWidth,
 } from "@expo/ui/jetpack-compose/modifiers";
-import {
-  Children,
-  isValidElement,
-  useEffect,
-  useRef,
-  type ReactElement,
-} from "react";
+import { Children, isValidElement, useRef, type ReactElement } from "react";
 
 import type {
   NativeButtonModifiers,
@@ -71,24 +65,19 @@ function pageValue(child: React.ReactNode): string | undefined {
 }
 
 export function NativeOnboardingPager({
-  selection,
+  // Android 侧暂不消费 selection（见下方 TODO），但 props 必须与 iOS 实现一字不差
+  selection: _selection,
   onSelectionChange,
   children,
 }: NativeOnboardingPagerProps) {
   const pages = Children.toArray(children).filter(
     isValidElement,
   ) as ReactElement[];
-  const selectedIndex = Math.max(
-    0,
-    pages.findIndex((child) => pageValue(child) === selection),
-  );
   const pagerRef = useRef<HorizontalPagerHandle>(null);
-
-  useEffect(() => {
-    // TODO: Expo UI Android 的 animateScrollToPage 当前会抛类型拒绝错误，
-    // 先注释掉，保证 onboarding 至少能渲染出来；后续再研究正确调用方式。
-    // void pagerRef.current?.animateScrollToPage(selectedIndex);
-  }, [selectedIndex]);
+  // TODO: Expo UI Android 的 animateScrollToPage 当前会抛类型拒绝错误，
+  // 程序化翻页（selection 变化时 pagerRef.current?.animateScrollToPage(index)）
+  // 先不接，保证 onboarding 至少能渲染出来；后续再研究正确调用方式。
+  // 接上之后 _selection 即可改回 selection 并参与计算。
 
   return (
     <HorizontalPager

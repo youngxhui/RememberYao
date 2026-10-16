@@ -1,8 +1,7 @@
 import { FlashList } from "@shopify/flash-list";
-import { GlassContainer } from "expo-glass-effect";
 import { StyleSheet, View } from "react-native";
 
-import { GlassChip } from "@/components/glass-chip";
+import { GlassChip, GlassChipRow } from "@/components/glass-chip";
 import { Spacing } from "@/constants/theme";
 import { useTranslation, type Path } from "@/i18n";
 import type { MedicationCategory } from "@/lib/store";
@@ -27,7 +26,7 @@ export function FilterRow({
   const t = useTranslation();
 
   return (
-    <GlassContainer spacing={2} style={styles.containerStyle}>
+    <GlassChipRow style={styles.containerStyle}>
       <FlashList
         keyExtractor={(item) => item.key}
         showsHorizontalScrollIndicator={false}
@@ -48,7 +47,7 @@ export function FilterRow({
           </View>
         )}
       />
-    </GlassContainer>
+    </GlassChipRow>
   );
 }
 
