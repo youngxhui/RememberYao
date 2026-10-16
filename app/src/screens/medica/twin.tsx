@@ -1,4 +1,3 @@
-import { Column, Host, Icon, Row, Spacer, Text } from "@expo/ui";
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -12,19 +11,13 @@ import {
 
 import { GlassChip } from "@/components/glass-chip";
 import { GlassHostButton } from "@/components/glass-host-button";
-import { ICONS, type IconKey } from "@/components/icons";
-import {
-  nativeContinuousShape,
-  nativeGradientBackground,
-} from "@/components/native-layout";
 import { ProgressBarRn } from "@/components/progress-bar";
 import { InputShell } from "@/components/rn-input-shell";
 import { RnPicker } from "@/components/rn-picker";
 import { SectionCard, SectionTitle } from "@/components/rn-section-card";
-import { roundedBox } from "@/components/rounded-box";
 import { ScreenScaffold } from "@/components/screen-scaffold";
 import { SymbolIcon } from "@/components/symbol-icon";
-import { BottomTabInset, Fonts, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, useTranslation, type Language } from "@/i18n";
 import {
@@ -33,7 +26,6 @@ import {
   consumeBlisterSlot,
   openBlisterTwin,
   packStatus,
-  pickPillTint,
   planActiveOnDate,
   restoreBlisterSlot,
   stockSummary,
@@ -48,54 +40,24 @@ import {
   useUsagesForMedication,
   type BlisterPack,
   type BlisterSlot,
-  type Medication,
-  type PillTint,
 } from "@/lib/store";
-import { mixColor, withAlpha } from "@/utils/color";
-
-/** 网格格子间距：等分宽度时扣掉的总间隙。取最小档让 10 列的窄板也放得下 */
-const CELL_GAP = Spacing.one;
-
-/** 格子尺寸上下限：下限保可点，上限防 3 列的板撑出巨型泡泡 */
-const CELL_MIN = 26;
-const CELL_MAX = 56;
-
-/**
- * 光源方向：左上。所有径向渐变的中心都按它摆（泡罩受光面、药饼亮心、
- * 凹坑暗心），整板药的光才一致 —— 各处乱给中心会比不给更假。
- */
-const LIGHT = { x: 0.36, y: 0.3 };
-
-/** 泡里装的药：剂型（胶囊 / 药饼）+ 配色。由药品推导，见 buildPillLook */
-type PillLook = {
-  shape: "capsule" | "tablet";
-  tint: PillTint;
-};
-
-/**
- * 药品 → 泡里的药长什么样。
- *
- * 剂型取 unit（粒 = 胶囊、片 = 片剂）：录入时已经选过，不重复提问。
- * 配色按药品 id 稳定取色 —— 同一盒药每次打开都是同一副面孔，
- * 换盒重录也不变（哈希同 pickAvatarColor）。
- */
-function buildPillLook(medication: Medication): PillLook {
-  return {
-    shape: medication.unit === "pill" ? "capsule" : "tablet",
-    tint: pickPillTint(medication.id),
-  };
-}
+import {
+  BlisterGrid,
+  buildPillLook,
+  SlotLegend,
+  TwinFoilCard,
+} from "@/screens/medica/twin-foil";
 
 /**
  * 泡罩数字孪生：把一块实体药板逐格搬进 App。
  *
- * 交互外壳是 RN（`ScreenScaffold` + RN 组件）；铝箔网格与图例继续活在
- * `TwinFoilIsland` 这个 Expo UI 岛里 —— 铝箔渐变绑死 SwiftUI modifier，
- * LiquidGlassView 替代不了（Q2 冻结）。岛宽由 RN 父级 `onLayout` 实测喂入
- * （格子等分要数字宽），不再有 `useExpoUiContentWidth` 那套 Host 测宽。
+ * 整屏纯 RN。铝箔药板（金属渐变、泡罩受光、药饼球面）在 `twin-foil.tsx`，
+ * 用 `expo-linear-gradient` + 同心圆分层近似早先 SwiftUI `background(_:in:)`
+ * 的那套 linear / radial 渐变 —— 径向那部分没有真正的 radialGradient 可用，
+ * 详见该文件顶部说明。板宽由 RN 父级 `onLayout` 实测喂入（格子等分要数字宽）。
  * 点格子弹出的 sheet 用 `@lodev09/react-native-true-sheet`（真原生 sheet：
  * iOS UISheetPresentationController / Android ModalBottomSheet，命令式
- * present/dismiss），是屏幕根的兄弟（不在任何 Host 里）。
+ * present/dismiss），是屏幕根的兄弟。
  *
  * 未开启孪生的板装药（存量数据）在这一屏承载开启表单：填规格 → 按当前
  * 剩余量补历史消耗格 → 立即可用。分配算法见 store.ts 的 planTwinBuild。
@@ -316,8 +278,8 @@ export function MedicationTwin() {
                 onSelect={setSelectedSeq}
               />
 
-              {/* 铝箔岛：整块药板（含格子与图例）继续活在 Expo UI 子树里，
-                  宽度由父级实测喂进去 —— 格子等分要数字宽，测 RN 父级不测 Host */}
+              {/* 铝箔药板：整块（含格子与图例）是纯 RN（见 twin-foil.tsx）。
+                  宽度由父级实测喂进去 —— 格子等分要数字宽 */}
               {pack ? (
                 <RNView
                   onLayout={(event) => {
@@ -325,7 +287,7 @@ export function MedicationTwin() {
                   }}
                 >
                   {gridWidth > 0 ? (
-                    <TwinFoilIsland width={gridWidth}>
+                    <TwinFoilCard width={gridWidth}>
                       <BlisterGrid
                         pack={pack}
                         slots={packSlots}
@@ -335,7 +297,7 @@ export function MedicationTwin() {
                         onSlotPress={openSlotSheet}
                       />
                       <SlotLegend pill={pill} />
-                    </TwinFoilIsland>
+                    </TwinFoilCard>
                   ) : null}
                 </RNView>
               ) : null}
@@ -576,501 +538,6 @@ function PackSwitcher({
     </RNScrollView>
   );
 }
-
-/**
- * 铝箔岛：整块药板的 Expo UI 子树边界。
- *
- * 铝箔渐变（`nativeGradientBackground`）与泡罩分层绑死 SwiftUI modifier，
- * LiquidGlassView 替代不了（Q2 冻结），所以网格 + 图例继续活在 Host 里。
- * 宽度由 RN 父级实测后显式喂入：格子等分要数字宽，而 Host 不 matchContents
- * 才能撑到指定宽度。
- */
-function TwinFoilIsland({
-  width,
-  children,
-}: {
-  width: number;
-  children: React.ReactNode;
-}) {
-  const theme = useTheme();
-  return (
-    <Host seedColor={theme.primary} style={{ width }}>
-      <Column spacing={Spacing.three}>{children}</Column>
-    </Host>
-  );
-}
-
-/** 泡罩网格：rows × cols 个格子，尺寸按实测内容宽等分 */
-function BlisterGrid({
-  pack,
-  slots,
-  gridWidth,
-  pill,
-  medication,
-  onSlotPress,
-}: {
-  pack: BlisterPack;
-  slots: BlisterSlot[];
-  gridWidth: number;
-  /** 泡里装什么药：剂型 + 配色，由药品决定（见 buildPillLook） */
-  pill: PillLook;
-  /** 药板上的印刷内容（药名 + 规格）来自药品本身 */
-  medication: Medication;
-  onSlotPress: (slotId: string) => void;
-}) {
-  const theme = useTheme();
-  const t = useTranslation();
-  const cellSize = Math.min(
-    CELL_MAX,
-    Math.max(
-      CELL_MIN,
-      Math.floor((gridWidth - (pack.cols - 1) * CELL_GAP) / pack.cols),
-    ),
-  );
-  const used = slots.filter((s) => s.status !== "full").length;
-  // 窄板（列数少）算完会剩宽度：左右各一条弹性 Spacer 把网格压到中线，
-  // 与药品库空态、详情页删除提示同一做法（universal 没有 margin: auto）
-  const leftover = Math.max(
-    0,
-    gridWidth - (pack.cols * cellSize + (pack.cols - 1) * CELL_GAP),
-  );
-  const pad = leftover > 0 ? <Spacer flexible /> : null;
-  const sheet = roundedBox({
-    color: theme.foil.ring,
-    background: theme.foil.base,
-    radius: Radius.card,
-    width: 1,
-  });
-
-  return (
-    <Column spacing={Spacing.three}>
-      <Row alignment="center">
-        <Text textStyle={{ fontSize: 15, fontWeight: "700" }}>
-          {t("twin.packChip", { seq: pack.seq })}
-        </Text>
-        <Spacer flexible />
-        <Text textStyle={{ fontSize: 13, color: theme.textSecondary }}>
-          {t("twin.packProgress", { used, total: slots.length })}
-        </Text>
-      </Row>
-      {/* 整块是一张药板：铝箔纸（金属渐变）+ 热压封边，泡罩排在箔上 */}
-      <Column
-        spacing={CELL_GAP}
-        style={{ ...sheet.style, padding: Spacing.two }}
-        modifiers={[
-          ...sheet.modifiers,
-          ...nativeGradientBackground({
-            shape: "sheet",
-            radius: Radius.card,
-            colors: theme.foil.metal,
-          }),
-        ]}
-      >
-        {/* 药板上的印刷：真泡罩卡一定印着药名与规格。等宽小字 + 字距 =
-            油印感，也让它和界面文字区分开 */}
-        <Text
-          textStyle={{
-            fontFamily: Fonts.mono,
-            fontSize: 9,
-            letterSpacing: 0.6,
-            color: theme.textSecondary,
-          }}
-        >
-          {medication.specification
-            ? `${medication.name}  ${medication.specification}`
-            : medication.name}
-        </Text>
-        {Array.from({ length: pack.rows }, (_row, rowIndex) => (
-          <Row key={rowIndex} spacing={CELL_GAP}>
-            {pad}
-            {Array.from({ length: pack.cols }, (_col, colIndex) => {
-              const slot = slots[rowIndex * pack.cols + colIndex];
-              if (!slot) return null;
-              return (
-                <SlotCell
-                  key={slot.id}
-                  slot={slot}
-                  seq={pack.seq}
-                  size={cellSize}
-                  pill={pill}
-                  onPress={() => {
-                    onSlotPress(slot.id);
-                  }}
-                />
-              );
-            })}
-            {pad}
-          </Row>
-        ))}
-      </Column>
-    </Column>
-  );
-}
-
-/** 格子：铝箔纸上的一泡。full 是凸起的泡罩，其余是服后/损坏留下的坑 */
-function SlotCell({
-  slot,
-  seq,
-  size,
-  pill,
-  onPress,
-}: {
-  slot: BlisterSlot;
-  seq: number;
-  size: number;
-  pill: PillLook;
-  onPress: () => void;
-}) {
-  const inset = sealInset(size);
-  return (
-    <Row
-      testID={`twin-slot-${seq}-${slot.index}`}
-      alignment="center"
-      onPress={onPress}
-      style={{ width: size, height: size }}
-    >
-      <Column alignment="center" style={{ width: size }}>
-        {slot.status === "full" ? (
-          <SealDisc size={size} tone="bubble">
-            <Dome size={size - inset * 2} pill={pill} />
-          </SealDisc>
-        ) : (
-          <SealDisc size={size} tone="hole">
-            <SlotMark size={size - inset * 2} slot={slot} />
-          </SealDisc>
-        )}
-      </Column>
-    </Row>
-  );
-}
-
-/** 热压封边的宽度：泡罩直径 = 格径 − 两倍封边。封边是平的，塑料泡从它中间凸起 */
-function sealInset(size: number): number {
-  return Math.max(2, Math.round(size * 0.07));
-}
-
-/**
- * 热压封边：泡罩压在铝箔上的那一圈平环。
- *
- * 服不服药它都在 —— 顶破的只是塑料，箔上的热压封口不会消失。所以 full 与
- * empty 共用这个外圈，只有圈里的东西不同：泡罩 or 坑。
- */
-function SealDisc({
-  size,
-  tone,
-  children,
-}: {
-  size: number;
-  tone: "bubble" | "hole";
-  children?: React.ReactNode;
-}) {
-  const theme = useTheme();
-  const box = roundedBox({
-    color: theme.foil.ring,
-    background: tone === "bubble" ? theme.foil.shade : theme.foil.dent,
-    radius: size / 2,
-    width: 1,
-    // 固定尺寸的小圆圈：fullWidth 的 frame(maxWidth: .infinity) 会顶掉 width
-    fullWidth: false,
-  });
-  // 封边是平的，一道浅线性渐变就够；坑是凹的，径向渐变的暗心偏左上
-  const gradient =
-    tone === "bubble"
-      ? nativeGradientBackground({
-          shape: "circle",
-          colors: theme.foil.seal,
-        })
-      : nativeGradientBackground({
-          shape: "circle",
-          colors: theme.foil.hole,
-          center: LIGHT,
-          startRadius: 0,
-          endRadius: size / 2,
-        });
-  return (
-    <Row
-      alignment="center"
-      style={{ ...box.style, width: size, height: size }}
-      modifiers={[...box.modifiers, ...gradient]}
-    >
-      <Column alignment="center" style={{ width: size }}>
-        {children}
-      </Column>
-    </Row>
-  );
-}
-
-/**
- * 泡罩：被压出铝箔的透明塑料泡。
- *
- * 径向渐变的中心在左上（光源方向），向外一路压暗 —— 泡壁与箔面接近平行的
- * 角度受光最少，这就是塑料泡的体积。药有 0.94 的不透明度，泡的受光面会微微
- * 透上来，读作「药在塑料底下」而不是贴在泡面上。
- */
-function Dome({ size, pill }: { size: number; pill: PillLook }) {
-  const theme = useTheme();
-  return (
-    <Row
-      alignment="center"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: theme.foil.highlight,
-      }}
-      modifiers={[
-        ...nativeContinuousShape(size / 2),
-        ...nativeGradientBackground({
-          shape: "circle",
-          colors: theme.foil.plastic,
-          center: LIGHT,
-          startRadius: 0,
-          endRadius: size / 2,
-        }),
-      ]}
-    >
-      <Column
-        alignment="center"
-        // 药会沉到泡底：给一点上内边距，让药心比泡心低半个 padding。
-        // 真实泡罩里药丸从不悬在泡正中，总是落底的
-        style={{ width: size, paddingTop: Math.round(size * 0.05) }}
-      >
-        <PillMark look={pill} size={Math.round(size * 0.58)} />
-      </Column>
-    </Row>
-  );
-}
-
-/** 坑里的状态标记：已服 / 历史消耗 / 损坏 */
-function SlotMark({ size, slot }: { size: number; slot: BlisterSlot }) {
-  const mark = slotMark(slot);
-  const tint = useMarkTint(mark.tone);
-  return (
-    <Icon
-      name={ICONS[mark.icon]}
-      size={Math.max(9, Math.round(size * 0.42))}
-      color={tint}
-    />
-  );
-}
-
-/** 坑里标记的语义档：已服 / 历史消耗 / 损坏。颜色走语义色，同库存胶囊 */
-type MarkTone = "success" | "neutral" | "danger";
-
-/** 语义档 → 颜色。hook 而不是常量表：要读 theme，且暗色下语义色会翻面 */
-function useMarkTint(tone: MarkTone): string {
-  const theme = useTheme();
-  if (tone === "success") return theme.successStrong;
-  if (tone === "danger") return theme.dangerStrong;
-  return theme.textSecondary;
-}
-
-/** 槽位 → 坑里的标记。纯函数：只读状态，颜色由 useMarkTint 从 theme 取 */
-function slotMark(slot: BlisterSlot): { icon: IconKey; tone: MarkTone } {
-  if (slot.status === "void") return { icon: "xmark", tone: "danger" };
-  return slot.usageId
-    ? { icon: "check", tone: "success" }
-    : { icon: "minusSlot", tone: "neutral" };
-}
-
-/**
- * 泡里的药：胶囊（双色）或药饼（圆片）。
- *
- * 明暗不另存一套色板：胶囊的接缝、药饼的球面 shading 都由 tint 现算亮暗
- * 变体（mixColor）—— 换药片配色时不用重新推六套明暗。光源统一在左上，
- * 药饼的径向渐变中心就按它摆，整板药的光才是一致的。
- */
-function PillMark({ look, size }: { look: PillLook; size: number }) {
-  const { tint } = look;
-  // 药在塑料泡底下：微微透出泡的受光面，而不是贴在泡面上
-  const underPlastic = 0.94;
-
-  if (look.shape === "capsule") {
-    const height = Math.max(6, Math.round(size * 0.66));
-    // 帽套在体上，接缝处比两色都暗一点（真实胶囊的套合位）
-    const seam = mixColor(tint.cap, tint.body, 0.45);
-    const glossHeight = Math.max(1, Math.round(height * 0.12));
-    return (
-      <Row
-        style={{
-          width: size,
-          height,
-          borderRadius: height / 2,
-          backgroundColor: tint.body,
-          opacity: underPlastic,
-        }}
-        modifiers={[
-          ...nativeContinuousShape(height / 2),
-          ...nativeGradientBackground({
-            shape: "capsule",
-            colors: [tint.cap, tint.cap, seam, tint.body, tint.body],
-            start: { x: 0, y: 0.5 },
-            end: { x: 1, y: 0.5 },
-          }),
-        ]}
-      >
-        {/* 明胶的蛋壳光泽：顶边一道细高光，只在上三分之一宽 */}
-        <Column
-          alignment="center"
-          style={{
-            width: size,
-            paddingTop: Math.max(1, Math.round(height * 0.14)),
-          }}
-        >
-          <Row
-            style={{
-              width: Math.round(size * 0.56),
-              height: glossHeight,
-              borderRadius: glossHeight / 2,
-              backgroundColor: withAlpha("#FFFFFF", 0.55),
-            }}
-          />
-        </Column>
-      </Row>
-    );
-  }
-
-  // 药饼：径向渐变当球面 shading（亮心在左上、边缘压暗），压痕是一道暗线
-  const light = mixColor(tint.body, "#FFFFFF", 0.55);
-  const mid = mixColor(tint.body, "#FFFFFF", 0.16);
-  const edge = mixColor(tint.body, "#000000", 0.22);
-  const scoreWidth = Math.max(2, Math.round(size * 0.5));
-  return (
-    <Row
-      alignment="center"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: tint.body,
-        opacity: underPlastic,
-      }}
-      modifiers={[
-        ...nativeContinuousShape(size / 2),
-        ...nativeGradientBackground({
-          shape: "circle",
-          colors: [light, mid, tint.body, edge],
-          center: LIGHT,
-          startRadius: 0,
-          endRadius: size / 2,
-        }),
-      ]}
-    >
-      <Column alignment="center" style={{ width: size }}>
-        <Row
-          style={{
-            width: scoreWidth,
-            height: Math.max(1, Math.round(size * 0.05)),
-            backgroundColor: mixColor(tint.body, "#000000", 0.32),
-          }}
-        />
-      </Column>
-    </Row>
-  );
-}
-
-/** 图例：四种格子态的小样，直接复用格子视觉（缩到 14pt 的迷你药板） */
-function SlotLegend({ pill }: { pill: PillLook }) {
-  const theme = useTheme();
-  const t = useTranslation();
-  // 图例就是缩小版的真格子：封边 + 泡罩 / 封边 + 坑，不是色块示意
-  const swatch = 16;
-  const items: {
-    key: string;
-    label: string;
-    node: React.ReactNode;
-  }[] = [
-    {
-      key: "full",
-      label: t("twin.legendFull"),
-      node: (
-        <SealDisc size={swatch} tone="bubble">
-          <Dome size={swatch - sealInset(swatch) * 2} pill={pill} />
-        </SealDisc>
-      ),
-    },
-    {
-      key: "taken",
-      label: t("twin.legendTaken"),
-      node: (
-        <SealDisc size={swatch} tone="hole">
-          <SlotMark
-            size={swatch - sealInset(swatch) * 2}
-            slot={LEGEND_SLOTS.taken}
-          />
-        </SealDisc>
-      ),
-    },
-    {
-      key: "history",
-      label: t("twin.legendHistory"),
-      node: (
-        <SealDisc size={swatch} tone="hole">
-          <SlotMark
-            size={swatch - sealInset(swatch) * 2}
-            slot={LEGEND_SLOTS.history}
-          />
-        </SealDisc>
-      ),
-    },
-    {
-      key: "void",
-      label: t("twin.legendVoid"),
-      node: (
-        <SealDisc size={swatch} tone="hole">
-          <SlotMark
-            size={swatch - sealInset(swatch) * 2}
-            slot={LEGEND_SLOTS.void}
-          />
-        </SealDisc>
-      ),
-    },
-  ];
-
-  return (
-    <Row spacing={Spacing.three}>
-      {items.map((item) => (
-        <Row key={item.key} alignment="center" spacing={Spacing.half}>
-          {item.node}
-          <Text textStyle={{ fontSize: 11, color: theme.textSecondary }}>
-            {item.label}
-          </Text>
-        </Row>
-      ))}
-    </Row>
-  );
-}
-
-/** 图例用的三个假槽位：只借 slotMark 的形状与颜色，不落库 */
-const LEGEND_SLOTS: Record<"taken" | "history" | "void", BlisterSlot> = {
-  taken: {
-    id: "legend-taken",
-    packId: "legend",
-    index: 0,
-    status: "empty",
-    usageId: "legend",
-    consumedAt: null,
-    consumedBy: null,
-  },
-  history: {
-    id: "legend-history",
-    packId: "legend",
-    index: 0,
-    status: "empty",
-    usageId: null,
-    consumedAt: null,
-    consumedBy: null,
-  },
-  void: {
-    id: "legend-void",
-    packId: "legend",
-    index: 0,
-    status: "void",
-    usageId: null,
-    consumedAt: null,
-    consumedBy: null,
-  },
-};
 
 /** 开启孪生的引导表单：规格 + 板数，一次建好整盒 */
 function EnableTwinCard({

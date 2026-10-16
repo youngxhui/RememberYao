@@ -11,13 +11,8 @@ import { Children, isValidElement, useRef, type ReactElement } from "react";
 
 import type {
   NativeButtonModifiers,
-  NativeContinuousShape,
-  NativeConcentricShape,
-  NativeFieldModifiers,
-  NativeGradientBackground,
   NativeLayoutOptions,
   NativeOnboardingPagerProps,
-  NativeStrokeBorder,
 } from "@/components/native-layout";
 
 export function nativeLayout({
@@ -40,24 +35,6 @@ export function nativeLayout({
 export const nativeButtonModifiers: NativeButtonModifiers = ({
   fullWidth = false,
 } = {}) => (fullWidth ? [fillMaxWidth()] : []);
-
-export const nativeFieldModifiers: NativeFieldModifiers = () => [];
-
-// Android 没有同心圆角概念：Compose 的圆角就是写死值。返回空数组表示不加
-// modifier —— style 里的 borderRadius 会照常生效（omitUserOverridden 对空数组
-// 直接返回原样），视觉上退回统一的 18pt 圆角
-export const nativeConcentricShape: NativeConcentricShape = () => [];
-
-// 同上：Compose 原生就是所需圆角，不需要额外 modifier
-export const nativeContinuousShape: NativeContinuousShape = () => [];
-
-// Android 的 borderWidth + borderRadius 由 transformStyle.android.ts 的「分层背景」
-// 合成出圆角描边，本来就对；这里不加 modifier，继续走 style
-export const nativeStrokeBorder: NativeStrokeBorder = () => [];
-
-// Compose 的 modifiers 包只有 animation 系列，没有 background / 渐变 / 阴影：
-// 泡罩药板的光影在 Android 上暂时只能靠平色 + 同心圆分层近似（见 twin.tsx）
-export const nativeGradientBackground: NativeGradientBackground = () => [];
 
 function pageValue(child: React.ReactNode): string | undefined {
   if (!isValidElement(child)) return undefined;
