@@ -18,19 +18,16 @@
     // 注意：react/immutability 故意保持开启 —— 项目启用了 reactCompiler，
     // useNativeState 必须用 .get()/.set()，直接写 .value 会被 React Compiler 判定为违规。
     "react/react-in-jsx-scope": "off",
-    // 平台护栏：@expo/ui/swift-ui 是 iOS-only，在 Android 上会抛 "Unable to get view config"。
-    // 详见 docs/conventions/ui-design.md「平台专属组件隔离」。
+    // @expo/ui 已于 2026-10-16 从项目移除（迁移计划 §6.9）。这里从「平台护栏」
+    // 改成「不要再引回来」—— 它的两个平台子包混用会抛 Unable to get view config
+    // 或被静默忽略，见 docs/conventions/ui-design.md「平台专属组件隔离」。
     "no-restricted-imports": [
       "error",
       {
         "patterns": [
           {
-            "group": ["@expo/ui/swift-ui", "@expo/ui/swift-ui/*"],
-            "message": "@expo/ui/swift-ui 是 iOS-only：请移入 .ios.tsx 或用 process.env.EXPO_OS 守卫；跨平台请改用 @expo/ui 根导入的 universal 组件。"
-          },
-          {
-            "group": ["@expo/ui/jetpack-compose", "@expo/ui/jetpack-compose/*"],
-            "message": "@expo/ui/jetpack-compose 是 Android-only：请移入 .android.tsx 或用 process.env.EXPO_OS 守卫；跨平台请改用 @expo/ui 根导入的 universal 组件。"
+            "group": ["@expo/ui", "@expo/ui/*"],
+            "message": "@expo/ui 已移除（迁移计划 §6.9）。内容树用纯 RN，玻璃用 GlassChip / GlassHostButton，日期用 RnDateTimePicker，菜单用 RnPicker；确实绕不过请先在迁移计划里记档。"
           },
           {
             "group": ["@react-navigation/*"],
@@ -47,49 +44,13 @@
               "AsyncStorage",
               "WebView"
             ],
-            "message": "改用 @expo/ui 的 universal 组件（Switch / Picker / BottomSheet 等）或 react-native-safe-area-context；AsyncStorage 用 @react-native-async-storage/async-storage。"
+            "message": "react-native 的这些模块已移除：Picker / SafeAreaView / AsyncStorage / WebView 各有替代（RnPicker / react-native-safe-area-context / @react-native-async-storage/async-storage）。Switch 在纯 RN 屏可用，但需单行豁免并注明原因。"
           }
         ]
       }
     ]
   },
   "overrides": [
-    {
-      // 平台专属文件允许导入对应平台的 @expo/ui 子包
-      "files": ["*.ios.ts", "*.ios.tsx"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": [
-                  "@expo/ui/jetpack-compose",
-                  "@expo/ui/jetpack-compose/*"
-                ],
-                "message": ".ios.tsx 中不能导入 @expo/ui/jetpack-compose。"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "files": ["*.android.ts", "*.android.tsx"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "patterns": [
-              {
-                "group": ["@expo/ui/swift-ui", "@expo/ui/swift-ui/*"],
-                "message": ".android.tsx 中不能导入 @expo/ui/swift-ui。"
-              }
-            ]
-          }
-        ]
-      }
-    },
     {
       // Gesture.Pan() 是 react-native-gesture-handler 的 builder API，
       // 不是把组件当函数调用；React Compiler 的 capitalized-calls 看不穿这条链式调用，属误报
@@ -105,22 +66,6 @@
       "files": ["src/lib/store.ts"],
       "rules": {
         "react/set-state-in-effect": "off"
-      }
-    },
-    {
-      // useNativeState 返回的是 native -backed 可变对象，写 .value 是它的既定用法
-      // （等价于 ref）。universal 导入下 ObservableState 类型只有 value，没有
-      // .get()/.set()（那套只在 @expo/ui/swift-ui 的类型里），故无法按规则建议改造。
-      "files": [
-        "src/app/(tabs)/profile/persons.tsx",
-        "src/app/(tabs)/profile/plan-form.tsx",
-        "src/app/(tabs)/medica/detail.tsx",
-        "src/app/(tabs)/medica/form.tsx",
-        "src/app/(tabs)/medica/quick-add.tsx",
-        "src/components/swiftui/mini-archive.ios.tsx"
-      ],
-      "rules": {
-        "react/immutability": "off"
       }
     },
     {

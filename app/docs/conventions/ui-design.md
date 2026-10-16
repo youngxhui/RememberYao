@@ -37,20 +37,33 @@
 
 `@expo/ui` 的 `List` 渲染的是**原生列表行**（iOS 是 SwiftUI `List`，Android 是 Compose `LazyColumn`，两端都是懒加载容器），行内排版受原生行的槽位约束，且 universal 层没有分组头 / 滑动操作 / 多选等高阶列表能力。适合短小、长度固定的分组；数据量大或形态不确定的列表仍用 `FlatList` / `FlashList`。⚠️ 它和 `FieldGroup` 自己都是滚动容器，**嵌进外层 `ScrollView` 会塌成零高**（真机 bug，勿再犯）。
 
-## 平台专属组件隔离（最重要）
+## 平台专属组件隔离
 
-> **`@expo/ui/swift-ui` 是 iOS-only，`@expo/ui/jetpack-compose` 是 Android-only。**
+> **2026-10-16 起 `@expo/ui` 已从项目移除**（迁移计划 §6.9），下面整套「swift-ui / jetpack-compose
+> 不能跨平台混用」的约束随之失效。保留它是为了记住**为什么不再引回来**，以及给以后新引的
+> 平台专属依赖当反面教材。
 
-危险程度分两档，**不要混为一谈**：
+历史约束（`@expo/ui` 时代）：`@expo/ui/swift-ui` 是 iOS-only、`@expo/ui/jetpack-compose` 是
+Android-only，危险程度分两档，不能混为一谈：
 
-| 导入内容 | 在另一端运行会怎样 | 本项目现状 |
-| --- | --- | --- |
-| **原生视图组件**（`DatePicker`、`TabView`、`Switch`…） | 直接抛 `Unable to get view config` **崩溃** | 由 `native-layout.ios.tsx` / `native-layout.android.tsx` 分别实现 |
-| **modifier 工厂**（`frame`、`buttonStyle`、`controlSize`…） | **不崩**，但被静默忽略 | 通用路由通过 `native-layout` 适配层生成平台 modifier |
+| 导入内容 | 在另一端运行会怎样 |
+| --- | --- |
+| **原生视图组件**（`DatePicker`、`TabView`、`Switch`…） | 直接抛 `Unable to get view config` **崩溃** |
+| **modifier 工厂**（`frame`、`buttonStyle`、`controlSize`…） | **不崩**，但被静默忽略 |
 
-modifier 工厂是纯 JS —— `frame(params)` 只是 `return { $type: "frame", ...params }`（见 `createModifier`），零原生依赖。所以在 Android 上 import 它不会崩，但传给 Compose 的是它不认识的 modifier，**布局会静默失效**（比如 `maxWidth: Infinity` 不再撑满宽度）。这比崩溃更隐蔽，同样必须隔离。
+modifier 工厂是纯 JS —— `frame(params)` 只是 `return { $type: "frame", ...params }`，零原生依赖。
+所以在 Android 上 import 它不会崩，但传给 Compose 的是它不认识的 modifier，**布局会静默失效**
+（比如 `maxWidth: Infinity` 不再撑满宽度）。这比崩溃更隐蔽。
 
-通用路由中已有 universal / community 组件（如 `DateTimePicker`）的能力直接使用通用组件，不额外包装；只有 `TabView` 与两端 modifier 等尚需平台隔离的能力集中到 `src/components/native-layout.{ios,android}.tsx`。`no-restricted-imports` 已升级为 error，禁止在通用文件里直接导入平台子包。
+当年承接隔离的 `src/components/native-layout.{ios,android}.tsx` 适配层已随 `@expo/ui` 一并删除。
+
+**现存的平台差异只有三处**，都在 `src/components/`：
+
+| 文件 | 差异 |
+| --- | --- |
+| `toolbar-icons.{ts,android.ts}` | `Stack.Toolbar` 的 `icon` prop 只认 SF Symbol / 图片源，Android 要 `@expo/material-symbols` 的 `.xml` |
+| `symbol-icon.tsx` | `SymbolView` 的 `name` 收 `{ ios, android }` 双平台名，Android 是 Material Symbols 字形名 |
+| `rn-datetime-picker.tsx` | iOS compact 直接渲染；Android 挂载即弹，必须「点按才挂载对话框」 |
 
 ### universal 层覆盖不到时，先想清楚值不值得拆
 
@@ -145,7 +158,7 @@ const theme = useTheme();
 - 间距用 `Spacing`，底部 tab 遮挡补偿用 `BottomTabInset`。
 - 图标不要用 emoji。iOS 用 SF Symbol，Android 用 Material icon。
   - **内容树**走 `@/components/symbol-icon` 的 `SymbolIcon`（`expo-symbols` 的 `SymbolView`，Android 用 Material Symbols 字形名渲染）；语义键在 `src/components/icons.ts` 的 `SYMBOL_ICONS`（`{ ios, android }` 双平台名字典）。
-  - **残留 Expo UI 岛里**才用 `@expo/ui` 的 `Icon` + `Icon.select({ ios, android })`（`icons.ts` 的 `ICONS`，目前只有孪生铝箔岛在用）。
+  - ~~残留 Expo UI 岛里才用 `@expo/ui` 的 `Icon` + `Icon.select`~~ —— 铝箔岛迁 RN 后 `ICONS` 整份已删，现在图标统一走 `SymbolIcon` + `SYMBOL_ICONS`（工具栏图标例外）。
   - **工具栏图标**（`Stack.Toolbar.Button` / `Stack.Toolbar.Menu` 的 `icon` prop）没有跨平台双槽，只接受「SF Symbol 字符串 或 图片源」，只给 `sf` 时 Android 端整颗按钮不渲染 —— 两端取值收敛在 `src/components/toolbar-icons.{ts,android.ts}`（Android 侧是 `@expo/material-symbols` 的 `.xml` 矢量图）。
 
 ### 现状与官方建议的差异（待收敛）
@@ -215,42 +228,15 @@ RN 表单页与设置页都迁走后它就零调用了。
 
 不要提前抽象。错误的抽象比重复代价更高 —— 一份视图抄两遍，比一个 API 设计糟糕的 primitive 便宜。
 
-**不要**把已经自带设计语言的原生组件（`Switch`、`DateTimePicker`、stack header、`@expo/ui` 的视图）再包一层接到系统里。对它们来说，原生样式就是设计系统。
+**不要**把已经自带设计语言的原生组件（`Switch`、`DateTimePicker`、stack header）再包一层接到系统里。对它们来说，原生样式就是设计系统。
 
-## useNativeState：universal 导入下只能用 .value
+## useNativeState：已作废
 
-`@expo/ui` 的 `useNativeState` 返回一个 native-backed 的可变对象（`ObservableState`），行为类似 ref。
+`@expo/ui` 移除后全仓零调用，此节保留只为记录「当年为什么不能用 `.get()`/`.set()`」——
+若将来再引 `useNativeState`，注意从 `@expo/ui` 根导入时**只有 `.value`**（`.get()`/`.set()`
+只存在于 `@expo/ui/swift-ui` 的类型里），且 oxlint 的 `react(immutability)` 会误报。
 
-**注意两种导入的类型面不同：**
-
-| 导入 | 可用 API |
-| --- | --- |
-| `@expo/ui`（universal，本项目用法） | 只有 `.value` |
-| `@expo/ui/swift-ui`（iOS-only） | `.value` + `.get()` / `.set(value)` |
-
-官方对 `.get()`/`.set()` 的说明是"a React Compiler compliant alternative to reading/writing `.value`"—— 但那套方法**只存在于 swift-ui 包的类型里**。本项目从 `@expo/ui` 根导入（这正是规范要求的），所以**只能用 `.value`**：
-
-```tsx
-const restockAmount = useNativeState("");
-
-// 正确（universal 导入的唯一 API）
-restockAmount.value = "";
-
-// 类型错误：Property 'get' does not exist on type 'ObservableState<string>'
-restockAmount.set("");
-```
-
-### 为什么 oxlint 还报 react(immutability)
-
-`react(immutability)` 规则会拦「修改 hook 返回值」。它在这里是**误报**：
-
-- `useNativeState` 返回的就是可变原生状态对象，写 `.value` 是既定用法（等同于 ref）。
-- 项目在 `app.json` 里开了 `reactCompiler`，该规则确实会让 React Compiler 放弃优化这些组件，但 universal 导入下没有合规替代写法。
-- 已在 `.oxlintrc.json` 对 `persons.tsx` / `plan-form.tsx` / `medica/detail.tsx` / `medica/form.tsx` 关闭该规则，并注明原因。
-
-**若将来把 `useNativeState` 改从平台包导入**（配合 `.ios.tsx`/`.android.tsx` 拆分），应同时改用 `.get()`/`.set()` 并移除对应 overrides。
-
-另注意：从 JS 线程写 `.value` 是**异步**排到 UI 线程的，写完不会立刻读到新值；需要同步更新时从 worklet 里写。
+表单状态现在一律 RN `useState`。
 
 ## 界面四态
 

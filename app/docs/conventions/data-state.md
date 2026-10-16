@@ -201,7 +201,7 @@ maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 →
 
 ## 当前 lint 状态
 
-`bun run lint` 当前为 **0 errors / 0 warnings**。日期选择直接使用通用 `DateTimePicker`；其余平台 UI 能力由 `src/components/native-layout.{ios,android}.tsx` 隔离，通用路由不再直接导入 SwiftUI / Compose 子包。
+`bun run lint` 当前为 **0 errors / 0 warnings**。日期选择直接使用 `RnDateTimePicker`；平台差异只剩 `toolbar-icons.{ts,android.ts}`、`symbol-icon.tsx`、`rn-datetime-picker.tsx` 三处（`native-layout.*` 已随 `@expo/ui` 移除而删除） / Compose 子包。
 
 已修完的问题（2026-09-22）：
 
@@ -211,10 +211,10 @@ maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 →
 | `no-unused-vars` | `persons.tsx` `Avatar` 导入 | 删除无用导入 |
 | `no-unused-vars` | `home/index.tsx` | 将已有进度、通知与库存组件接回页面，而不是删除实现 |
 | `react(set-state-in-effect)` | `store.ts` 查询 Hook 的首次载入 | 误报，按文件关闭并注明原因 |
-| `react(immutability)` | 使用 universal `useNativeState` 的文件 | 误报，按文件关闭并注明原因 |
+| `react(immutability)` | 使用 universal `useNativeState` 的文件 | 已失效：`@expo/ui` 移除后 `useNativeState` 零调用，`.oxlintrc.json` 的按文件豁免于 2026-10-16 删除（实测删后 lint 仍 0 warning） |
 | `promise(always-return)` | `notifications.ts`、`use-onboarding-gate.ts` | 补全回调返回值 |
 | `unicorn(no-array-sort)` | `home` / `records` | 保持原地 `.sort()` + 行内禁用：**Hermes 没有 `toSorted()`**，按规则改过去会 `TypeError` 红屏（用 app 实际链接的 hermes 二进制实测 `typeof Array.prototype.toSorted === "undefined"`），上游是 `filter()` 产物，原地排序不改 store |
-| `no-restricted-imports` | 通用路由 | 日期选择改用通用 `DateTimePicker`；其余平台能力集中到 `src/components/native-layout.{ios,android}.tsx` |
+| `no-restricted-imports` | 通用路由 | 禁用 RN 已移除模块（`Picker`/`SafeAreaView`/`AsyncStorage`/`WebView`）与 `react-native` 的 `Switch`；纯 RN 屏用 RN `Switch` 时单行豁免并注明原因 |
 
 ## flow 当前状态（2026-09-26 实机验证）
 
