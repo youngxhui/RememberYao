@@ -31,7 +31,7 @@ export function resolveDictionary(
  *
  * `locale` 给 iOS 的原生 `DatePicker`；Android 的 Material 选择器没有 locale
  * 可依，12/24 小时制只能显式给 `is24Hour`，但 `locale` 仍用来格式化
- * `NativeDatePicker` 那颗胶囊上显示的值（见 native-date-picker.android.tsx）。
+ * `RnDateTimePicker` 那颗胶囊上显示的值。
  */
 export function pickerFormat(language: Language) {
   return {

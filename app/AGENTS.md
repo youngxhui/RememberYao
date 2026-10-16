@@ -138,13 +138,13 @@ src/
     playground/           调试屏：tab 组之外，无 tab 入口，从代码 push /playground
     (tabs)/
       _layout.tsx         AppTabs（NativeTabs），trigger name 用组内相对路由名
-      home/               今日：只有路由，实现见 src/screens/home（Expo UI 为主 + 三块 RN island）
-      medica/             药品：index（只有路由）+ detail / form
-      profile/            我的：index（只有路由）+ persons / person-detail / plan-form / language / settings
+      home/               今日：只有路由，实现见 src/screens/home（纯 RN）
+      medica/             药品：index（只有路由）+ detail / form / twin
+      profile/            我的：index（只有路由）+ persons / person-detail / plan-form / language / settings（已迁纯 RN）
   screens/
-    home/                 首页实现：index（Expo UI 为主：大字日期 / 通知横幅 / 区块标题，成员筛选走系统工具栏右上角菜单）+ stock-panel（库存速览，RN island）
-    medica/               药品库实现：index（Expo UI 为主：原生 List 列表行 + 分类筛选）+ filter-row（分类 chip 横滑）
-    profile/              我的实现：index（档案横排 / 本周概览 / 家庭成员 / 菜单）+ settings（设置页）
+    home/                 首页实现：index（纯 RN：大字日期 / 通知横幅 / 区块标题，成员筛选走系统工具栏右上角菜单）+ stock-panel（库存速览）
+    medica/               药品库实现：index（纯 RN：FlatList + 分类筛选）+ filter-row（分类 chip 横滑）+ twin（外壳纯 RN，铝箔网格留 Expo UI 岛）
+    profile/              我的实现：index（档案横排 / 本周概览 / 家庭成员 / 菜单）+ settings（纯 RN：分组卡片，见 design/settings.html）
   db/
     schema.ts             Drizzle 表定义（snake_case 列名、索引）
     client.ts             开库 + 版本不符即整库重建
@@ -161,8 +161,7 @@ src/
     onboarding.ts         引导页"已看过"标记
     avatar-photo.ts       头像照片：选图 → 裁成正方形 → 缩到 256² → 存 document/avatars
   hooks/                  use-theme / use-color-scheme / use-onboarding-gate
-  components/             app-tabs、avatar、content-glass、glass-chip、screen-scaffold、expo-ui-island、rn-form / rn-input-shell / rn-section-card / rn-datetime-picker / rn-round-icon-button、progress-bar、dose-timeline、reminder-card-stack、mini-archive、symbol-icon、toolbar-icons(.android)、icons、rounded-box
-  utils/color.ts          withAlpha：#rrggbb → rgba()，半透明叠色
+  components/             app-tabs、avatar、content-glass、glass-chip、screen-scaffold、expo-ui-island、rn-form / rn-input-shell / rn-section-card / rn-datetime-picker / rn-round-icon-button、progress-bar、dose-timeline、reminder-card-stack、mini-archive、symbol-icon、toolbar-icons(.android)、icons、rounded-box  utils/color.ts          withAlpha：#rrggbb → rgba()，半透明叠色
   constants/theme.ts      颜色 / 字体 / 间距 / 圆角（唯一 token 来源）
 docs/conventions/         本表指向的六份专题规范
 design/                   HTML 设计稿（today、medications、add-medication、profile、settings）—— UI 的视觉基准
@@ -173,7 +172,7 @@ ios/                      prebuild 产物；改 app.json 后需重新 prebuild
 
 ## 待办（改这些区域时留意）
 
-- **Expo UI → RN 迁移已收尾**（`docs/plans/迁移计划.md`）：第 0–3 批生产屏 + PR9.5 脚手架收拢 + PR10 孪生外壳 + PR11 双轨清扫全部完成，`bun run check` 0 error / 0 warning；TrueSheet 已 prebuild（`ios/Podfile.lock` 有 `RNTrueSheet 4.0.0-beta.25`）。**剩余事项**：① 真机验证清单（计划文档 §6.4：TrueSheet 观感、settings sheet 改 RN、detail / person-detail / twin 三屏、`GlassHostButton`）；② 文档欠账（计划文档 §6.3：`docs/conventions/ui-design.md` 开篇仍是「@expo/ui 优先」的旧选型阶梯，且「底部弹出面板」一行还指着已弃用的 `@expo/ui` `BottomSheet`，要按硬规则 1 的四层重写；`maestro/medica.yaml` 的 `1 种`徽章与 `5/30 · 偏低`胶囊两条断言已失效，只改脚本不跑）。
+- **Expo UI → RN 迁移已全部完成**（`docs/plans/迁移计划.md`）：第 0–3 批生产屏 + PR9.5 脚手架收拢 + PR10 孪生外壳 + PR11 双轨清扫 + PR13 设置页，`bun run check` 0 error / 0 warning；TrueSheet 已 prebuild（`ios/Podfile.lock` 有 `RNTrueSheet 4.0.0-beta.25`）。`@expo/ui` 在生产内容树已全部退场，只剩用药人菜单 `Picker` 经 `ExpoUiIsland`（twin / plan-form / settings）与 `onboarding.tsx` 整屏；`docs/conventions/ui-design.md` 的选型阶梯已按硬规则 1 重写。**剩余事项**：① 真机验证（计划文档 §6.4 + §6.6：TrueSheet 观感、设置页整屏、detail / person-detail / twin 三屏、`GlassHostButton`）；② `AGENTS.md`「待办」区里 home / medica 两段仍写着「Expo UI 为主 + RN island」，与实况不符，待重写；③ `maestro/medica.yaml` 的 `1 种`徽章断言已随列表改版删掉（`5/30` / `瓶装 · 慢性病` 两条仍有效），未复跑。
 
 - `records` 页：数据已采集，缺按日期的历史与依从率展示界面。它现在是 `src/app/records.tsx`（tab 组之外），**还没有进「我的」的入口**，要接上得在 `src/screens/profile/index.tsx` 的菜单列表里加一行 push `/records`。
 - **`src/screens/medica/`（药品库）已按 design/medications.html 重做并在模拟器上跑通**（`maestro/medica.yaml` 全流程绿）：横滑分类筛选/搜索/详情/删除/空态都验过，`Stack.SearchBar` 在 `NativeTabs` 里的 tab 根屏上确实出了原生搜索框（项目里第一次用）。**列表已从自拼卡片改成原生列表展示**（universal `List` + `ListItem`：iOS 是 SwiftUI `List`、Android 是 Material 3 `LazyColumn`）：缩略图、左侧色条、库存胶囊、卡片描边全部去掉，一行只剩药名 + `类型 · 分类` + 行尾 `剩余/总数`（偏低 / 告急只染文字色，不再有底色与图标）；滚动整体交给 `List`（它自己就是滚动容器，再嵌进外层 `ScrollView` 会塌成零高），分类 chip 行作为不滚动的头部排在它上面。**真机未验证**：`Column` 里「筛选行 + List」的高度分配（List 若不吃剩余高度会塌成一小条）、原生 List 的系统底色与页面 canvas 的衔接、行尾库存数字在长药名下的截断、`maestro/medica.yaml` 未复跑（里面 `1 种` 徽章与 `5/30 · 偏低` 胶囊文案的断言已随本次改版失效，要按新行结构改）。**真机发现并修了一个布局 bug**：`FieldGroup`（iOS 是 SwiftUI `Form`，本身就是滚动容器）和 `List` 嵌进外层 `ScrollView` 会塌成零高、区块内容直接消失 —— 详情页已改成普通行拼的分组卡片（`SectionCard`/`HairLine`/`SectionTitle`，共享组件 `src/components/section-card.tsx`），**以后不要再往 `ScrollView` 里嵌 `FieldGroup`/`List`**。仍待看：药名过长时的截断、`MIGRATION_V3` 老库补列默认「慢性病」。

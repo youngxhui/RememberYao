@@ -2,32 +2,38 @@
 
 硬规则清单见 [`AGENTS.md`](../../AGENTS.md)。视觉基准是 `design/` 下的 HTML 设计稿。
 
-## @expo/ui 优先
+## 选型阶梯：内容树默认纯 RN
 
-`@expo/ui` 渲染的是真原生视图（iOS SwiftUI / Android Jetpack Compose）。**不要**默认退回 RN 的 `View`/`Text`/`Switch`/`Picker`，也不要碰 `@gorhom/bottom-sheet`、Reanimated 手搓的 sheet 这类社区库。
+> **2026-10 起 `@expo/ui` 不再是默认画布。** 生产内容树已全部迁到 RN Yoga + `useTheme()`，
+> 见 `docs/plans/迁移计划.md`。`@expo/ui` 只剩三处合法残留：`onboarding.tsx` 的 `TabView` pager、
+> 孪生铝箔岛的 `nativeGradientBackground`、以及少数几处**原生菜单 `Picker`**（经 `ExpoUiIsland`）。
+> **新屏一律用 RN 写**，不要再写整屏 `Host`+`Column`+`ScrollView`。
 
 选型阶梯，从上往下，第一个满足需求就停：
 
-1. **universal 组件** —— 从 `@expo/ui` 根导入。一份源码同时跑 iOS / Android / web。
-2. **平台专属** —— 从 `@expo/ui/swift-ui` 或 `@expo/ui/jetpack-compose` 导入。仅当 universal 层缺组件或缺 modifier，或确实需要平台特有行为时用。
-3. **RN 内建** —— 仅当 `@expo/ui` 真的没有对应组件。
+1. **系统 chrome** —— `NativeTabs` / `Stack.Title` / `Toolbar` / `SearchBar`。系统自带 iOS 26 液态玻璃，不拆。
+2. **内容树** —— RN 的 `View`/`Text`/`Pressable`/`ScrollView`/`FlatList` + `useTheme()`；骨架用 `ScreenScaffold`（+ `Padded` / `FullBleed`），分组用 `SectionCard` / `SectionTitle` / `HairLine`。
+3. **内容玻璃** —— `@/components/glass-chip` 的 `GlassChip` / `GlassChipRow`，`@/components/expo-ui-island` 的 `GlassHostButton`。**屏幕禁止直接 import `expo-liquid-glass-view` / `expo-glass-effect`**。
+4. **原生控件小岛** —— 菜单 `Picker`（`appearance="menu"`，universal style 吃不到）。RN 父树里一律走 `@/components/expo-ui-island` 的 `ExpoUiIsland`（`Host matchContents` + `seedColor`），不要各屏手写 `Host`。
+5. **sheet** —— `@lodev09/react-native-true-sheet`（真原生 sheet：iOS `UISheetPresentationController` / Android `ModalBottomSheet`）。**不要**用 `@expo/ui` 的 `BottomSheet`（已弃用）、`@expo/ui/community/bottom-sheet`（default export 挂载即打开）、`@gorhom/bottom-sheet`（JS 渲染，视觉对不齐系统）。
 
-唯一稳定的例外是 **`flex`**：universal `style` 只映射到 SwiftUI/Compose 的固定属性，没有 flex 语义。凡内部靠 `flex: 1` 撑开或伸缩的子树（导轨连接线、行内 `flex: 1` 的文字、Reanimated 绝对定位的牌堆），整块留成 `RNHostView` island 走 RN 布局，**不要**逐块桥接。现状见 `src/screens/home`：Expo UI 为主，三块 island（导轨 / 牌堆 / 库存），宽度由宿主实测后经 `containerWidth` 传进去。
+`flex` 是当年 `@expo/ui` 唯一的硬缺口（universal `style` 只映射 SwiftUI/Compose 固定属性），
+迁到纯 RN 后这个缺口不存在了 —— 导轨连接线、行内 `flex: 1` 的文字、Reanimated 绝对定位的
+牌堆现在都直接长在 RN 树上。
 
 常见需求对照：
 
 | 需求 | 用 |
 | --- | --- |
-| 底部弹出面板 | `BottomSheet` from `@expo/ui` |
-| 设置页分组行 | `List` + `ListItem` from `@expo/ui` |
-| 开关 | `Switch` from `@expo/ui` |
-| 滑杆 | `Slider` from `@expo/ui` |
-| 日期时间选择 | `@expo/ui/community/datetimepicker` |
-| 菜单 | `Menu` from `@expo/ui` |
-| 带 label 的表单分组 | `FieldGroup` from `@expo/ui` |
-| 可折叠分组 | `Collapsible` from `@expo/ui` |
+| 底部弹出面板 | `@lodev09/react-native-true-sheet` |
+| 设置页 / 详情分组行 | `SectionCard` + 自排行（`tone="fill"` 灰卡片 / `tone="outline"` 灰底上的白卡片） |
+| 开关 | RN `Switch`（`trackColor` / `thumbColor` 走 theme token；oxlint 的禁用规则面向 Expo UI 屏，纯 RN 屏单行豁免并注明原因） |
+| 日期时间选择 | `@/components/rn-datetime-picker` |
+| 菜单（选项 ≤ 4） | 原生 `Picker` 经 `ExpoUiIsland` |
+| 表单输入 | `InputShell`（只有文字输入套盒，原生自绘控件裸放） |
+| 长列表 | `FlatList` / `FlashList` |
 
-`@expo/ui` 的 `List` 渲染的是**原生列表行**（iOS 是 SwiftUI `List`、Android 是 Compose `LazyColumn`，两端都是懒加载容器），行内排版受原生行的槽位约束，且 universal 层没有分组头 / 滑动操作 / 多选等高阶列表能力。适合短小、长度固定的分组（设置页、详情面板行、家庭量级的药箱目录）；数据量大或形态不确定的列表（feed、搜索结果）仍用 `FlatList` / `FlashList`。⚠️ 它自己是滚动容器，**不能嵌进外层 `ScrollView`**（会塌成零高，见 AGENTS「待办」里记录的真机 bug）。
+`@expo/ui` 的 `List` 渲染的是**原生列表行**（iOS 是 SwiftUI `List`，Android 是 Compose `LazyColumn`，两端都是懒加载容器），行内排版受原生行的槽位约束，且 universal 层没有分组头 / 滑动操作 / 多选等高阶列表能力。适合短小、长度固定的分组；数据量大或形态不确定的列表仍用 `FlatList` / `FlashList`。⚠️ 它和 `FieldGroup` 自己都是滚动容器，**嵌进外层 `ScrollView` 会塌成零高**（真机 bug，勿再犯）。
 
 ## 平台专属组件隔离（最重要）
 
@@ -161,25 +167,25 @@ const theme = useTheme();
 12/24 小时制没有 locale 可依，只能显式给 `is24Hour`（`locale` 仍用来格式化 Android 那颗
 胶囊上显示的值）。
 
-### 日期/时间选择器走 `NativeDatePicker`
+### 日期/时间选择器走 `RnDateTimePicker`
 
-社区的 `@expo/ui/community/datetime-picker` 把原生 `DatePicker` 包在一个 `Host`
-（`matchContents`）里 —— 那是在 Expo UI 的原生树里嵌了一块 RN island，而 RN island 在
-SwiftUI 栈里的定位不可靠：放进 `Column` 会顶出父容器的内边距，放进 `Row` 会纵向偏移
-（plan-form 真机实测，表现为「选择器和标签对不齐」）。
+**2026-10 起统一走 `src/components/rn-datetime-picker.tsx`**（`@react-native-community/datetimepicker`）。
+`src/components/native-date-picker.{tsx,ios.tsx,android.tsx}`（Expo UI 版）**已删除** ——
+RN 表单页与设置页都迁走后它就零调用了。
 
-所以日期/时间选择一律用 `src/components/native-date-picker.{tsx,ios.tsx,android.tsx}`：
-iOS 直接渲染 SwiftUI `DatePicker`（compact 样式），由外层 VStack / HStack 正常排布；
-Android / web 继续用社区组件。三份实现的 props 必须完全一致。
+仍要记住的两条历史教训：
 
-**Android 的对话框是「挂载即弹」**：社区组件默认 `presentation="dialog"`，而 Material 3 的
-`TimePickerDialog` / `DatePickerDialog` 整个 content 就是一个 AlertDialog（`expo-ui` 的
-`DatePickerView.kt`）。把选择器直接渲染进表单 = 进页面就弹系统对话框 —— 快速添加第二步
-一进来「吃药时间」扑面而来，plan-form 把每日次数从 1 调到 3 还会连弹三层。所以 Android 实现
-按 iOS compact 的语义改写：先画一颗灰底胶囊显示当前值，**点一下才挂载对话框**，选完
-（`onValueChange`）或取消（`onDismiss`）立即卸载。胶囊用 universal `Text`（Android 上是原生
-Compose Text，`style` 经 `transformToModifiers` 翻成 clip + background + padding +
-clickable），不要为了这个触发器新造原生控件。
+- **社区的 `@expo/ui/community/datetime-picker` 把原生 `DatePicker` 包在一个 `Host`（`matchContents`）里** —— 那是在 Expo UI 的原生树里嵌了一块 RN island，而 RN island 在 SwiftUI 栈里的定位不可靠：放进 `Column` 会顶出父容器的内边距，放进 `Row` 会纵向偏移（plan-form 真机实测，表现为「选择器和标签对不齐」）。这也是 Expo UI 版 iOS 实现当初要绕开社区组件的原因。
+- **Android 的对话框是「挂载即弹」**：社区组件默认 `presentation="dialog"`，而 Material 3 的
+  `TimePickerDialog` / `DatePickerDialog` 整个 content 就是一个 AlertDialog（`expo-ui` 的
+  `DatePickerView.kt`）。把选择器直接渲染进表单 = 进页面就弹系统对话框 —— 快速添加第二步
+  一进来「吃药时间」扑面而来，plan-form 把每日次数从 1 调到 3 还会连弹三层。所以封装按
+  iOS compact 的语义改写：先画一颗灰底胶囊显示当前值，**点一下才挂载对话框**，选完
+  （`onValueChange`）或取消（`onDismiss`）立即卸载。
+
+日期/时间选择器的**格式跟随 App 语言**，不跟随系统 locale —— 中文界面里弹
+「8:00 AM」很违和。用 `@/i18n` 的 `pickerFormat(language)`：iOS 走 `locale`，Android 的
+12/24 小时制没有 locale 可依，只能显式给 `is24Hour`（`locale` 仍用来格式化胶囊上显示的值）。
 
 ## 什么时候抽公共组件
 

@@ -6,17 +6,36 @@ import { useTheme } from "@/hooks/use-theme";
 /**
  * 分组卡片：替代嵌在 ScrollView 里的 FieldGroup / List —— 两者在 iOS 上分别是
  * SwiftUI Form / List，本身都是滚动容器，嵌进外层 ScrollView 会塌成零高、
- * 内容直接消失（真机实测），不能这么用。样式对齐各页已有的卡片（同
- * backgroundElement + 14 圆角）。
+ * 内容直接消失（真机实测），不能这么用。
+ *
+ * 两种底色：
+ * - `fill`（默认）：`backgroundElement` —— 详情 / 成员详情 / 孪生的既有观感，改了默认值会动到那三屏。
+ * - `outline`：`surface` + 1px `border` —— 设置页用的「灰底页面上的白卡片」
+ *   （design/settings.html 的 .settings-card）。
+ *
+ * ⚠️ `outline` 档同样带 `overflow: "hidden"`（用来把行按压底色裁进圆角）。iOS 的菜单
+ * `Picker` 弹出的是系统级 popover，按说不受祖先 clipsToBounds 影响，但这条**未经真机
+ * 确认** —— 若设置页的语言 / 稍后提醒菜单被卡片裁掉，就把 `outline` 档的 overflow
+ * 去掉、改成在行自身上裁。
  */
-export function SectionCard({ children }: { children: React.ReactNode }) {
+export function SectionCard({
+  children,
+  tone = "fill",
+}: {
+  children: React.ReactNode;
+  tone?: "fill" | "outline";
+}) {
   const theme = useTheme();
   return (
     <View
       style={{
-        backgroundColor: theme.backgroundElement,
+        backgroundColor:
+          tone === "outline" ? theme.surface : theme.backgroundElement,
         borderRadius: Radius.card,
         borderCurve: "continuous",
+        ...(tone === "outline"
+          ? { borderWidth: 1, borderColor: theme.border }
+          : null),
         overflow: "hidden",
       }}
     >

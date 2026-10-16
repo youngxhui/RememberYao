@@ -172,4 +172,16 @@ export const SYMBOL_ICONS = {
   chevronDownRail: { ios: "chevron.down", android: "keyboard_arrow_down" },
   check: { ios: "checkmark", android: "check" },
   xmark: { ios: "xmark", android: "close" },
+  // 设置页分组行（design/settings.html 的 .setting-icon）
+  settingsLanguage: { ios: "globe", android: "language" },
+  settingsNotification: { ios: "bell.fill", android: "notifications" },
+  settingsSnooze: { ios: "alarm.fill", android: "alarm" },
+  settingsQuiet: { ios: "moon.fill", android: "bedtime" },
+  settingsSound: { ios: "speaker.wave.2.fill", android: "volume_up" },
+  settingsMissed: { ios: "exclamationmark.triangle.fill", android: "warning" },
+  settingsExport: { ios: "square.and.arrow.down", android: "download" },
+  settingsPrivacy: { ios: "checkmark.shield.fill", android: "verified_user" },
+  settingsVersion: { ios: "info.circle.fill", android: "info" },
+  // 行尾「可进入下一层」的箭头（design/settings.html 的 .setting-action）
+  chevronRight: { ios: "chevron.right", android: "chevron_right" },
 } as const;

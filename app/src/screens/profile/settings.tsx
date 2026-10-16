@@ -1,14 +1,4 @@
-import {
-  Column,
-  FieldGroup,
-  Host,
-  Icon,
-  Picker,
-  Row,
-  Spacer,
-  Switch,
-  Text,
-} from "@expo/ui";
+import { Picker } from "@expo/ui";
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import Constants from "expo-constants";
 import { Stack, useFocusEffect } from "expo-router";
@@ -18,12 +8,16 @@ import {
   Text as RNText,
   View as RNView,
 } from "react-native";
-// oxlint-disable-next-line no-restricted-imports -- sheet 内容是 RN 子树，Expo UI Switch 离开 Host 会丢 view config
+// oxlint-disable-next-line no-restricted-imports -- 设置页已是纯 RN 屏（没有 Host）：Expo UI 的 Switch 离开 Host 会丢 view config，只能用 RN Switch
 import { Switch as RNSwitch } from "react-native";
 
-import { ICONS, type IconKey } from "@/components/icons";
+import { ExpoUiIsland } from "@/components/expo-ui-island";
+import { SYMBOL_ICONS } from "@/components/icons";
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
-import { Fonts, Radius, Spacing } from "@/constants/theme";
+import { SectionCard, SectionTitle } from "@/components/rn-section-card";
+import { ScreenScaffold } from "@/components/screen-scaffold";
+import { SymbolIcon, type SymbolIconName } from "@/components/symbol-icon";
+import { BottomTabInset, Fonts, Radius, Spacing } from "@/constants/theme";
 import { useMedicationExport } from "@/hooks/use-medication-export";
 import { useTheme } from "@/hooks/use-theme";
 import { LANGUAGE_LABELS, LANGUAGES, pickerFormat, useI18n } from "@/i18n";
@@ -45,27 +39,34 @@ import {
 const DEFAULT_QUIET_START = "22:00";
 const DEFAULT_QUIET_END = "07:00";
 
+/** 分组行内边距（design/settings.html 的 .setting-item padding 16px） */
+const ROW_PADDING = Spacing.three;
+/** 行首图标底块边长（.setting-icon 36px） */
+const ICON_TILE = 36;
+/** 行首图标字号（.setting-icon i 18px） */
+const ICON_SIZE = 18;
+/** 发丝线左缩进：让分隔线与文本列左缘对齐，不穿过图标底块 */
+const DIVIDER_INSET = ROW_PADDING + ICON_TILE + Spacing.rowGap;
+
 /**
  * 设置页：通用 / 提醒 / 数据 / 关于 四组。
- * 视觉基准 = design/settings.html。
+ * 视觉基准 = design/settings.html（灰底页面 + 白卡片 + 左图标 + 右值/箭头）。
  *
- * 分组容器用 `@expo/ui` 的 `FieldGroup`（iOS = SwiftUI Form）—— 设置页是「左标签 +
- * 整行分隔」分组行的正解；表单页（添加药品 / 添加家庭成员 / 用药配置）走
- * `@/components/form` 的卡片排版（label 在上、控件收在圆角描边盒子里），两套别混。
- * 分组标题走原生 `FieldGroup.Section title`，
- * 行用统一的 `Row` 自己排布（[图标] 文本 …弹性空白… [右端控件]），行内边距、分组
- * 圆角与分隔线交给原生表单，不再自己拼描边卡片。
+ * 原实现用 `@expo/ui` 的 `FieldGroup`（iOS = SwiftUI Form）当整屏滚动容器，
+ * 现改为纯 RN：`ScreenScaffold` + `SectionCard tone="outline"`。
+ * `FieldGroup` / `List` 这类原生容器自身就是滚动容器，嵌进外层 `ScrollView`
+ * 会塌成零高，迁成 RN 后这个坑自然消失。
  *
- * ⚠️ `FieldGroup` 自身就是滚动容器，**不要再套外层 `ScrollView`**：Sections 里
- * 嵌进去会塌成零高（项目已记录的真机 bug）。
+ * 行首图标保留品牌色底块（.setting-icon）以维持品牌感。
+ * 每个开关都接真实的 store / 通知行为，没有假开关。
  *
- * 行首图标保留品牌色底块（design 的 .setting-icon）以维持品牌感；Switch /
- * Picker / DateTimePicker 都是真原生控件 —— RN 的 Switch 已被 oxlint 禁用，
- * 手搓一个只会更不像。每个开关都接真实的 store / 通知行为，没有假开关。
+ * 「语言」与「稍后提醒间隔」用行内原生 `Picker`（appearance=menu 的原生胶囊，
+ * universal style 吃不到，硬造会退化）而不是跳独立页面：选项都只有两三个，
+ * 单独一屏反而是绕路。RN 父树里必须经 `ExpoUiIsland` 包一层 —— SwiftUI 视图
+ * 离开 `Host` 会 `Unable to get view config`。
  *
- * 「语言」用行内 `Picker` 而不是跳独立页面：只有两个选项，单独一屏反而是绕路。
- * 语言存在 i18n 的 Context 里，切完本屏自然跟着重渲染；通知栏文案由根
- * `_layout` 监听 language 重注册。
+ * 「免打扰」收成一行：关着时显示「关闭」，点整行进 sheet 改时间。
+ * 以前是「开关 + 时间选择器」两行，开关一变行数就跳，列表会错位。
  */
 export function Settings() {
   const theme = useTheme();
@@ -79,7 +80,7 @@ export function Settings() {
   const [showQuietHours, setShowQuietHours] = useState(false);
   // 两个 sheet 都用 @lodev09/react-native-true-sheet（真原生 sheet：
   // iOS UISheetPresentationController / Android ModalBottomSheet）。
-  // 命令式 present/dismiss，index={-1} 初始关闭。放在 Host 外面（屏幕根），
+  // 命令式 present/dismiss，index={-1} 初始关闭。放在屏幕根，
   // 不再是 FieldGroup 的子节点
   const quietSheetRef = useRef<TrueSheet>(null);
   const privacySheetRef = useRef<TrueSheet>(null);
@@ -120,200 +121,247 @@ export function Settings() {
   return (
     <>
       <Stack.Screen.BackButton displayMode="minimal" />
-      <Stack.Title large>{t("settings.title")}</Stack.Title>
-      <Host seedColor={theme.primary} style={{ flex: 1 }}>
-        <FieldGroup>
+      <Stack.Title>{t("settings.title")}</Stack.Title>
+
+      <ScreenScaffold
+        contentContainerStyle={{
+          paddingHorizontal: Spacing.screen,
+          paddingBottom: BottomTabInset + Spacing.four,
+        }}
+      >
+        <RNView style={{ gap: Spacing.four }}>
           {/* ── 通用 ── */}
-          <FieldGroup.Section title={t("settings.sectionGeneral")}>
-            <SettingRow
-              icon="globe"
-              label={t("settings.language")}
-              sub={t("settings.languageSub")}
-              trailing={
-                <Picker
-                  testID="settings-language-picker"
-                  selectedValue={language}
-                  onValueChange={(value) => {
-                    setLanguage(value);
-                  }}
-                >
-                  {LANGUAGES.map((lang) => (
-                    <Picker.Item
-                      key={lang}
-                      label={LANGUAGE_LABELS[lang]}
-                      value={lang}
-                    />
-                  ))}
-                </Picker>
-              }
-            />
-          </FieldGroup.Section>
+          <RNView>
+            <SectionTitle>{t("settings.sectionGeneral")}</SectionTitle>
+            <SectionCard tone="outline">
+              <SettingRow
+                icon={SYMBOL_ICONS.settingsLanguage}
+                label={t("settings.language")}
+                sub={t("settings.languageSub")}
+                trailing={
+                  <ExpoUiIsland>
+                    <Picker
+                      testID="settings-language-picker"
+                      selectedValue={language}
+                      onValueChange={(value) => {
+                        setLanguage(value);
+                      }}
+                    >
+                      {LANGUAGES.map((lang) => (
+                        <Picker.Item
+                          key={lang}
+                          label={LANGUAGE_LABELS[lang]}
+                          value={lang}
+                        />
+                      ))}
+                    </Picker>
+                  </ExpoUiIsland>
+                }
+              />
+            </SectionCard>
+          </RNView>
 
           {/* ── 提醒 ── */}
-          <FieldGroup.Section title={t("settings.sectionReminder")}>
-            <SettingRow
-              icon="bell"
-              label={t("settings.notificationsTitle")}
-              sub={t("settings.notificationsSub")}
-              trailing={
-                <Switch
-                  testID="settings-notifications-switch"
-                  value={settings.notificationsEnabled}
-                  onValueChange={(value) => {
-                    void toggleNotifications(value);
-                  }}
-                />
-              }
-            />
-            {!permissionGranted ? (
-              <Text
-                style={{ paddingHorizontal: Spacing.three }}
-                textStyle={{ fontSize: 12, color: theme.danger }}
-              >
-                {t("settings.permissionDenied")}
-              </Text>
-            ) : null}
-            <SettingRow
-              icon="alarm"
-              label={t("settings.snoozeTitle")}
-              sub={t("settings.snoozeSub")}
-              disabled={!settings.notificationsEnabled}
-              trailing={
-                <Picker
-                  testID="settings-snooze-picker"
-                  selectedValue={settings.snoozeMinutes}
-                  enabled={settings.notificationsEnabled}
-                  onValueChange={(value) => {
-                    void updateSettings({ snoozeMinutes: Number(value) });
+          <RNView>
+            <SectionTitle>{t("settings.sectionReminder")}</SectionTitle>
+            <SectionCard tone="outline">
+              <SettingRow
+                icon={SYMBOL_ICONS.settingsNotification}
+                label={t("settings.notificationsTitle")}
+                sub={t("settings.notificationsSub")}
+                trailing={
+                  <RNSwitch
+                    testID="settings-notifications-switch"
+                    value={settings.notificationsEnabled}
+                    trackColor={{
+                      false: theme.border,
+                      true: theme.primary,
+                    }}
+                    thumbColor={theme.surface}
+                    onValueChange={(value) => {
+                      void toggleNotifications(value);
+                    }}
+                  />
+                }
+              />
+              {!permissionGranted ? (
+                <RNText
+                  style={{
+                    paddingHorizontal: ROW_PADDING,
+                    paddingBottom: ROW_PADDING,
+                    fontSize: 12,
+                    color: theme.danger,
                   }}
                 >
-                  {SNOOZE_OPTIONS.map((minutes) => (
-                    <Picker.Item
-                      key={minutes}
-                      label={t("settings.minutesValue", { count: minutes })}
-                      value={minutes}
-                    />
-                  ))}
-                </Picker>
-              }
-            />
-            {/* 免打扰收成一行：关着时显示「关闭」，点整行进 sheet 改时间。
-                  以前是「开关 + 时间选择器」两行，开关一变行数就跳，列表会错位 */}
-            <SettingRow
-              testID="settings-quiet-row"
-              icon="moon"
-              label={t("settings.quietTitle")}
-              sub={t("settings.quietSub")}
-              disabled={!settings.notificationsEnabled}
-              onPress={() => {
-                openQuietSheet();
-              }}
-              trailing={
-                <ValueAndChevron
-                  text={
-                    quietOn
-                      ? `${settings.quietStart}–${settings.quietEnd}`
-                      : t("settings.quietOff")
-                  }
-                />
-              }
-            />
-            <SettingRow
-              icon="speaker"
-              label={t("settings.soundTitle")}
-              sub={t("settings.soundSub")}
-              disabled={!settings.notificationsEnabled}
-              trailing={
-                <Switch
-                  testID="settings-sound-switch"
-                  value={settings.soundEnabled}
-                  disabled={!settings.notificationsEnabled}
-                  onValueChange={(value) => {
-                    void updateSettings({ soundEnabled: value });
-                  }}
-                />
-              }
-            />
-            <SettingRow
-              icon="stockLow"
-              label={t("settings.notifyMissedTitle")}
-              sub={t("settings.notifyMissedSub", {
-                count: DEFAULT_SETTINGS.missedAlertStreak,
-              })}
-              trailing={
-                <Switch
-                  testID="settings-missed-streak-switch"
-                  value={settings.missedAlertStreak > 0}
-                  onValueChange={(value) => {
-                    void updateSettings({
-                      missedAlertStreak: value
-                        ? DEFAULT_SETTINGS.missedAlertStreak
-                        : 0,
-                    });
-                  }}
-                />
-              }
-            />
-          </FieldGroup.Section>
+                  {t("settings.permissionDenied")}
+                </RNText>
+              ) : null}
+              <RowDivider />
+              <SettingRow
+                icon={SYMBOL_ICONS.settingsSnooze}
+                label={t("settings.snoozeTitle")}
+                sub={t("settings.snoozeSub")}
+                disabled={!settings.notificationsEnabled}
+                trailing={
+                  <ExpoUiIsland>
+                    <Picker
+                      testID="settings-snooze-picker"
+                      selectedValue={settings.snoozeMinutes}
+                      enabled={settings.notificationsEnabled}
+                      onValueChange={(value) => {
+                        void updateSettings({ snoozeMinutes: Number(value) });
+                      }}
+                    >
+                      {SNOOZE_OPTIONS.map((minutes) => (
+                        <Picker.Item
+                          key={minutes}
+                          label={t("settings.minutesValue", {
+                            count: minutes,
+                          })}
+                          value={minutes}
+                        />
+                      ))}
+                    </Picker>
+                  </ExpoUiIsland>
+                }
+              />
+              <RowDivider />
+              <SettingRow
+                testID="settings-quiet-row"
+                icon={SYMBOL_ICONS.settingsQuiet}
+                label={t("settings.quietTitle")}
+                sub={t("settings.quietSub")}
+                disabled={!settings.notificationsEnabled}
+                onPress={() => {
+                  openQuietSheet();
+                }}
+                trailing={
+                  <ValueAndChevron
+                    text={
+                      quietOn
+                        ? `${settings.quietStart}–${settings.quietEnd}`
+                        : t("settings.quietOff")
+                    }
+                  />
+                }
+              />
+              <RowDivider />
+              <SettingRow
+                icon={SYMBOL_ICONS.settingsSound}
+                label={t("settings.soundTitle")}
+                sub={t("settings.soundSub")}
+                disabled={!settings.notificationsEnabled}
+                trailing={
+                  <RNSwitch
+                    testID="settings-sound-switch"
+                    value={settings.soundEnabled}
+                    disabled={!settings.notificationsEnabled}
+                    trackColor={{
+                      false: theme.border,
+                      true: theme.primary,
+                    }}
+                    thumbColor={theme.surface}
+                    onValueChange={(value) => {
+                      void updateSettings({ soundEnabled: value });
+                    }}
+                  />
+                }
+              />
+              <RowDivider />
+              <SettingRow
+                icon={SYMBOL_ICONS.settingsMissed}
+                label={t("settings.notifyMissedTitle")}
+                sub={t("settings.notifyMissedSub", {
+                  count: DEFAULT_SETTINGS.missedAlertStreak,
+                })}
+                trailing={
+                  <RNSwitch
+                    testID="settings-missed-streak-switch"
+                    value={settings.missedAlertStreak > 0}
+                    trackColor={{
+                      false: theme.border,
+                      true: theme.primary,
+                    }}
+                    thumbColor={theme.surface}
+                    onValueChange={(value) => {
+                      void updateSettings({
+                        missedAlertStreak: value
+                          ? DEFAULT_SETTINGS.missedAlertStreak
+                          : 0,
+                      });
+                    }}
+                  />
+                }
+              />
+            </SectionCard>
+          </RNView>
 
           {/* ── 数据 ── */}
-          <FieldGroup.Section title={t("settings.sectionData")}>
-            <SettingRow
-              testID="settings-export-row"
-              icon="download"
-              label={t("settings.exportTitle")}
-              sub={t("settings.exportSubtitle")}
-              onPress={() => {
-                void exportReport();
-              }}
-            />
-          </FieldGroup.Section>
-
-          {/* ── 关于（免责声明放分组脚注） ── */}
-          <FieldGroup.Section title={t("settings.sectionAbout")}>
-            <SettingRow
-              testID="settings-privacy-row"
-              icon="shield"
-              label={t("settings.privacyTitle")}
-              sub={t("settings.privacySub")}
-              onPress={() => {
-                openPrivacySheet();
-              }}
-              trailing={<Chevron />}
-            />
-            <SettingRow
-              icon="info"
-              label={t("settings.version")}
-              trailing={
-                <Text
-                  textStyle={{
-                    fontSize: 13,
-                    fontFamily: Fonts.mono,
-                    color: theme.textSecondary,
-                  }}
-                >
-                  {Constants.expoConfig?.version ?? "1.0.0"}
-                </Text>
-              }
-            />
-            <FieldGroup.SectionFooter>
-              <Text
-                textStyle={{
-                  fontSize: 13,
-                  lineHeight: 21,
-                  color: theme.textSecondary,
-                  textAlign: "center",
+          <RNView>
+            <SectionTitle>{t("settings.sectionData")}</SectionTitle>
+            <SectionCard tone="outline">
+              <SettingRow
+                testID="settings-export-row"
+                icon={SYMBOL_ICONS.settingsExport}
+                label={t("settings.exportTitle")}
+                sub={t("settings.exportSubtitle")}
+                onPress={() => {
+                  void exportReport();
                 }}
-              >
-                {t("settings.note")}
-              </Text>
-            </FieldGroup.SectionFooter>
-          </FieldGroup.Section>
-        </FieldGroup>
-      </Host>
+                showChevron
+              />
+            </SectionCard>
+          </RNView>
+
+          {/* ── 关于（免责声明放分组下方） ── */}
+          <RNView>
+            <SectionTitle>{t("settings.sectionAbout")}</SectionTitle>
+            <SectionCard tone="outline">
+              <SettingRow
+                testID="settings-privacy-row"
+                icon={SYMBOL_ICONS.settingsPrivacy}
+                label={t("settings.privacyTitle")}
+                sub={t("settings.privacySub")}
+                onPress={() => {
+                  openPrivacySheet();
+                }}
+                showChevron
+              />
+              <RowDivider />
+              <SettingRow
+                icon={SYMBOL_ICONS.settingsVersion}
+                label={t("settings.version")}
+                trailing={
+                  <RNText
+                    style={{
+                      fontSize: 13,
+                      fontFamily: Fonts.mono,
+                      color: theme.textSecondary,
+                    }}
+                  >
+                    {Constants.expoConfig?.version ?? "1.0.0"}
+                  </RNText>
+                }
+              />
+            </SectionCard>
+            <RNText
+              style={{
+                paddingTop: Spacing.three,
+                paddingHorizontal: Spacing.two,
+                fontSize: 13,
+                lineHeight: 21,
+                color: theme.textSecondary,
+                textAlign: "center",
+              }}
+            >
+              {t("settings.note")}
+            </RNText>
+          </RNView>
+        </RNView>
+      </ScreenScaffold>
 
       {/* 免打扰时段：时间选择器收在 sheet 里，主行因此不用跟着开关长出第二行。
-          TrueSheet 是真原生 sheet，放屏幕根（Host 外）；内容是纯 RN 子树 */}
+          TrueSheet 是真原生 sheet，放屏幕根；内容是纯 RN 子树 */}
       <TrueSheet
         ref={quietSheetRef}
         detents={["auto", 0.6]}
@@ -334,8 +382,6 @@ export function Settings() {
             >
               {t("settings.quietTitle")}
             </RNText>
-            {/* RN Switch：sheet 内容是 RN 子树，Expo UI 的 Switch 离开 Host
-                会丢 view config；oxlint 的禁用规则原面向 Expo UI 屏，此处豁免 */}
             <RNView
               style={{
                 flexDirection: "row",
@@ -349,6 +395,8 @@ export function Settings() {
               <RNSwitch
                 testID="settings-quiet-switch"
                 value={quietOn}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={theme.surface}
                 onValueChange={(value) => {
                   void setQuietHours(
                     value ? DEFAULT_QUIET_START : null,
@@ -499,12 +547,11 @@ export function Settings() {
 }
 
 /**
- * 一行设置：图标 + 标题 / 副标题在左，控件在右，统一 `Row` 排布。
+ * 一行设置：图标 + 标题 / 副标题在左，控件在右。
  *
- * 不用 `ListItem`：它是 iOS 的 `Button(contentShape)`，整行包住会把右端 Switch /
- * Picker 的点击吞掉（开关点不动）。这里用普通 `Row`：**导航行**才给 `Row` 设
- * `onPress`（整行进下一页 / 开 sheet，右端是箭头这类非交互内容）；**控制行**不给
- * `onPress`，让 Switch / Picker 自己接收点击。
+ * `onPress` 只给「导航行」：整行点击进下一层 / 开 sheet，右端是箭头或数值这类
+ * 非交互内容。**控制行**（有 Switch / Picker）不给 `onPress` —— 否则外层手势会
+ * 吞掉尾控件的点击，开关就点不动；控件自身接收点击即可。
  */
 function SettingRow({
   icon,
@@ -513,97 +560,132 @@ function SettingRow({
   trailing,
   onPress,
   disabled,
+  showChevron,
   testID,
 }: {
-  icon: IconKey;
+  icon: SymbolIconName;
   label: string;
   sub?: string;
   trailing?: ReactNode;
   onPress?: () => void;
   /** 不可用：置灰且不响应点击。控件本身也各自 disabled */
   disabled?: boolean;
+  /** 行尾画「可进入下一层」的箭头 */
+  showChevron?: boolean;
   testID?: string;
 }) {
   const theme = useTheme();
   const labelColor = disabled ? theme.textSecondary : theme.text;
-  const subtitle = sub ? (
-    <Text
-      textStyle={{
-        fontSize: 13,
-        color: theme.textSecondary,
-        textAlign: "left",
-      }}
-    >
-      {sub}
-    </Text>
-  ) : null;
 
-  // 所有行统一一套布局：[图标] 文本 …弹性空白… [右端控件]。
-  // 图标与文本相邻，右端（开关 / 选择器 / 箭头 / 数值）由中间弹性空隙推到行尾，
-  // 每行对齐一致，不再一半行文本贴图标、一半被推到中间。
-  //
-  // onPress 只给「导航行」：整行点击进下一页 / 开 sheet，右端是箭头这类非交互内容。
-  // 控制行（有 Switch / Picker）**不给 Row 设 onPress** —— 否则 Row 的手势会吞掉
-  // 尾控件的点击（ListItem / Button 同理），开关就点不动；控件自身接收点击即可。
-  return (
-    <Row
-      testID={testID}
-      alignment="center"
-      spacing={Spacing.rowGap}
-      onPress={disabled ? undefined : onPress}
-    >
-      <SettingIcon name={icon} />
-      {/* 文本列不撑满（撑满会把文字居中）：贴着图标按内容宽排布，右端控件由
-          Spacer 推到行尾。与 ListItem 内部结构一致（leading / VStack / Spacer /
-          trailing），VStack 被 Spacer + 控件约束，长文案自然截断。 */}
-      <Column alignment="start" spacing={Spacing.half}>
-        <Text
+  const body = (
+    <>
+      <RNView
+        style={{
+          width: ICON_TILE,
+          height: ICON_TILE,
+          borderRadius: Radius.tile,
+          backgroundColor: theme.primarySoft,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <SymbolIcon name={icon} size={ICON_SIZE} color={theme.primary} />
+      </RNView>
+      {/* 文本列让位（flex + minWidth 0）：长文案截断而不是把右端控件挤出屏幕 */}
+      <RNView style={{ flex: 1, minWidth: 0, gap: Spacing.half }}>
+        <RNText
           numberOfLines={1}
-          textStyle={{
-            fontSize: 17,
-            fontWeight: "600",
-            color: labelColor,
-            textAlign: "left",
-          }}
+          style={{ fontSize: 17, fontWeight: "600", color: labelColor }}
         >
           {label}
-        </Text>
-        {subtitle}
-      </Column>
-      <Spacer flexible />
+        </RNText>
+        {sub ? (
+          <RNText style={{ fontSize: 13, color: theme.textSecondary }}>
+            {sub}
+          </RNText>
+        ) : null}
+      </RNView>
       {trailing}
-    </Row>
+      {showChevron ? (
+        <SymbolIcon
+          name={SYMBOL_ICONS.chevronRight}
+          size={14}
+          color={theme.textSecondary}
+        />
+      ) : null}
+    </>
+  );
+
+  const rowStyle = {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: Spacing.rowGap,
+    paddingHorizontal: ROW_PADDING,
+    paddingVertical: ROW_PADDING,
+    minHeight: 44,
+  };
+
+  if (!onPress) {
+    return (
+      <RNView testID={testID} style={rowStyle}>
+        {body}
+      </RNView>
+    );
+  }
+  return (
+    <RNPressable
+      testID={testID}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        rowStyle,
+        pressed ? { backgroundColor: theme.backgroundSelected } : null,
+      ]}
+    >
+      {body}
+    </RNPressable>
   );
 }
 
-/** 行首图标：36px 品牌色底块 + 18px 线性图标（design 的 .setting-icon） */
-function SettingIcon({ name }: { name: IconKey }) {
+/** 分组行之间的发丝线：与文本列左缘对齐，不穿过图标底块 */
+function RowDivider() {
   const theme = useTheme();
-  return <Icon name={ICONS[name]} size={18} color={theme.primary} />;
+  return (
+    <RNView
+      style={{
+        height: 1,
+        marginLeft: DIVIDER_INSET,
+        backgroundColor: theme.border,
+      }}
+    />
+  );
 }
 
-/** 行尾的等宽数值 + 展开箭头（design 的 .setting-action） */
+/** 行尾的等宽数值 + 展开箭头（design/settings.html 的 .setting-action） */
 function ValueAndChevron({ text }: { text: string }) {
   const theme = useTheme();
   return (
-    <Row alignment="center" spacing={6}>
-      <Text
-        textStyle={{
+    <RNView
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: Spacing.two,
+      }}
+    >
+      <RNText
+        style={{
           fontSize: 13,
           fontFamily: Fonts.mono,
           color: theme.textSecondary,
         }}
       >
         {text}
-      </Text>
-      <Chevron />
-    </Row>
-  );
-}
-
-function Chevron() {
-  const theme = useTheme();
-  return (
-    <Icon name={ICONS.chevronDown} size={14} color={theme.textSecondary} />
+      </RNText>
+      <SymbolIcon
+        name={SYMBOL_ICONS.chevronRight}
+        size={14}
+        color={theme.textSecondary}
+      />
+    </RNView>
   );
 }
