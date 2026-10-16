@@ -1,8 +1,9 @@
 # `@expo/ui` 与 React Native 混合布局指南
 
-> **适用范围（2026-10 迁移后）**：本文只对**未迁屏与残留 Expo UI 岛**有效 —— 即
-> `src/screens/profile/settings.tsx`（冻结）、`src/app/onboarding.tsx`（冻结）、
-> 孪生铝箔岛、`ExpoUiIsland` 里的原生控件。**生产内容树已全部是纯 RN**（见
+> **适用范围（2026-10 迁移后）**：本文只对**残留 Expo UI 岛**有效 —— 即
+> `src/app/onboarding.tsx` 整屏（默认不迁）、孪生铝箔岛、以及 `ExpoUiIsland` 里的
+> 原生控件（用药人菜单 `Picker`、玻璃按钮）。`settings.tsx` 已迁纯 RN（PR13），
+> 不再是 Expo UI 父树。**生产内容树已全部是纯 RN**（见
 > `docs/plans/迁移计划.md`）：新屏直接用 RN Yoga + `useTheme()` + `ScreenScaffold`，
 > 宽度用 `width: '100%'` / `flex` / 父级 `onLayout`，**不要再套 `Host` 测宽**。
 > `useExpoUiContentWidth`、`ReminderCardStackExpoUI` / `StockPanelExpoUI` /
@@ -50,11 +51,11 @@
 
 现状：`src/app/playground`（整屏 Reanimated 手势组件）。这类屏幕要在文件头注释
 写清「为什么不是 Host」，避免后来者以为漏改了。图标走 `expo-symbols` 的
-`src/components/symbol-icon.tsx`（Android 需另配 Material 图标）。
+`src/components/symbol-icon.tsx`（Android 用 Material Symbols 字形名，见 `SYMBOL_ICONS`）。
 
-> `src/screens/home`（首页）**不是**这一类：它现在是 Expo UI 为主的整屏，
-> 只有三块 island 依赖 RN 布局（见第 10 节）。只有「整屏核心视觉都在 RN 布局
-> 上下文里」时才退回纯 RN 写法。
+> **2026-10 起这一节已成默认**：全部生产屏都迁成了纯 RN（迁移计划 PR2–PR13），
+> `src/screens/home`、`src/screens/medica`、`src/screens/profile` 都在其列。
+> 「什么时候整屏用纯 RN」从例外变成了规则，留着本节是为了记录判断信号。
 
 ### 2.2 Expo UI 页面中嵌入一个 RN island
 

@@ -1,10 +1,8 @@
-import { Picker } from "@expo/ui";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
-import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import {
   ChipField,
@@ -15,6 +13,7 @@ import {
   Subtitle,
 } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
+import { RnPicker } from "@/components/rn-picker";
 import { HairLine } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
 import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
@@ -51,16 +50,15 @@ const DEFAULT_DOSE = "1";
  *
  * 用药人是不是「可改」取决于入口：从用药人详情进来（`params.personId`）时人已经定了，
  * 只读展示头像 + 姓名，不再摆选择器；从药品详情进来（`params.medicationId`）时不知道
- * 谁吃，才给菜单 Picker 选。
+ * 谁吃，才用 `RnPicker` 选。
  *
  * 排版与添加药品、添加成员共用 rn-form 基元：画布底 + 分区卡片，label 在控件**上方**。
- * 但只有**文字输入**套 InputShell 圆角描边盒 —— 原生自绘控件（菜单 Picker、compact
- * 日期选择器）自己就带一颗灰底胶囊，再套一层就是「盒子里嵌盒子」，一律裸放，并用
- * `accentColor` 上品牌色、用 App 语言定日期时间格式。
+ * 但只有**文字输入**套 InputShell 圆角描边盒 —— 原生自绘控件（`RnPicker` /
+ * `RnDateTimePicker`）自己就带一颗灰底胶囊，再套一层就是「盒子里嵌盒子」，一律裸放，
+ * 并用 `accentColor` 上品牌色、用 App 语言定日期时间格式。
  *
  * 药品多选用 Checkbox 逐行列（Row 在 iOS 上是 HStack，不折行，药一多就溢出屏外）。
- * 用药人保持 Picker（appearance="menu"）—— 选项数量不定，菜单只占一行、选项还能
- * 纵向滚动。
+ * 用药人选项数量不定，用 `RnPicker` 的 sheet 列表（选项能纵向滚动）而不是 chip 行。
  */
 export default function PlanFormScreen() {
   const router = useRouter();
@@ -294,18 +292,19 @@ export default function PlanFormScreen() {
               </View>
             ) : (
               <Field label={t("plan.person")}>
-                <ExpoUiIsland>
-                  <Picker
-                    testID="plan-person-picker"
-                    selectedValue={personId}
-                    onValueChange={(value) => setPersonId(value as string)}
-                  >
-                    <Picker.Item label={t("plan.personPlaceholder")} value="" />
-                    {persons.map((p) => (
-                      <Picker.Item key={p.id} label={p.name} value={p.id} />
-                    ))}
-                  </Picker>
-                </ExpoUiIsland>
+                <RnPicker
+                  testID="plan-person-picker"
+                  value={personId}
+                  options={[
+                    { label: t("plan.personPlaceholder"), value: "" },
+                    ...persons.map((p) => ({ label: p.name, value: p.id })),
+                  ]}
+                  onValueChange={(value) => {
+                    setPersonId(value);
+                  }}
+                  placeholder={t("plan.personPlaceholder")}
+                  sheetTitle={t("plan.person")}
+                />
               </Field>
             )}
             <HintText
@@ -366,21 +365,18 @@ export default function PlanFormScreen() {
 
           <FormSection title={t("plan.sectionTimes")}>
             <Field label={t("plan.timesPerDay")}>
-              <ExpoUiIsland>
-                <Picker
-                  testID="plan-times-picker"
-                  selectedValue={timesPerDay}
-                  onValueChange={(value) => changeTimesPerDay(Number(value))}
-                >
-                  {TIMES_PER_DAY.map((n) => (
-                    <Picker.Item
-                      key={n}
-                      label={t("plan.perDay", { count: n })}
-                      value={n}
-                    />
-                  ))}
-                </Picker>
-              </ExpoUiIsland>
+              <RnPicker
+                testID="plan-times-picker"
+                value={timesPerDay}
+                options={TIMES_PER_DAY.map((n) => ({
+                  label: t("plan.perDay", { count: n }),
+                  value: n,
+                }))}
+                onValueChange={(value) => {
+                  changeTimesPerDay(Number(value));
+                }}
+                sheetTitle={t("plan.timesPerDay")}
+              />
             </Field>
             <HintText text={t("plan.timesSharedHint")} />
             <View style={{ gap: Spacing.two }}>

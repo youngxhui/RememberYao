@@ -1,4 +1,3 @@
-import { Picker } from "@expo/ui";
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import Constants from "expo-constants";
 import { Stack, useFocusEffect } from "expo-router";
@@ -11,9 +10,9 @@ import {
 // oxlint-disable-next-line no-restricted-imports -- 设置页已是纯 RN 屏（没有 Host）：Expo UI 的 Switch 离开 Host 会丢 view config，只能用 RN Switch
 import { Switch as RNSwitch } from "react-native";
 
-import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { SYMBOL_ICONS } from "@/components/icons";
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
+import { RnPicker } from "@/components/rn-picker";
 import { SectionCard, SectionTitle } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
 import { SymbolIcon, type SymbolIconName } from "@/components/symbol-icon";
@@ -60,10 +59,11 @@ const DIVIDER_INSET = ROW_PADDING + ICON_TILE + Spacing.rowGap;
  * 行首图标保留品牌色底块（.setting-icon）以维持品牌感。
  * 每个开关都接真实的 store / 通知行为，没有假开关。
  *
- * 「语言」与「稍后提醒间隔」用行内原生 `Picker`（appearance=menu 的原生胶囊，
- * universal style 吃不到，硬造会退化）而不是跳独立页面：选项都只有两三个，
- * 单独一屏反而是绕路。RN 父树里必须经 `ExpoUiIsland` 包一层 —— SwiftUI 视图
- * 离开 `Host` 会 `Unable to get view config`。
+ * 「语言」与「稍后提醒间隔」用行内单选（`RnPicker`：灰底胶囊触发器 + TrueSheet
+ * 选项列表）。早年用 `@expo/ui` 的 universal `Picker`，它的 `appearance` 默认就是
+ * `menu`，iOS 落成原生 Menu 胶囊：不吃 RN `style`，还必须住在 `Host` 里 —— 内容树
+ * 迁纯 RN 后每颗都要额外背一座 `ExpoUiIsland`，所以换成 RN 实现。选项都只有两三个，
+ * 单独一屏反而是绕路。
  *
  * 「免打扰」收成一行：关着时显示「关闭」，点整行进 sheet 改时间。
  * 以前是「开关 + 时间选择器」两行，开关一变行数就跳，列表会错位。
@@ -139,23 +139,18 @@ export function Settings() {
                 label={t("settings.language")}
                 sub={t("settings.languageSub")}
                 trailing={
-                  <ExpoUiIsland>
-                    <Picker
-                      testID="settings-language-picker"
-                      selectedValue={language}
-                      onValueChange={(value) => {
-                        setLanguage(value);
-                      }}
-                    >
-                      {LANGUAGES.map((lang) => (
-                        <Picker.Item
-                          key={lang}
-                          label={LANGUAGE_LABELS[lang]}
-                          value={lang}
-                        />
-                      ))}
-                    </Picker>
-                  </ExpoUiIsland>
+                  <RnPicker
+                    testID="settings-language-picker"
+                    value={language}
+                    options={LANGUAGES.map((lang) => ({
+                      label: LANGUAGE_LABELS[lang],
+                      value: lang,
+                    }))}
+                    onValueChange={(value) => {
+                      setLanguage(value);
+                    }}
+                    sheetTitle={t("settings.language")}
+                  />
                 }
               />
             </SectionCard>
@@ -203,26 +198,19 @@ export function Settings() {
                 sub={t("settings.snoozeSub")}
                 disabled={!settings.notificationsEnabled}
                 trailing={
-                  <ExpoUiIsland>
-                    <Picker
-                      testID="settings-snooze-picker"
-                      selectedValue={settings.snoozeMinutes}
-                      enabled={settings.notificationsEnabled}
-                      onValueChange={(value) => {
-                        void updateSettings({ snoozeMinutes: Number(value) });
-                      }}
-                    >
-                      {SNOOZE_OPTIONS.map((minutes) => (
-                        <Picker.Item
-                          key={minutes}
-                          label={t("settings.minutesValue", {
-                            count: minutes,
-                          })}
-                          value={minutes}
-                        />
-                      ))}
-                    </Picker>
-                  </ExpoUiIsland>
+                  <RnPicker
+                    testID="settings-snooze-picker"
+                    value={settings.snoozeMinutes}
+                    options={SNOOZE_OPTIONS.map((minutes) => ({
+                      label: t("settings.minutesValue", { count: minutes }),
+                      value: minutes,
+                    }))}
+                    onValueChange={(value) => {
+                      void updateSettings({ snoozeMinutes: Number(value) });
+                    }}
+                    disabled={!settings.notificationsEnabled}
+                    sheetTitle={t("settings.snoozeTitle")}
+                  />
                 }
               />
               <RowDivider />

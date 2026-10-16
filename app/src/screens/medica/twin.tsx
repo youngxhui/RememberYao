@@ -1,4 +1,4 @@
-import { Column, Host, Icon, Picker, Row, Spacer, Text } from "@expo/ui";
+import { Column, Host, Icon, Row, Spacer, Text } from "@expo/ui";
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -11,7 +11,6 @@ import {
 } from "react-native";
 
 import { GlassHostButton } from "@/components/expo-ui-island";
-import { ExpoUiIsland } from "@/components/expo-ui-island";
 import { GlassChip } from "@/components/glass-chip";
 import { ICONS, type IconKey } from "@/components/icons";
 import {
@@ -20,6 +19,7 @@ import {
 } from "@/components/native-layout";
 import { ProgressBarRn } from "@/components/progress-bar";
 import { InputShell } from "@/components/rn-input-shell";
+import { RnPicker } from "@/components/rn-picker";
 import { SectionCard, SectionTitle } from "@/components/rn-section-card";
 import { roundedBox } from "@/components/rounded-box";
 import { ScreenScaffold } from "@/components/screen-scaffold";
@@ -353,22 +353,16 @@ export function MedicationTwin() {
                     size={18}
                     color={theme.textSecondary}
                   />
-                  <ExpoUiIsland>
-                    <Picker<string>
-                      testID="twin-person-picker"
-                      appearance="menu"
-                      selectedValue={activePersonId ?? ""}
-                      onValueChange={setPersonId}
-                    >
-                      {persons.map((person) => (
-                        <Picker.Item
-                          key={person.id}
-                          label={person.name}
-                          value={person.id}
-                        />
-                      ))}
-                    </Picker>
-                  </ExpoUiIsland>
+                  <RnPicker
+                    testID="twin-person-picker"
+                    value={activePersonId ?? ""}
+                    options={persons.map((person) => ({
+                      label: person.name,
+                      value: person.id,
+                    }))}
+                    onValueChange={setPersonId}
+                    sheetTitle={t("plan.person")}
+                  />
                   <RNView style={{ flex: 1 }} />
                   <RNText style={{ fontSize: 12, color: theme.textSecondary }}>
                     {t("twin.personHint")}

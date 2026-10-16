@@ -172,7 +172,7 @@ maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 →
 - **别用只在上一步页面出现的文案做等待**：`assertVisible: "维生素C"` 在药品表单页也能匹配到（它就在「药品名称」输入框里），会假通过。要用列表页独有的文案（如 `全部 1`、空态提示）确认真的回到了列表。
 - **动态 id 在 flow 里写成正则**：列表行 id 拼了实体 id（如 `dose-take-<reminderId>`），flow 里写 `id: "dose-take-.*"`。`id` 字段本身按正则编译，所以 `mini-archive-entry-.*` 这种后缀通配是合法的。
 - **系统弹窗用 `label` 匹配并标 `optional: true`**：权限弹窗文案随系统语言变（「允许」/「Allow」）。
-- 首页（今日）现在是**纯 RN 树**（`src/screens/home`），`Pressable` / `RNView` 的 `testID` 正常落到 `accessibilityIdentifier`，不受上面「@expo/ui 的 Text 不行」的限制。首页关键 id：`home-add-button`、`home-member-all`、`home-member-<personId>`、`home-gap-row-<from>-<to>`、`home-refill-button`、`dose-take-<reminderId>`、`dose-skip-<reminderId>`、`dose-snooze-<reminderId>`、`stack-card-take-<reminderId>`。
+- 首页（今日）现在是**纯 RN 树**（`src/screens/home`），`Pressable` / `RNView` 的 `testID` 正常落到 `accessibilityIdentifier`，不受上面「@expo/ui 的 Text 不行」的限制。首页关键 id：`home-add-medication-button`（Hero 加号）、`home-empty-add-button`（空态）、`home-notification-enable`（通知横幅）、`home-refill-button`（库存速览补货）、`stack-card-take-<reminderId>`（牌堆服用）。`dose-take-*` / `dose-skip-*` / `dose-snooze-*` / `home-gap-row-*` 随 `dose-rail.tsx` 一起删除（迁移计划 PR6），`dose-timeline.tsx` 里的两个 id 只有 records 页在用。
 - 首页进度文本是 `已完成 N/M`，`M === 0` 时照常渲染 `已完成 0/0`；数字随当日配置变化，只断言 `N/M` 这个结构。空态文案是「今天没有用药安排」。
 - flow 文件名用连字符（kebab-case），与路由和组件保持一致。
 

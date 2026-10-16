@@ -11,10 +11,9 @@ import { useTheme } from "@/hooks/use-theme";
 import { useLiquidGlassEnabled } from "./content-glass";
 
 /**
- * RN 版玻璃 Chip：与旧 `Chip`（Expo UI / FilterChip）双轨共存，
- * 等第 3 批孪生外壳迁完后由 PR14 删除旧文件。
+ * RN 版玻璃 Chip：纯 RN `Pressable`，两端各自退化。
  *
- * - iOS：ContentGlass 铺原生液态玻璃，文字色不随暗色翻面。
+ * - iOS：`expo-glass-effect` 的 `GlassView` 铺原生液态玻璃，文字色不随暗色翻面。
  * - Android / 降透明 / a11y 未 resolve：实心 token 选中态。
  * - Pressable 是最外层，padding 写在这里，热区 = 整颗胶囊。
  */

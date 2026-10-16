@@ -14,7 +14,7 @@
 1. **系统 chrome** —— `NativeTabs` / `Stack.Title` / `Toolbar` / `SearchBar`。系统自带 iOS 26 液态玻璃，不拆。
 2. **内容树** —— RN 的 `View`/`Text`/`Pressable`/`ScrollView`/`FlatList` + `useTheme()`；骨架用 `ScreenScaffold`（+ `Padded` / `FullBleed`），分组用 `SectionCard` / `SectionTitle` / `HairLine`。
 3. **内容玻璃** —— `@/components/glass-chip` 的 `GlassChip` / `GlassChipRow`，`@/components/expo-ui-island` 的 `GlassHostButton`。**屏幕禁止直接 import `expo-liquid-glass-view` / `expo-glass-effect`**。
-4. **原生控件小岛** —— 菜单 `Picker`（`appearance="menu"`，universal style 吃不到）。RN 父树里一律走 `@/components/expo-ui-island` 的 `ExpoUiIsland`（`Host matchContents` + `seedColor`），不要各屏手写 `Host`。
+4. **原生控件小岛** —— 菜单 `Picker` 已清零：`@expo/ui` 的 universal `Picker` 的 `appearance` 默认就是 `'menu'`（iOS 落成 SwiftUI `.pickerStyle(.menu)` 原生 Menu 胶囊，**不吃 RN `style`** 还必须住在 `Host` 里），twin / plan-form / settings 的 5 处已全部换成 `@/components/rn-picker` 的 `RnPicker`。`ExpoUiIsland`（`Host matchContents` + `seedColor`）保留为 RN 父树挂 `@expo/ui` 原生控件的唯一边界，目前只有 playground 在演示。
 5. **sheet** —— `@lodev09/react-native-true-sheet`（真原生 sheet：iOS `UISheetPresentationController` / Android `ModalBottomSheet`）。**不要**用 `@expo/ui` 的 `BottomSheet`（已弃用）、`@expo/ui/community/bottom-sheet`（default export 挂载即打开）、`@gorhom/bottom-sheet`（JS 渲染，视觉对不齐系统）。
 
 `flex` 是当年 `@expo/ui` 唯一的硬缺口（universal `style` 只映射 SwiftUI/Compose 固定属性），
@@ -29,7 +29,7 @@
 | 设置页 / 详情分组行 | `SectionCard` + 自排行（`tone="fill"` 灰卡片 / `tone="outline"` 灰底上的白卡片） |
 | 开关 | RN `Switch`（`trackColor` / `thumbColor` 走 theme token；oxlint 的禁用规则面向 Expo UI 屏，纯 RN 屏单行豁免并注明原因） |
 | 日期时间选择 | `@/components/rn-datetime-picker` |
-| 菜单（选项 ≤ 4） | 原生 `Picker` 经 `ExpoUiIsland` |
+| 菜单（选项 ≤ 6） | `@/components/rn-picker` 的 `RnPicker`（胶囊触发器 + TrueSheet 选项列表） |
 | 表单输入 | `InputShell`（只有文字输入套盒，原生自绘控件裸放） |
 | 长列表 | `FlatList` / `FlashList` |
 
@@ -95,25 +95,40 @@ import { Text as RNText, View as RNView } from "react-native";
 ## 屏幕骨架
 
 ```tsx
-const theme = useTheme();
+// addIcon 来自 @/components/toolbar-icons（iOS SF Symbol / Android 矢量图，见「主题 token」图标一节）
 return (
   <>
     <Stack.Title large>标题</Stack.Title>
     <Stack.Toolbar placement="right">
-      <Stack.Toolbar.Button onPress={...}>
-        <Stack.Toolbar.Icon sf="plus" />
+      <Stack.Toolbar.Button icon={addIcon} accessibilityLabel="添加" onPress={...}>
         <Stack.Toolbar.Label>添加</Stack.Toolbar.Label>
       </Stack.Toolbar.Button>
     </Stack.Toolbar>
-    <Host seedColor={theme.primary} style={{ flex: 1 }}>
-      <ScrollView>{/* Column / Row / Text … */}</ScrollView>
-    </Host>
+
+    <ScreenScaffold>
+      <Padded>{/* View / Text / Pressable / FlatList … */}</Padded>
+    </ScreenScaffold>
   </>
 );
 ```
 
 - 标题一律走 `Stack.Title`（`large` 尺寸），**不要在页面里自己写大标题 Text**。导航栈标题是屏幕的顶层 chrome。
-- `Host` 的 `seedColor` 传 `theme.primary`，让原生组件跟随品牌色。
+- 骨架用 `ScreenScaffold`：需要通栏（顶到屏幕左右缘）的内容包 `FullBleed`，其余包 `Padded`（`ScreenScaffold` 默认无水平 padding）。
+- **不要再写整屏 `Host` + `Column` + `ScrollView`** —— 2026-10 迁移后生产屏全是纯 RN，`Host` 只剩孪生铝箔岛 / `onboarding.tsx` 两处合法残留（见硬规则 1）。
+
+## 内容玻璃：GlassChip / GlassHostButton
+
+筛选 chip、胶囊按钮一律用共享组件，**屏幕禁止直接 import `expo-liquid-glass-view` / `expo-glass-effect`**（allowlist 只允许 `glass-chip.tsx` 与 `expo-ui-island.tsx` 引玻璃包）：
+
+- **chip** —— `@/components/glass-chip` 的 `GlassChip`；横滑一排 chip 用 `GlassChipRow`（内含 `GlassContainer spacing={2}`，chip 间距 8pt、2pt 阈值下谁也融不到谁，容器只是分组边界）。
+- **玻璃按钮** —— `@/components/expo-ui-island` 的 `GlassHostButton`（详情页补货那一类）。
+
+两条硬约束：
+
+- **Android 没有液态玻璃兜底**：`GlassChip` 在 Android 退化为实心品牌色选中态，选中态必须是实心、不能变透明空壳（迁移计划 §4.D 把「Android chip 选中态变透明空壳」列为 P0 回滚信号）。
+- **玻璃祖先链上禁止改 `opacity`**（含外层 `Pressable`）—— opacity 过低玻璃会直接变淡；只有 Android 实心分支能用 opacity 做按压反馈。iOS 玻璃路径的胶囊圆角来自 `GlassView` 的 `borderRadius: 999`（RN `borderRadius` 不塑形原生玻璃层）。
+
+Compose `FilterChip` 不能进 Yoga：当年按平台拆过 `chip.{tsx,ios.tsx,android.tsx}`（Android 用 `@expo/ui/jetpack-compose` 的官方 `FilterChip`），双轨已在迁移计划 PR11 删除，**不要再按平台拆 chip**。
 
 ## 主题 token
 
@@ -127,7 +142,8 @@ const theme = useTheme();
 - 语义色：`primary`（品牌/主按钮/激活 tab）、`success`（已服）、`warning`（即将到期）、`danger`（漏服），各自带 `*Soft` 底色变体。
 - 间距用 `Spacing`，底部 tab 遮挡补偿用 `BottomTabInset`。
 - 图标不要用 emoji。iOS 用 SF Symbol，Android 用 Material icon。
-  - 内容树里的图标走 `@expo/ui` 的 `Icon` + `Icon.select({ ios, android })`。
+  - **内容树**走 `@/components/symbol-icon` 的 `SymbolIcon`（`expo-symbols` 的 `SymbolView`，Android 用 Material Symbols 字形名渲染）；语义键在 `src/components/icons.ts` 的 `SYMBOL_ICONS`（`{ ios, android }` 双平台名字典）。
+  - **残留 Expo UI 岛里**才用 `@expo/ui` 的 `Icon` + `Icon.select({ ios, android })`（`icons.ts` 的 `ICONS`，目前只有孪生铝箔岛在用）。
   - **工具栏图标**（`Stack.Toolbar.Button` / `Stack.Toolbar.Menu` 的 `icon` prop）没有跨平台双槽，只接受「SF Symbol 字符串 或 图片源」，只给 `sf` 时 Android 端整颗按钮不渲染 —— 两端取值收敛在 `src/components/toolbar-icons.{ts,android.ts}`（Android 侧是 `@expo/material-symbols` 的 `.xml` 矢量图）。
 
 ### 现状与官方建议的差异（待收敛）
