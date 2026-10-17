@@ -12,7 +12,7 @@
 ## 快速开始
 
 ```bash
-npm install
+bun install
 npx expo start
 ```
 
@@ -23,34 +23,47 @@ npx expo start
 ```
 src/
   app/
-    _layout.tsx            根布局：ThemeProvider + 根 Stack（index / (tabs) / onboarding）+ 通知初始化
+    _layout.tsx            根布局：ThemeProvider + 根 Stack（index / (tabs) / onboarding / records）+ 通知初始化
     index.tsx              入口：未看过引导页 → 引导页，否则 → 首页
     onboarding.tsx         首次启动引导页：tab 组之外，全屏无 tab 栏
+    records.tsx            服药记录：按日期查历史与当日服药率（tab 组之外）
     (tabs)/
       _layout.tsx          tab 组：AppTabs（NativeTabs）
-      home/                首页：只有路由，实现见 screens/home
-      medica/              药品：库存列表 / 详情 / 表单 / 添加入口（拍照·手动·扫码）
-      records/             记录：按日期查看服药记录与当日服药率
-      profile/             我的：设置、家庭成员管理、用药配置
+      home/                今日：路由，实现见 screens/home
+      medica/              药品：列表 / 详情 / 表单 / 孪生
+      playground/          调试页：tab 组之外，从代码 push /playground
+      profile/             我的：档案、家庭成员、用药配置、设置
   screens/
-    home/                  首页实现：巨型日期、成员筛选、导轨时间线、库存速览、提醒卡堆叠
+    home/                  首页实现：巨型日期、成员筛选、库存速览、提醒卡堆叠
+    medica/                药品库实现：列表 / 筛选 / 详情 / 数字孪生
+    profile/               我的实现：档案、成员管理、用药配置、设置
+  components/              通用组件（头像、玻璃卡片、选择器、日期时间选择、图标等）
   lib/
-    entities.ts            领域层：实体类型、常量与纯函数（日期 / 库存 / 孪生 / 统计）
-    avatar-photo.ts        头像照片：选图 → 裁方 → 缩放 → 存进沙盒 document 目录
-    store.ts               数据层：写操作编排（读所需 → 纯函数决策 → 事务写差异）、
-                           提醒同步、按屏幕的查询 Hook、通知调度数据
+    store.ts               数据层：写操作编排、提醒同步、按屏幕的查询 Hook
+    entities.ts            领域层：实体类型、常量与纯函数
     notifications.ts       通知层：权限、调度、操作按钮、响应处理
+    avatar-photo.ts        头像照片：选图 → 裁方 → 缩放 → 存进沙盒
     onboarding.ts          引导页“已看过”标记
   db/
     schema.ts              SQLite 表定义（Drizzle）
     client.ts              开库 + 版本不符即整库重建
-    repo.ts                仓储层：按实体 / 按查询的读写 + 事务，行 ↔ 实体映射
+    repo.ts                仓储层：按实体 / 按查询的读写 + 事务
+  i18n/
+    provider.tsx           运行时多语言 + useTranslation / useI18n
+    dictionaries/          zh.ts / en.ts
   hooks/
-    use-onboarding-gate.ts 首次启动引导页门禁
-  components/              通用组件（头像、进度条、服药时间线、提醒卡堆叠、Tab 栏等）
-  utils/color.ts           withAlpha：半透明叠色
+    use-theme.ts
+    use-color-scheme.ts
+    use-onboarding-gate.ts
+    use-medication-export.ts
   constants/theme.ts       主题色 / 字体 / 间距 / 圆角
-maestro/                   端到端测试
+  utils/color.ts           withAlpha / mixColor
+
+docs/                       领域约定与迁移计划
+design/                     HTML 设计稿
+maestro/                    端到端测试流
+patches/                    patch-package 补丁
+scripts/                    项目脚本
 ```
 
 ## 数据模型
@@ -80,6 +93,7 @@ maestro/                   端到端测试
 ## 测试
 
 ```bash
+bun run check               # typecheck + lint + format:check
 maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 → 空态 → tab 往返
 ```
 
