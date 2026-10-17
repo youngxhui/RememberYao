@@ -30,8 +30,9 @@
 | 设置页 / 详情分组行 | `SectionCard` + 自排行（`tone="fill"` 灰卡片 / `tone="outline"` 灰底上的白卡片） |
 | 开关 | RN `Switch`（`trackColor` / `thumbColor` 走 theme token；oxlint 的禁用规则面向 Expo UI 屏，纯 RN 屏单行豁免并注明原因） |
 | 日期时间选择 | `@/components/rn-datetime-picker` |
-| 菜单（选项 ≤ 6） | `@/components/rn-picker` 的 `RnPicker`（胶囊触发器 + TrueSheet 选项列表） |
+| 菜单（选项 ≤ 6） | `@/components/rn-picker` 的 `RnPicker`（胶囊触发器 + **原生菜单**：`@react-native-menu/menu`，iOS `UIMenu` / Android `PopupMenu`） |
 | 玻璃按钮 | `@/components/glass-host-button` 的 `GlassHostButton` |
+| 真原生菜单 | `@react-native-menu/menu` —— 已装，但**只经 `RnPicker` 用**，不要在别处直接 import |
 | 表单输入 | `InputShell`（只有文字输入套盒，原生自绘控件裸放） |
 | 长列表 | `FlatList` / `FlashList` |
 

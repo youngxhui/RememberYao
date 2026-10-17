@@ -59,8 +59,7 @@ const DIVIDER_INSET = ROW_PADDING + ICON_TILE + Spacing.rowGap;
  * 行首图标保留品牌色底块（.setting-icon）以维持品牌感。
  * 每个开关都接真实的 store / 通知行为，没有假开关。
  *
- * 「语言」与「稍后提醒间隔」用行内单选（`RnPicker`：灰底胶囊触发器 + TrueSheet
- * 选项列表）。早年用 `@expo/ui` 的 universal `Picker`，它的 `appearance` 默认就是
+ * 「语言」与「稍后提醒间隔」用行内单选（`RnPicker`：灰底胶囊触发器 + 原生菜单）。早年用 `@expo/ui` 的 universal `Picker`，它的 `appearance` 默认就是
  * `menu`，iOS 落成原生 Menu 胶囊：不吃 RN `style`，还必须住在 `Host` 里 —— 内容树
  * 迁纯 RN 后每颗都要额外背一座 `ExpoUiIsland`，所以换成 RN 实现。选项都只有两三个，
  * 单独一屏反而是绕路。
@@ -149,7 +148,7 @@ export function Settings() {
                     onValueChange={(value) => {
                       setLanguage(value);
                     }}
-                    sheetTitle={t("settings.language")}
+                    menuTitle={t("settings.language")}
                   />
                 }
               />
@@ -209,7 +208,7 @@ export function Settings() {
                       void updateSettings({ snoozeMinutes: Number(value) });
                     }}
                     disabled={!settings.notificationsEnabled}
-                    sheetTitle={t("settings.snoozeTitle")}
+                    menuTitle={t("settings.snoozeTitle")}
                   />
                 }
               />

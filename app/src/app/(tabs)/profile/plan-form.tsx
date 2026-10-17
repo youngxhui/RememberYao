@@ -58,7 +58,7 @@ const DEFAULT_DOSE = "1";
  * 并用 `accentColor` 上品牌色、用 App 语言定日期时间格式。
  *
  * 药品多选用 Checkbox 逐行列（Row 在 iOS 上是 HStack，不折行，药一多就溢出屏外）。
- * 用药人选项数量不定，用 `RnPicker` 的 sheet 列表（选项能纵向滚动）而不是 chip 行。
+ * 用药人选项数量不定，用 `RnPicker` 的原生菜单而不是 chip 行。
  */
 export default function PlanFormScreen() {
   const router = useRouter();
@@ -303,7 +303,7 @@ export default function PlanFormScreen() {
                     setPersonId(value);
                   }}
                   placeholder={t("plan.personPlaceholder")}
-                  sheetTitle={t("plan.person")}
+                  menuTitle={t("plan.person")}
                 />
               </Field>
             )}
@@ -375,7 +375,7 @@ export default function PlanFormScreen() {
                 onValueChange={(value) => {
                   changeTimesPerDay(Number(value));
                 }}
-                sheetTitle={t("plan.timesPerDay")}
+                menuTitle={t("plan.timesPerDay")}
               />
             </Field>
             <HintText text={t("plan.timesSharedHint")} />

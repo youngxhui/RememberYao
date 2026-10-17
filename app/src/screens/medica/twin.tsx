@@ -323,7 +323,7 @@ export function MedicationTwin() {
                       value: person.id,
                     }))}
                     onValueChange={setPersonId}
-                    sheetTitle={t("plan.person")}
+                    menuTitle={t("plan.person")}
                   />
                   <RNView style={{ flex: 1 }} />
                   <RNText style={{ fontSize: 12, color: theme.textSecondary }}>
