@@ -1,24 +1,44 @@
-# 构建产物
-build/
-.gradle/
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
 .kotlin/
-local.properties
-*.iml
-.idea/
-captures/
-.externalNativeBuild/
-.cxx/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
-# 签名材料：keystore 与口令不进版本库（APK 由带 keystore.properties 的环境产出）
-keystore.properties
-*/app/release.keystore
+# Metro
+.metro-health-check*
 
-# Xcode
-DerivedData/
-*.xcuserstate
-xcuserdata/
-*.moved-aside
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
-# 系统
+# macOS
 .DS_Store
-.agents/
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders
+/ios
+/android
+.tmp/
