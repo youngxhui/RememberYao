@@ -50,9 +50,11 @@
     "expo-mcp": "~0.2.1",
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",
+    "patch-package": "^8.0.1",
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "postinstall": "patch-package",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
