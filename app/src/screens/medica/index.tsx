@@ -125,30 +125,26 @@ export function Medica() {
         }
         ListEmptyComponent={
           !loading ? (
-            <EmptyState
-              body={
-                medications.length === 0
-                  ? "medication.empty"
-                  : query.trim()
-                    ? "medication.emptySearch"
-                    : filter === "low"
-                      ? "medication.emptyLow"
-                      : "medication.emptyCategory"
-              }
-            />
+            // 空态不垂直居中：列表头（筛选题）常驻顶部，居中会把它压到屏幕下半。
+            // 按 design/medications.html 的 .empty-state（padding: 60px 40px）跟在筛选题下方
+            <View style={{ paddingTop: Spacing.six }}>
+              <EmptyState
+                body={
+                  medications.length === 0
+                    ? "medication.empty"
+                    : query.trim()
+                      ? "medication.emptySearch"
+                      : filter === "low"
+                        ? "medication.emptyLow"
+                        : "medication.emptyCategory"
+                }
+              />
+            </View>
           ) : undefined
         }
-        contentContainerStyle={
-          cards.length === 0
-            ? {
-                flexGrow: 1,
-                justifyContent: "center",
-                paddingBottom: Spacing.four,
-              }
-            : {
-                paddingBottom: BottomTabInset + Spacing.four,
-              }
-        }
+        contentContainerStyle={{
+          paddingBottom: BottomTabInset + Spacing.four,
+        }}
       />
     </>
   );
