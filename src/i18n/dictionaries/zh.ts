@@ -132,6 +132,10 @@ export const zh = {
     quantityInvalid: "请填写有效的总数量",
     daysLeftHint: "约还能吃 {days} 天",
     daysLeftHintLow: "库存不足 · 约还能吃 {days} 天",
+    // 库存摘要组（detail.tsx）的「约还能吃」行：标签 + 天数，替代整句 hint
+    daysLeft: "约还能吃",
+    daysValue: "{days} 天",
+    estimateUnknown: "无法估算",
     noEstimate: "暂无生效的用药配置，还估不出能吃多久",
     stockUnsetHint: "尚未设置库存 · 补充后可自动扣减",
     noTakers: "还没有人服用这款药品",
@@ -361,6 +365,10 @@ export const zh = {
   },
   settings: {
     title: "设置",
+    // 二级入口（设置根屏三行）+ 三个二级屏的标题共用。一级不带描述副标题
+    generalEntry: "通用设置",
+    notificationsEntry: "通知设置",
+    aboutEntry: "关于",
     language: "语言",
     languageSub: "界面与通知使用的语言",
     sectionGeneral: "通用",

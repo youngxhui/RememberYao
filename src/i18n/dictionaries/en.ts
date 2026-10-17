@@ -145,6 +145,9 @@ export const en = {
     quantityInvalid: "Enter a valid total quantity",
     daysLeftHint: "About {days} days left",
     daysLeftHintLow: "Low stock · about {days} days left",
+    daysLeft: "Days left",
+    daysValue: "{days} days",
+    estimateUnknown: "Unknown",
     noEstimate: "No active schedule yet — days left can't be estimated",
     stockUnsetHint: "Stock not set · add it to auto-deduct on each dose",
     noTakers: "No one takes this medication yet",
@@ -376,6 +379,10 @@ export const en = {
   },
   settings: {
     title: "Settings",
+    // 二级入口（设置根屏三行）+ 三个二级屏的标题共用。一级不带描述副标题
+    generalEntry: "General",
+    notificationsEntry: "Notifications",
+    aboutEntry: "About",
     language: "Language",
     languageSub: "Language used by the app and reminders",
     sectionGeneral: "General",

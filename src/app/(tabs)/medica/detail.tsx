@@ -9,11 +9,10 @@ import { Pressable, Text, TextInput, View } from "react-native";
 
 import { AvatarMark } from "@/components/avatar";
 import { GlassHostButton } from "@/components/glass-host-button";
-import { ProgressBarRn } from "@/components/progress-bar";
+import { SYMBOL_ICONS } from "@/components/icons";
 import { InputShell } from "@/components/rn-input-shell";
 import {
   HairLine,
-  InfoRow,
   SectionCard,
   SectionTitle,
 } from "@/components/rn-section-card";
@@ -44,15 +43,14 @@ import {
   type Medication,
   type MedicationPlan,
   type Person,
-  type StockLevel,
 } from "@/lib/store";
-import { withAlpha } from "@/utils/color";
-
-/** 药品缩略图边长，与药品库列表卡一致 */
-const THUMB_SIZE = 52;
 
 /**
- * 药品详情：库存概览 → 基础信息 → 数字孪生 → 用药配置 → 补货 → 操作。
+ * 药品详情：库存摘要 → 基础信息 → 数字孪生 → 用药配置 → 补货 → 操作。
+ *
+ * 全屏同一套语言：canvas 底 + outline 白卡分组 + 发丝线，行首语义图标 +
+ * 标签 / 值，与药品库列表、设置页同构。库存档位只由值的颜色承担，不做
+ * 大数字、进度条、状态胶囊那套 dashboard 装饰（ui-design.md 反模式表）。
  *
  * 补货按钮保留系统玻璃（iOS `.glass`，Android 实心），其余主按钮改 RN Pressable。
  */
@@ -201,18 +199,20 @@ export default function MedicationDetailScreen() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <View style={{ gap: Spacing.four }}>
-          <StockOverview medication={medication} summary={summary} />
+        {/* 区块之间 16（gap）+ 标题 paddingTop 8 = 标题距上一区块 24，
+        标题距自己的卡 8 —— iOS 分组列表的「header 贴组」节奏 */}
+        <View style={{ gap: Spacing.three }}>
+          <StockSummaryCard medication={medication} summary={summary} />
 
-          <SectionTitle>{t("medication.sectionBasic")}</SectionTitle>
-          <BasicInfo
-            medication={medication}
-            summary={summary}
-            language={language}
-          />
+          {/* 标题与各自的卡包成一层：外层 gap 只作用于区块之间，
+          标题到卡片只剩 SectionTitle 自己的 8px（同设置屏的结构） */}
+          <View>
+            <SectionTitle>{t("medication.sectionBasic")}</SectionTitle>
+            <BasicInfo medication={medication} language={language} />
+          </View>
 
           {medication.type === "blister" ? (
-            <>
+            <View>
               <SectionTitle>{t("medication.twinSection")}</SectionTitle>
               <TwinEntry
                 medication={medication}
@@ -221,120 +221,132 @@ export default function MedicationDetailScreen() {
                 full={twin.fullSlots}
                 total={twin.totalSlots}
               />
-            </>
+            </View>
           ) : null}
 
-          <SectionTitle>{t("plan.title")}</SectionTitle>
-          <PlanSection
-            plans={relatedPlans}
-            persons={persons}
-            medication={medication}
-          />
+          <View>
+            <SectionTitle>{t("plan.title")}</SectionTitle>
+            <PlanSection
+              plans={relatedPlans}
+              persons={persons}
+              medication={medication}
+            />
+          </View>
 
-          <SectionTitle>{t("medication.restock")}</SectionTitle>
-          {twin.enabled ? (
-            <SectionCard>
-              <View style={{ gap: Spacing.three, padding: Spacing.three }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: Spacing.rowGap,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <InputShell>
-                      <TextInput
-                        testID="restock-packs-input"
-                        placeholder={t("medication.restockPacksPlaceholder")}
-                        keyboardType="number-pad"
-                        onChangeText={(text) => {
-                          setRestockPackCount(text);
-                          setRestockError(false);
-                        }}
-                        value={restockPackCount}
-                        style={{ fontSize: 15, color: theme.text, padding: 0 }}
-                      />
-                    </InputShell>
-                  </View>
-                  <GlassHostButton
-                    testID="restock-packs-submit-button"
-                    label={t("medication.restockPacksSubmit")}
-                    onPress={() => {
-                      void restockPacks();
+          <View>
+            <SectionTitle>{t("medication.restock")}</SectionTitle>
+            {twin.enabled ? (
+              <SectionCard tone="outline">
+                <View style={{ gap: Spacing.three, padding: Spacing.three }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: Spacing.rowGap,
                     }}
-                  />
-                </View>
-                {restockError ? (
-                  <Text style={{ fontSize: 13, color: theme.danger }}>
-                    {t("medication.restockInvalid")}
-                  </Text>
-                ) : null}
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: theme.textSecondary,
-                    lineHeight: 18,
-                  }}
-                >
-                  {t("medication.restockPacksHint", {
-                    perPack: twin.slotsPerPack,
-                    unit: medicationUnitLabel(medication.unit, t),
-                  })}
-                </Text>
-              </View>
-            </SectionCard>
-          ) : (
-            <SectionCard>
-              <View style={{ gap: Spacing.three, padding: Spacing.three }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: Spacing.rowGap,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <InputShell>
-                      <TextInput
-                        testID="restock-amount-input"
-                        placeholder={t("medication.restockPlaceholder")}
-                        keyboardType="number-pad"
-                        onChangeText={(text) => {
-                          setRestockAmount(text);
-                          setRestockError(false);
-                        }}
-                        value={restockAmount}
-                        style={{ fontSize: 15, color: theme.text, padding: 0 }}
-                      />
-                    </InputShell>
+                  >
+                    <View style={{ flex: 1 }}>
+                      <InputShell>
+                        <TextInput
+                          testID="restock-packs-input"
+                          placeholder={t("medication.restockPacksPlaceholder")}
+                          keyboardType="number-pad"
+                          onChangeText={(text) => {
+                            setRestockPackCount(text);
+                            setRestockError(false);
+                          }}
+                          value={restockPackCount}
+                          style={{
+                            fontSize: 15,
+                            color: theme.text,
+                            padding: 0,
+                          }}
+                        />
+                      </InputShell>
+                    </View>
+                    <GlassHostButton
+                      testID="restock-packs-submit-button"
+                      label={t("medication.restockPacksSubmit")}
+                      onPress={() => {
+                        void restockPacks();
+                      }}
+                    />
                   </View>
-                  <GlassHostButton
-                    testID="restock-submit-button"
-                    label={t("medication.restockSubmit")}
-                    onPress={() => {
-                      void restock();
+                  {restockError ? (
+                    <Text style={{ fontSize: 13, color: theme.danger }}>
+                      {t("medication.restockInvalid")}
+                    </Text>
+                  ) : null}
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: theme.textSecondary,
+                      lineHeight: 18,
                     }}
-                    tintColor={theme.primary}
-                  />
-                </View>
-                {restockError ? (
-                  <Text style={{ fontSize: 13, color: theme.danger }}>
-                    {t("medication.restockInvalid")}
+                  >
+                    {t("medication.restockPacksHint", {
+                      perPack: twin.slotsPerPack,
+                      unit: medicationUnitLabel(medication.unit, t),
+                    })}
                   </Text>
-                ) : null}
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: theme.textSecondary,
-                    lineHeight: 18,
-                  }}
-                >
-                  {t("medication.restockHint")}
-                </Text>
-              </View>
-            </SectionCard>
-          )}
+                </View>
+              </SectionCard>
+            ) : (
+              <SectionCard tone="outline">
+                <View style={{ gap: Spacing.three, padding: Spacing.three }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: Spacing.rowGap,
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <InputShell>
+                        <TextInput
+                          testID="restock-amount-input"
+                          placeholder={t("medication.restockPlaceholder")}
+                          keyboardType="number-pad"
+                          onChangeText={(text) => {
+                            setRestockAmount(text);
+                            setRestockError(false);
+                          }}
+                          value={restockAmount}
+                          style={{
+                            fontSize: 15,
+                            color: theme.text,
+                            padding: 0,
+                          }}
+                        />
+                      </InputShell>
+                    </View>
+                    <GlassHostButton
+                      testID="restock-submit-button"
+                      label={t("medication.restockSubmit")}
+                      onPress={() => {
+                        void restock();
+                      }}
+                      tintColor={theme.primary}
+                    />
+                  </View>
+                  {restockError ? (
+                    <Text style={{ fontSize: 13, color: theme.danger }}>
+                      {t("medication.restockInvalid")}
+                    </Text>
+                  ) : null}
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: theme.textSecondary,
+                      lineHeight: 18,
+                    }}
+                  >
+                    {t("medication.restockHint")}
+                  </Text>
+                </View>
+              </SectionCard>
+            )}
+          </View>
 
           <View style={{ gap: Spacing.three, marginTop: Spacing.three }}>
             <GlassHostButton
@@ -466,13 +478,12 @@ function TwinEntry({
 }
 
 /**
- * 库存概览：这一屏的主角。
- *
- * 数字用 32pt/800 而不是把「剩余」也写成一个标签 —— 剩余量与总量在同一行里
- * 读得出来，多一个标签只是多一行噪音。档位由左侧色条、进度条颜色、状态胶囊
- * 三处共同承担（同药品库列表卡）。
+ * 库存摘要：详情页的第一组、这屏的主角 —— 但主角感靠排位与字阶，不靠装饰。
+ * 剩余 / 日均 / 约还能吃三行分组列表，档位只由值的颜色承担（告急染 danger），
+ * 没有色条、大数字、进度条与状态胶囊：那套是 dashboard 审美，与分组列表的
+ * 语言不搭（ui-design.md「原生感反模式」表的 Everything's a Card 同源问题）。
  */
-function StockOverview({
+function StockSummaryCard({
   medication,
   summary,
 }: {
@@ -482,248 +493,144 @@ function StockOverview({
   const theme = useTheme();
   const t = useTranslation();
   const level = stockLevel(medication);
-  const color = useStockColors(level);
   const unit = medicationUnitLabel(medication.unit, t);
-  const percent =
-    medication.totalQuantity > 0
-      ? medication.remainingQuantity / medication.totalQuantity
-      : 0;
-  const spineHeight = THUMB_SIZE + Spacing.three * 2;
+
+  // 从没记过库存：不显示 0/0，一行提示说清补记后才会自动扣减
+  if (level === "unset") {
+    return (
+      <SectionCard tone="outline">
+        <View style={{ padding: Spacing.three }}>
+          <Text style={{ fontSize: 14, color: theme.textSecondary }}>
+            {t("medication.stockUnsetHint")}
+          </Text>
+        </View>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard tone="outline">
+      <FieldRow
+        icon={SYMBOL_ICONS.stockBox}
+        label={t("medication.remaining")}
+        value={`${medication.remainingQuantity} / ${medication.totalQuantity} ${unit}`}
+        emphasis
+      />
+      <HairLine />
+      <FieldRow
+        icon={SYMBOL_ICONS.dailyBolt}
+        label={t("medication.dailyDose")}
+        value={`${summary.dailyDose} ${unit}`}
+      />
+      <HairLine />
+      <FieldRow
+        icon={SYMBOL_ICONS.daysClock}
+        label={t("medication.daysLeft")}
+        value={
+          summary.daysLeft !== null
+            ? t("medication.daysValue", { days: summary.daysLeft })
+            : t("medication.estimateUnknown")
+        }
+        valueColor={summary.low ? theme.dangerStrong : undefined}
+      />
+    </SectionCard>
+  );
+}
+
+/**
+ * 详情页字段行：行首语义图标（速记这一行的类别，不承载状态）+ 标签 + 值。
+ * `emphasis` 给组内主角行（库存剩余），值升为主文本色 + 600 字重；
+ * 值列一律等宽数字，多行纵向扫读不错行。
+ */
+function FieldRow({
+  icon,
+  label,
+  value,
+  emphasis = false,
+  valueColor,
+}: {
+  icon?: SymbolIconName;
+  label: string;
+  value: string;
+  emphasis?: boolean;
+  valueColor?: string;
+}) {
+  const theme = useTheme();
 
   return (
     <View
       style={{
         flexDirection: "row",
-        backgroundColor: theme.surface,
-        borderRadius: Radius.card,
-        borderCurve: "continuous",
-        borderWidth: 1,
-        borderColor: theme.border,
-        overflow: "hidden",
-      }}
-    >
-      <View
-        style={{
-          width: 6,
-          height: spineHeight,
-          backgroundColor: color.strong,
-        }}
-      />
-      <View style={{ flex: 1, padding: Spacing.three, gap: Spacing.three }}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: Spacing.rowGap,
-          }}
-        >
-          <Thumb />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text
-              numberOfLines={1}
-              style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
-            >
-              {medication.name}
-            </Text>
-            <Text
-              numberOfLines={1}
-              style={{ fontSize: 13, color: theme.textSecondary }}
-            >
-              {t("medication.metaLine", {
-                type: medicationTypeLabel(medication.type, t),
-                category: medicationCategoryLabel(medication.category, t),
-              })}
-            </Text>
-          </View>
-          <StockStatusPill level={level} />
-        </View>
-
-        {level === "unset" ? (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: Spacing.two,
-            }}
-          >
-            <SymbolIcon
-              name={{ ios: "minus", android: "remove" }}
-              size={15}
-              color={theme.textSecondary}
-            />
-            <Text style={{ fontSize: 14, color: theme.textSecondary }}>
-              {t("medication.stockUnsetHint")}
-            </Text>
-          </View>
-        ) : (
-          <>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "flex-end",
-                gap: Spacing.two,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: "system-ui",
-                  fontSize: 32,
-                  lineHeight: 34,
-                  fontWeight: "800",
-                  letterSpacing: -0.96,
-                  color: theme.text,
-                }}
-              >
-                {String(medication.remainingQuantity)}
-              </Text>
-              <Text style={{ fontSize: 15, color: theme.textSecondary }}>
-                {`/ ${medication.totalQuantity} ${unit}`}
-              </Text>
-            </View>
-
-            <ProgressBarRn
-              percent={percent}
-              color={color.strong}
-              track={theme.backgroundSelected}
-              height={8}
-            />
-          </>
-        )}
-
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: Spacing.two,
-          }}
-        >
-          <SymbolIcon
-            name="clock"
-            size={13}
-            color={summary.low ? theme.danger : theme.textSecondary}
-          />
-          <Text
-            style={{
-              fontSize: 13,
-              color: summary.low ? theme.danger : theme.textSecondary,
-            }}
-          >
-            {summary.daysLeft !== null
-              ? summary.low
-                ? t("medication.daysLeftHintLow", { days: summary.daysLeft })
-                : t("medication.daysLeftHint", { days: summary.daysLeft })
-              : t("medication.noEstimate")}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/** 缩略图：与药品库列表卡同一个药丸图标 + primarySoft 底 */
-function Thumb() {
-  const theme = useTheme();
-  return (
-    <View
-      style={{
-        width: THUMB_SIZE,
-        height: THUMB_SIZE,
-        borderRadius: 14,
-        borderCurve: "continuous",
-        backgroundColor: theme.primarySoft,
-        borderWidth: 1,
-        borderColor: theme.border,
         alignItems: "center",
-        justifyContent: "center",
+        gap: Spacing.rowGap,
+        paddingHorizontal: Spacing.three,
+        paddingVertical: Spacing.rowGap,
       }}
     >
-      <SymbolIcon name="pills" size={24} color={theme.primary} />
-    </View>
-  );
-}
-
-/**
- * 状态胶囊：只有档位词（充足 / 偏低 / 告急），不带数量 —— 数量就在下面的
- * 大数字里，再抄一遍是冗余。两字标签也保证胶囊够窄，不会挤掉药名。
- */
-function StockStatusPill({ level }: { level: StockLevel }) {
-  const t = useTranslation();
-  const color = useStockColors(level);
-
-  return (
-    <View
-      style={{
-        height: 24,
-        paddingHorizontal: Spacing.rowGap,
-        borderRadius: Radius.pill,
-        backgroundColor: withAlpha(color.base, 0.12),
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <SymbolIcon name={STOCK_ICON[level]} size={13} color={color.strong} />
+      {icon ? (
+        <SymbolIcon size={18} color={theme.textSecondary} name={icon} />
+      ) : null}
+      <Text style={{ fontSize: 15, color: theme.text, flex: 1 }}>{label}</Text>
       <Text
+        numberOfLines={2}
         style={{
-          fontFamily: "monospace",
-          fontSize: 11,
-          fontWeight: "700",
-          letterSpacing: 0.44,
-          color: color.strong,
-          textAlign: "center",
+          fontSize: 15,
+          fontWeight: emphasis ? "600" : "400",
+          color: valueColor ?? (emphasis ? theme.text : theme.textSecondary),
+          textAlign: "right",
+          flex: 1,
+          fontVariant: ["tabular-nums"],
         }}
       >
-        {planStatusLabel({ active: level !== "unset" } as any, t).toUpperCase()}
+        {value}
       </Text>
     </View>
   );
 }
 
 /**
- * 基础信息：标签 / 值行，未填写的字段不占位（规格、备注可空）。
+ * 基础信息：类型 / 用途 / 规格 / 处方 / 有效期，未填写的字段不占位。
+ * 单位与日均消耗属于库存语义，在头部库存摘要组，不在这里重复。
  * 有效期是例外：没记也要显示「未设置」—— 过期药吃下去比空一行糟得多。
  */
 function BasicInfo({
   medication,
-  summary,
   language,
 }: {
   medication: Medication;
-  summary: ReturnType<typeof stockSummary>;
   language: string;
 }) {
   const t = useTranslation();
   const theme = useTheme();
-  const unit = medicationUnitLabel(medication.unit, t);
   const expired =
     medication.expiryDate !== null && medication.expiryDate < todayKey();
 
-  const rows: { label: string; value: string; valueColor?: string }[] = [
+  const rows: {
+    icon: SymbolIconName;
+    label: string;
+    value: string;
+    valueColor?: string;
+  }[] = [
     {
+      icon: SYMBOL_ICONS.pillsRail,
       label: t("medication.type"),
       value: medicationTypeLabel(medication.type, t),
     },
     {
+      icon: SYMBOL_ICONS.categoryTag,
       label: t("medication.categoryField"),
       value: medicationCategoryLabel(medication.category, t),
     },
   ];
   if (medication.specification) {
     rows.push({
+      icon: SYMBOL_ICONS.specRuler,
       label: t("medication.specification"),
       value: medication.specification,
     });
   }
-  rows.push({ label: t("medication.unit"), value: unit });
-  if (summary.dailyDose > 0) {
-    rows.push({
-      label: t("medication.dailyDose"),
-      value: t("medication.amountWithUnit", {
-        amount: summary.dailyDose,
-        unit,
-      }),
-    });
-  }
   rows.push({
+    icon: SYMBOL_ICONS.prescriptionDoc,
     label: t("medication.prescription"),
     value: medication.prescription
       ? t("medication.prescriptionYes")
@@ -731,21 +638,23 @@ function BasicInfo({
     valueColor: medication.prescription ? theme.warningStrong : undefined,
   });
   rows.push({
+    icon: SYMBOL_ICONS.calendar,
     label: t("medication.expiryDate"),
     value: medication.expiryDate
       ? expired
         ? `${formatDateKey(medication.expiryDate, language)} · ${t("medication.expired")}`
         : formatDateKey(medication.expiryDate, language)
       : t("medication.expiryUnset"),
-    valueColor: expired ? theme.danger : undefined,
+    valueColor: expired ? theme.dangerStrong : undefined,
   });
 
   return (
-    <SectionCard>
+    <SectionCard tone="outline">
       {rows.map((row, index) => (
         <View key={row.label}>
           {index > 0 ? <HairLine /> : null}
-          <InfoRow
+          <FieldRow
+            icon={row.icon}
             label={row.label}
             value={row.value}
             valueColor={row.valueColor}
@@ -804,7 +713,7 @@ function PlanSection({
 
   if (plans.length === 0) {
     return (
-      <SectionCard>
+      <SectionCard tone="outline">
         <View
           style={{
             alignItems: "center",
@@ -836,7 +745,7 @@ function PlanSection({
   }
 
   return (
-    <SectionCard>
+    <SectionCard tone="outline">
       {plans.map((plan, index) => {
         const person = persons.find((p) => p.id === plan.personId);
         return (
@@ -855,7 +764,7 @@ function PlanSection({
                 alignItems: "center",
                 gap: Spacing.rowGap,
                 paddingHorizontal: Spacing.three,
-                paddingVertical: Spacing.two,
+                paddingVertical: Spacing.rowGap,
                 backgroundColor: pressed
                   ? theme.backgroundSelected
                   : "transparent",
@@ -886,7 +795,7 @@ function PlanSection({
                   {`\n${t("plan.perDay", { count: plan.times.length })} · ${plan.times.join(" / ")}`}
                 </Text>
               </View>
-              <PlanStatusPill plan={plan} />
+              <PlanStatusText plan={plan} />
             </Pressable>
           </View>
         );
@@ -895,62 +804,23 @@ function PlanSection({
   );
 }
 
-/** 用药配置状态胶囊：服用中 / 已停用 / 已结束。停用与结束都不染色 */
-function PlanStatusPill({ plan }: { plan: MedicationPlan }) {
+/** 用药配置状态：服用中 / 已停用 / 已结束。只用文字色区分，不做胶囊 */
+function PlanStatusText({ plan }: { plan: MedicationPlan }) {
   const t = useTranslation();
   const theme = useTheme();
   const active = planActiveOnDate(plan, todayKey());
-  const tone = active ? theme.success : theme.textSecondary;
-  const foreground = active ? theme.successStrong : theme.textSecondary;
 
   return (
-    <View
+    <Text
       style={{
-        height: 24,
-        paddingHorizontal: Spacing.rowGap,
-        borderRadius: Radius.pill,
-        backgroundColor: withAlpha(tone, 0.12),
-        alignItems: "center",
-        justifyContent: "center",
+        fontSize: 13,
+        color: active ? theme.successStrong : theme.textSecondary,
       }}
     >
-      <Text
-        style={{
-          fontFamily: "monospace",
-          fontSize: 11,
-          fontWeight: "700",
-          letterSpacing: 0.44,
-          color: foreground,
-          textAlign: "center",
-        }}
-      >
-        {planStatusLabel(plan, t).toUpperCase()}
-      </Text>
-    </View>
+      {planStatusLabel(plan, t)}
+    </Text>
   );
 }
-
-/** 库存档位 → 语义色。`base` 做 12% 淡底（胶囊），`strong` 做文字与色条 */
-function useStockColors(level: StockLevel): { base: string; strong: string } {
-  const theme = useTheme();
-  if (level === "critical") {
-    return { base: theme.danger, strong: theme.dangerStrong };
-  }
-  if (level === "low") {
-    return { base: theme.warning, strong: theme.warningStrong };
-  }
-  if (level === "unset") {
-    return { base: theme.textSecondary, strong: theme.textSecondary };
-  }
-  return { base: theme.success, strong: theme.successStrong };
-}
-
-const STOCK_ICON: Record<StockLevel, SymbolIconName> = {
-  ok: { ios: "checkmark.circle.fill", android: "check_circle" },
-  low: { ios: "exclamationmark.triangle.fill", android: "warning" },
-  critical: { ios: "exclamationmark.octagon.fill", android: "error" },
-  unset: { ios: "minus.circle.fill", android: "do_not_disturb_on" },
-};
 
 /** 日期键转本地化日期：中文「2026年10月1日」，英文走 Intl 的 "Oct 1, 2026" */
 function formatDateKey(key: string, language: string): string {

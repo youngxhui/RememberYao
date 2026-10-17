@@ -44,13 +44,20 @@ export function SectionCard({
   );
 }
 
-/** 区块标题：替代 FieldGroup.Section 的 title（分组卡片不嵌 SwiftUI Form） */
+/**
+ * 区块标题：替代 FieldGroup.Section 的 title（分组卡片不嵌 SwiftUI Form）。
+ *
+ * 间距语义：`paddingTop` 只管标题与屏幕/上一区块之间的「呼吸位」，区块之间
+ * 的分隔由外层容器的 `gap` 承担 —— 两者是相加关系，不要再把 paddingTop 当
+ * 主间距用（detail / settings 的 gap 24 + 这里 8 = 标题距上一区块 32，
+ * 标题距自己的卡 8，贴近 iOS 分组列表「header 贴组、离组有距」的观感）。
+ */
 export function SectionTitle({ children }: { children: string }) {
   const theme = useTheme();
   return (
     <Text
       style={{
-        paddingTop: Spacing.four,
+        paddingTop: Spacing.two,
         paddingBottom: Spacing.two,
         paddingLeft: 4,
         fontSize: 13,

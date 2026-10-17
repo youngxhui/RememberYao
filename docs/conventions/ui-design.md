@@ -159,8 +159,9 @@ const theme = useTheme();
 - 间距用 `Spacing`，底部 tab 遮挡补偿用 `BottomTabInset`。
 - 图标不要用 emoji。iOS 用 SF Symbol，Android 用 Material icon。
   - **内容树**走 `@/components/symbol-icon` 的 `SymbolIcon`（`expo-symbols` 的 `SymbolView`，Android 用 Material Symbols 字形名渲染）；语义键在 `src/components/icons.ts` 的 `SYMBOL_ICONS`（`{ ios, android }` 双平台名字典）。
-  - ~~残留 Expo UI 岛里才用 `@expo/ui` 的 `Icon` + `Icon.select`~~ —— 铝箔岛迁 RN 后 `ICONS` 整份已删，现在图标统一走 `SymbolIcon` + `SYMBOL_ICONS`（工具栏图标例外）。
+  - ~~残留 Expo UI 岛里才用 `@expo/ui` 的 `Icon` + `Icon.select`~~ —— 铝箔岛迁 RN 后 `ICONS` 整份已删。
   - **工具栏图标**（`Stack.Toolbar.Button` / `Stack.Toolbar.Menu` 的 `icon` prop）没有跨平台双槽，只接受「SF Symbol 字符串 或 图片源」，只给 `sf` 时 Android 端整颗按钮不渲染 —— 两端取值收敛在 `src/components/toolbar-icons.{ts,android.ts}`（Android 侧是 `@expo/material-symbols` 的 `.xml` 矢量图）。
+  - **设置页例外：Hugeicons SVG**（`src/screens/profile/settings/huge-icon.tsx`，2026-10-17）。行首图标与行尾箭头用 Hugeicons 的 path 数据 + `react-native-svg` 渲染，两端**同一份 path**。走这条要同时满足三条：① `design/` 里这屏的基准就是 Hugeicons（`hgi-stroke` 细描边）；② 需要两端像素级一致 —— `expo-symbols` 在 iOS 是 SF Symbol、Android 是 Material Symbols 字形名，两端字形不同源，iOS 的 `.fill` 实心变体在 Android 没有对应物；③ 能接受 `react-native-svg` 这个原生依赖带来的一次 prebuild + 重新构建。注意它**不是**平台分歧的第四处（见上面平台文件清单）—— 单文件双端同源，恰恰是消灭分歧。数据是 MIT（`@hugeicons/core-free-icons`），许可声明在文件末。`strokeWidth` 默认 1.8（源数据是 1.5，在 18px 上偏细，2026-10-17 按开发者要求粗一档）—— 这是**故意偏离**设计稿比例，改前先想清楚。
 
 ### 现状与官方建议的差异（待收敛）
 
