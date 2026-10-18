@@ -1,0 +1,756 @@
+# EAS-compatible build workflow.
+#
+# The CLI never rewrites this file — every decision arrives as a dispatch input,
+# so you can also start builds by hand from the Actions tab. `config_json` holds
+# the resolved eas.json profile; GitHub caps workflow_dispatch at ten top-level
+# inputs, which a full build plan comfortably exceeds.
+name: EAS Build
+
+run-name: >-
+  ${{ inputs.platform }} ${{ inputs.profile }} build
+  [eas:dispatch_id=${{ inputs.dispatch_id }};platform=${{ inputs.platform }};profile=${{ inputs.profile }};distribution=${{ fromJSON(inputs.config_json).distribution }};simulator=${{ fromJSON(inputs.config_json).simulator }}]
+
+on:
+  workflow_dispatch:
+    inputs:
+      dispatch_id:
+        description: Correlation id stamped into run-name so the CLI can find this run
+        required: true
+      platform:
+        description: ios | android
+        required: true
+      profile:
+        description: Build profile name from eas.json
+        required: true
+        default: production
+      runner:
+        description: Runner label
+        required: true
+        default: macos-26
+      config_json:
+        description: The resolved build plan, as JSON
+        required: true
+
+concurrency:
+  # One build per platform+profile+branch. A newer push makes the older build
+  # pointless, and macOS minutes are the expensive kind.
+  group: eas-build-${{ inputs.platform }}-${{ inputs.profile }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 90
+    env:
+      EAS_PROFILE: ${{ inputs.profile }}
+      EAS_PLATFORM: ${{ inputs.platform }}
+
+    steps:
+      - name: Prepare project
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Fan the packed plan out into step outputs so later steps read it the
+          # same way they would read a dispatch input.
+          echo '${{ inputs.config_json }}' > /tmp/eas-plan.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          with open('/tmp/eas-plan.json') as fh:
+              plan = json.load(fh)
+          for key, value in plan.items():
+              if key == 'env_json':
+                  continue
+              print(f"{key}={value}")
+          PY
+          echo "Resolved build plan:"
+          python3 -m json.tool /tmp/eas-plan.json
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.plan.outputs.ref || github.ref }}
+          # expo-updates derives a runtime version from the git history in some
+          # configurations, so a shallow clone can change the built artifact.
+          fetch-depth: 0
+
+      - name: Read eas.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f eas.json ]; then
+            echo "::error::eas.json is missing from this commit."
+            exit 1
+          fi
+          echo "Building profile '${{ inputs.profile }}' from eas.json"
+
+      - name: Export build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The profile's `env` map has to be in the environment before the app
+          # config is read: an app.config.js branching on APP_VARIANT resolves at
+          # prebuild time, and missing it silently ships the wrong icon and API host.
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json
+          with open('/tmp/eas-plan.json') as fh:
+              plan = json.load(fh)
+          for key, value in json.loads(plan.get('env_json') or '{}').items():
+              print(f"{key}={value}")
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.plan.outputs.node_version }}
+
+      - name: Set up package manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          PM='${{ steps.plan.outputs.package_manager }}'
+          if [ "${{ steps.plan.outputs.corepack }}" = "true" ]; then
+            corepack enable
+          fi
+          case "$PM" in
+            bun)  curl -fsSL https://bun.sh/install | bash; echo "$HOME/.bun/bin" >> "$GITHUB_PATH" ;;
+            pnpm) npm install -g pnpm ;;
+            yarn) corepack enable || npm install -g yarn ;;
+          esac
+
+      - name: Install JS dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Install with the project's real package manager. Resolving a bun or
+          # pnpm project with npm produces a different tree than the developer
+          # tested against and skips postinstall steps like patch-package.
+          case '${{ steps.plan.outputs.package_manager }}' in
+            bun)  bun install --frozen-lockfile ;;
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --immutable ;;
+            *)    npm ci ;;
+          esac
+
+      - name: Set up JDK
+        if: inputs.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # 项目特定补充（升级 @react-native-feel/deploy 重新拷贝官方模板时需照搬这段）：
+      # RN 0.88 固定请求 compileSdk 37、build-tools 37.0.0 与 NDK 27.1.12297006，
+      # 均不在 ubuntu-latest 镜像预装列表里（镜像只有 NDK 27.3 / 29.0 / 30.0），
+      # 缺任何一个都会在原生编译阶段直接失败。
+      - name: Set up Android SDK
+        if: inputs.platform == 'android'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools platforms;android-37 build-tools;37.0.0 ndk;27.1.12297006
+
+      - name: Select Xcode
+        if: inputs.platform == 'ios'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Pin one Xcode explicitly. A runner image with several installed can
+          # otherwise dual-load framework copies during simulator work.
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Prebuild
+        shell: bash
+        run: |
+          set -euo pipefail
+          CMD='${{ steps.plan.outputs.prebuild_command }}'
+          if [ -d ios ] || [ -d android ]; then
+            echo "Native directories are committed — skipping prebuild."
+          elif [ -n "$CMD" ]; then
+            eval "$CMD"
+          else
+            npx expo prebuild --platform '${{ inputs.platform }}' --no-install
+          fi
+
+      - name: Restore pods cache
+        if: inputs.platform == 'ios' && steps.plan.outputs.cache_disabled != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ steps.plan.outputs.cache_key }}-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: pods-${{ steps.plan.outputs.cache_key }}-
+
+      - name: Install pods
+        if: inputs.platform == 'ios'
+        working-directory: ios
+        run: pod install
+
+      - name: Resolve Xcode scheme
+        id: xcode
+        if: inputs.platform == 'ios'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A profile's `scheme` wins. Otherwise use the workspace prebuild just
+          # generated, as EAS does — it is named after the app, which the CLI
+          # cannot know for a managed project before prebuild has run.
+          SCHEME='${{ steps.plan.outputs.scheme }}'
+          if [ -z "$SCHEME" ]; then
+            WORKSPACES=$(find ios -maxdepth 1 -name '*.xcworkspace')
+            if [ "$(echo "$WORKSPACES" | grep -c .)" != "1" ]; then
+              echo "::error::Expected exactly one .xcworkspace in ios/, found: ${WORKSPACES:-none}. Set \"scheme\" on the build profile in eas.json."
+              exit 1
+            fi
+            SCHEME=$(basename "$WORKSPACES" .xcworkspace)
+          fi
+          echo "Using Xcode scheme: $SCHEME"
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+
+      - name: Provision ad-hoc profile
+        # EAS regenerates the ad-hoc profile from its device list at build time,
+        # so a device added since the last build is never silently missing. Same
+        # here: with an App Store Connect API key, pending devices from the
+        # registry (`rnd device:create`) are registered with Apple and the build
+        # is signed with a profile listing every device. Without the key, the
+        # EAS_IOS_PROFILE_INTERNAL secret is used as is.
+        id: adhoc
+        if: inputs.platform == 'ios' && steps.plan.outputs.export_method == 'ad-hoc' && steps.plan.outputs.without_credentials != 'true'
+        shell: bash
+        env:
+          ASC_KEY_ID: ${{ secrets.EAS_ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.EAS_ASC_ISSUER_ID }}
+          ASC_API_KEY: ${{ secrets.EAS_ASC_API_KEY }}
+          P12: ${{ secrets.EAS_IOS_DIST_P12 }}
+          P12_PASSWORD: ${{ secrets.EAS_IOS_P12_PASSWORD }}
+          INSTALL_URL: ${{ vars.EAS_INSTALL_URL }}
+          INSTALL_TOKEN: ${{ secrets.EAS_INSTALL_TOKEN }}
+          BUNDLE_ID: ${{ steps.plan.outputs.ios_bundle_identifier }}
+          SCHEME: ${{ steps.xcode.outputs.scheme }}
+          CONFIGURATION: ${{ steps.plan.outputs.build_configuration }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ] || [ -z "${ASC_API_KEY:-}" ]; then
+            echo "No App Store Connect API key (EAS_ASC_KEY_ID, EAS_ASC_ISSUER_ID, EAS_ASC_API_KEY): signing with the EAS_IOS_PROFILE_INTERNAL secret as is."
+            exit 0
+          fi
+          if [ -z "${P12:-}" ]; then
+            echo "::error::No iOS signing credentials in repo secrets. Run 'rnd credentials' to check."
+            exit 1
+          fi
+          if [ -z "$BUNDLE_ID" ]; then
+            # A dynamic app config: read what prebuild wrote into the project.
+            BUNDLE_ID=$(xcodebuild -showBuildSettings -workspace "ios/$SCHEME.xcworkspace" -scheme "$SCHEME" \
+              -configuration "$CONFIGURATION" 2>/dev/null | awk '$1 == "PRODUCT_BUNDLE_IDENTIFIER" { print $3; exit }')
+          fi
+          # The profile must name the certificate the build is signed with.
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/adhoc-dist.p12"
+          CERT_SERIAL=$( { openssl pkcs12 -in "$RUNNER_TEMP/adhoc-dist.p12" -nokeys -passin env:P12_PASSWORD 2>/dev/null \
+            || openssl pkcs12 -legacy -in "$RUNNER_TEMP/adhoc-dist.p12" -nokeys -passin env:P12_PASSWORD; } \
+            | openssl x509 -noout -serial | cut -d= -f2)
+          rm -f "$RUNNER_TEMP/adhoc-dist.p12"
+          export BUNDLE_ID CERT_SERIAL
+          node --input-type=module <<'JS'
+          import { sign } from 'node:crypto';
+          import { appendFileSync, writeFileSync } from 'node:fs';
+
+          const env = process.env;
+          const ASC = env.ASC_API_BASE || 'https://api.appstoreconnect.apple.com';
+          const PROFILE_NAME = `rnd ad-hoc ${env.BUNDLE_ID}`;
+          const fail = (message) => { console.log(`::error::${message}`); process.exit(1); };
+          const warn = (message) => console.log(`::warning::${message}`);
+
+          // App Store Connect API token: ES256 JWT, 20-minute lifetime.
+          const pem = env.ASC_API_KEY.includes('BEGIN') ? env.ASC_API_KEY : Buffer.from(env.ASC_API_KEY, 'base64').toString();
+          const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+          const now = Math.floor(Date.now() / 1000);
+          const unsigned = `${b64({ alg: 'ES256', kid: env.ASC_KEY_ID, typ: 'JWT' })}.${b64({ iss: env.ASC_ISSUER_ID, iat: now, exp: now + 1200, aud: 'appstoreconnect-v1' })}`;
+          const jwt = `${unsigned}.${sign('sha256', Buffer.from(unsigned), { key: pem, dsaEncoding: 'ieee-p1363' }).toString('base64url')}`;
+
+          async function asc(method, path, body) {
+            const res = await fetch(path.startsWith('http') ? path : `${ASC}${path}`, {
+              method,
+              headers: { authorization: `Bearer ${jwt}`, ...(body ? { 'content-type': 'application/json' } : {}) },
+              body: body ? JSON.stringify(body) : undefined,
+            });
+            if (res.status === 204) return null;
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              const detail = (json.errors ?? []).map((e) => e.detail ?? e.title).join('; ');
+              throw new Error(`App Store Connect ${method} ${path.split('?')[0]} failed (${res.status}): ${detail || res.statusText}`);
+            }
+            return json;
+          }
+          async function all(path) {
+            const out = [];
+            for (let next = path; next; ) {
+              const page = await asc('GET', next);
+              out.push(...page.data);
+              next = page.links?.next;
+            }
+            return out;
+          }
+          async function registry(method, path = '', body) {
+            const res = await fetch(`${env.INSTALL_URL.replace(/\/+$/, '')}/api/devices${path}`, {
+              method,
+              headers: { authorization: `Bearer ${env.INSTALL_TOKEN}`, ...(body ? { 'content-type': 'application/json' } : {}) },
+              body: body ? JSON.stringify(body) : undefined,
+            });
+            if (!res.ok) throw new Error(`Device registry ${method} ${path || '/'} failed (${res.status}): ${await res.text()}`);
+            return res.json();
+          }
+
+          if (!env.BUNDLE_ID) fail('Could not determine the iOS bundle identifier. Set ios.bundleIdentifier in app.json.');
+          const serial = (s) => String(s ?? '').toUpperCase().replace(/^0+/, '');
+          const certificate = (await all('/v1/certificates?limit=200')).find((c) => serial(c.attributes.serialNumber) === serial(env.CERT_SERIAL));
+          if (!certificate) fail(`The certificate in EAS_IOS_DIST_P12 (serial ${env.CERT_SERIAL}) is not on this App Store Connect team, or has been revoked.`);
+          const bundle = (await all(`/v1/bundleIds?filter[identifier]=${encodeURIComponent(env.BUNDLE_ID)}&limit=200`))
+            .find((b) => b.attributes.identifier === env.BUNDLE_ID);
+          if (!bundle) fail(`The bundle id ${env.BUNDLE_ID} is not registered on this team. Register it under Identifiers in the Apple Developer portal.`);
+
+          // Which devices the profile should list.
+          const appleDevices = await all('/v1/devices?limit=200');
+          const byUdid = new Map(appleDevices.map((d) => [d.attributes.udid.toUpperCase(), d]));
+          let wanted = [];
+          const useRegistry = Boolean(env.INSTALL_URL && env.INSTALL_TOKEN);
+          if (useRegistry) {
+            const { devices } = await registry('GET');
+            for (const device of devices.filter((d) => d.status !== 'disabled')) {
+              let apple = byUdid.get(device.udid.toUpperCase());
+              try {
+                if (!apple) {
+                  ({ data: apple } = await asc('POST', '/v1/devices', {
+                    data: {
+                      type: 'devices',
+                      attributes: { name: device.name, udid: device.udid, platform: device.deviceClass === 'MAC' ? 'MAC_OS' : 'IOS' },
+                    },
+                  }));
+                  console.log(`Registered ${device.name} (${device.udid}) with Apple.`);
+                } else if (apple.attributes.status !== 'ENABLED') {
+                  ({ data: apple } = await asc('PATCH', `/v1/devices/${apple.id}`, {
+                    data: { type: 'devices', id: apple.id, attributes: { status: 'ENABLED' } },
+                  }));
+                  console.log(`Re-enabled ${device.name} (${device.udid}) on Apple.`);
+                }
+              } catch (err) {
+                // One bad UDID or a full device quota must not fail every build.
+                warn(`${device.name} (${device.udid}) could not be registered with Apple and is left out: ${err.message}`);
+                continue;
+              }
+              if (device.status !== 'registered' || device.appleDeviceId !== apple.id) {
+                await registry('PATCH', `/${encodeURIComponent(device.udid)}`, { status: 'registered', appleDeviceId: apple.id });
+              }
+              wanted.push({ id: apple.id, name: device.name, udid: device.udid });
+            }
+          } else {
+            // No registry: every enabled iOS device on the team, which is what
+            // a hand-made ad-hoc profile usually lists.
+            wanted = appleDevices
+              .filter((d) => d.attributes.status === 'ENABLED' && d.attributes.platform === 'IOS')
+              .map((d) => ({ id: d.id, name: d.attributes.name, udid: d.attributes.udid }));
+          }
+          if (wanted.length === 0) {
+            fail(useRegistry
+              ? 'No devices to provision. Register one with "rnd device:create" and build again.'
+              : 'No enabled iOS devices on this Apple team. Register one with "rnd device:create".');
+          }
+
+          // Reuse our profile when it already lists exactly these devices and this
+          // certificate. Otherwise replace it: the API cannot edit a profile's
+          // device list, so regenerating means delete and create.
+          const ids = (list) => list.map((x) => x.id).sort().join(',');
+          const existing = await all(`/v1/profiles?filter[name]=${encodeURIComponent(PROFILE_NAME)}&filter[profileType]=IOS_APP_ADHOC&limit=200`);
+          let profile = null;
+          for (const candidate of existing) {
+            const fresh = candidate.attributes.profileState === 'ACTIVE'
+              && new Date(candidate.attributes.expirationDate) > new Date(Date.now() + 86400e3);
+            if (!profile && fresh) {
+              const [devices, certificates] = await Promise.all([
+                all(`/v1/profiles/${candidate.id}/devices?limit=200`),
+                all(`/v1/profiles/${candidate.id}/certificates?limit=200`),
+              ]);
+              if (ids(devices) === ids(wanted) && certificates.some((c) => c.id === certificate.id)) {
+                profile = candidate;
+                console.log(`Reusing ad-hoc profile "${PROFILE_NAME}": its ${wanted.length} device(s) are unchanged.`);
+                continue;
+              }
+            }
+            await asc('DELETE', `/v1/profiles/${candidate.id}`);
+          }
+          if (!profile) {
+            ({ data: profile } = await asc('POST', '/v1/profiles', {
+              data: {
+                type: 'profiles',
+                attributes: { name: PROFILE_NAME, profileType: 'IOS_APP_ADHOC' },
+                relationships: {
+                  bundleId: { data: { type: 'bundleIds', id: bundle.id } },
+                  certificates: { data: [{ type: 'certificates', id: certificate.id }] },
+                  devices: { data: wanted.map((d) => ({ type: 'devices', id: d.id })) },
+                },
+              },
+            }));
+            console.log(`Generated ad-hoc profile "${PROFILE_NAME}" for ${wanted.length} device(s).`);
+            // Apple quietly leaves out devices it is still processing.
+            const listed = new Set((await all(`/v1/profiles/${profile.id}/devices?limit=200`)).map((d) => d.id));
+            for (const d of wanted.filter((d) => !listed.has(d.id))) {
+              warn(`${d.name} (${d.udid}) is not in the profile yet. Apple can take up to 72 hours to process a new device; build again later.`);
+            }
+          }
+          for (const d of wanted) console.log(`  • ${d.name}  ${d.udid}`);
+
+          const path = `${env.RUNNER_TEMP}/adhoc.mobileprovision`;
+          writeFileSync(path, Buffer.from(profile.attributes.profileContent, 'base64'));
+          appendFileSync(env.GITHUB_OUTPUT, `profile_path=${path}\n`);
+          JS
+
+      - name: Import signing credentials
+        id: signing
+        if: inputs.platform == 'ios' && steps.plan.outputs.without_credentials != 'true'
+        shell: bash
+        env:
+          P12: ${{ secrets.EAS_IOS_DIST_P12 }}
+          P12_PASSWORD: ${{ secrets.EAS_IOS_P12_PASSWORD }}
+          PROFILE_STORE: ${{ secrets.EAS_IOS_PROFILE }}
+          PROFILE_INTERNAL: ${{ secrets.EAS_IOS_PROFILE_INTERNAL }}
+          PROFILE_GENERATED: ${{ steps.adhoc.outputs.profile_path }}
+        run: |
+          set -euo pipefail
+          if [ -z "${P12:-}" ]; then
+            echo "::error::No iOS signing credentials in repo secrets. Run 'rnd credentials' to check."
+            exit 1
+          fi
+          # An App Store profile cannot sign an ad-hoc export and vice versa, so
+          # internal builds have their own profile — the one listing test devices.
+          if [ -n "${PROFILE_GENERATED:-}" ]; then
+            # Generated from the device list by the previous step.
+            PROFILE=$(base64 -i "$PROFILE_GENERATED")
+          elif [ '${{ steps.plan.outputs.export_method }}' = 'ad-hoc' ]; then
+            PROFILE="${PROFILE_INTERNAL:-}"
+            if [ -z "$PROFILE" ]; then
+              echo "::error::Internal iOS builds need an ad-hoc provisioning profile: add an App Store Connect API key (EAS_ASC_KEY_ID, EAS_ASC_ISSUER_ID, EAS_ASC_API_KEY) to generate one from your devices, or put one in the EAS_IOS_PROFILE_INTERNAL secret. Run 'rnd credentials' to check."
+              exit 1
+            fi
+          else
+            PROFILE="${PROFILE_STORE:-}"
+          fi
+          # A throwaway keychain in RUNNER_TEMP, deleted in the cleanup step —
+          # never the login keychain, which persists between jobs on some runners.
+          KEYCHAIN="$RUNNER_TEMP/eas-build.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security import "$RUNNER_TEMP/dist.p12" -P "$P12_PASSWORD" -A \
+            -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+
+          rm -f "$RUNNER_TEMP/dist.p12"
+
+          # Xcode matches a profile by UUID, so read it (and the team and bundle
+          # id it was issued for) out of the signed plist rather than trusting a
+          # filename. Xcode 16+ reads UserData; older Xcode reads MobileDevice.
+          echo "$PROFILE" | base64 --decode > "$RUNNER_TEMP/eas.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/eas.mobileprovision" > "$RUNNER_TEMP/eas-profile.plist"
+          PB() { /usr/libexec/PlistBuddy -c "Print $1" "$RUNNER_TEMP/eas-profile.plist"; }
+          UUID=$(PB UUID)
+          # The UDIDs this build will install on, for the install page.
+          python3 -c 'import json,plistlib,sys; print(json.dumps(plistlib.load(open(sys.argv[1],"rb")).get("ProvisionedDevices",[])))' \
+            "$RUNNER_TEMP/eas-profile.plist" > "$RUNNER_TEMP/provisioned-devices.json"
+          TEAM=$(PB TeamIdentifier:0)
+          APP_ID=$(PB Entitlements:application-identifier)
+          for DIR in ~/Library/MobileDevice/Provisioning\ Profiles ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles; do
+            mkdir -p "$DIR"
+            cp "$RUNNER_TEMP/eas.mobileprovision" "$DIR/$UUID.mobileprovision"
+          done
+
+          # Sign with the identity by SHA-1: unambiguous whether the certificate
+          # is an "iPhone Distribution" or an "Apple Distribution" one.
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | awk 'NR==1 {print $2}')
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::The .p12 in EAS_IOS_DIST_P12 holds no usable signing identity (is the private key in it?)."
+            exit 1
+          fi
+          {
+            echo "keychain=$KEYCHAIN"
+            echo "identity=$IDENTITY"
+            echo "profile_uuid=$UUID"
+            echo "team_id=$TEAM"
+            echo "bundle_id=${APP_ID#"$TEAM".}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Signing ${APP_ID#"$TEAM".} (team $TEAM) with profile $UUID"
+
+      - name: Apply signing settings
+        if: inputs.platform == 'ios' && steps.plan.outputs.without_credentials != 'true' && steps.plan.outputs.simulator != 'true'
+        shell: bash
+        env:
+          SCHEME: ${{ steps.xcode.outputs.scheme }}
+          TEAM: ${{ steps.signing.outputs.team_id }}
+          IDENTITY: ${{ steps.signing.outputs.identity }}
+          PROFILE_UUID: ${{ steps.signing.outputs.profile_uuid }}
+          BUNDLE_ID: ${{ steps.signing.outputs.bundle_id }}
+        run: |
+          set -euo pipefail
+          # Manual signing goes on the target that ships this bundle id, not on
+          # the command line: a global PROVISIONING_PROFILE_SPECIFIER also lands
+          # on every Pods resource bundle, and xcodebuild rejects those.
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+          project = Xcodeproj::Project.open("ios/#{ENV['SCHEME']}.xcodeproj")
+          matched = 0
+          project.native_targets.each do |target|
+            target.build_configurations.each do |config|
+              bundle = config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'].to_s
+              next unless bundle == ENV['BUNDLE_ID']
+              matched += 1
+              config.build_settings.merge!(
+                'CODE_SIGN_STYLE' => 'Manual',
+                'DEVELOPMENT_TEAM' => ENV['TEAM'],
+                'CODE_SIGN_IDENTITY' => ENV['IDENTITY'],
+                'CODE_SIGN_IDENTITY[sdk=iphoneos*]' => ENV['IDENTITY'],
+                'PROVISIONING_PROFILE_SPECIFIER' => ENV['PROFILE_UUID']
+              )
+            end
+          end
+          abort("::error::No target builds #{ENV['BUNDLE_ID']}, the bundle id the provisioning profile was issued for.") if matched.zero?
+          project.save
+          puts "Manual signing applied to #{matched} build configuration(s) for #{ENV['BUNDLE_ID']}"
+          RUBY
+
+      - name: Archive (iOS)
+        if: inputs.platform == 'ios' && steps.plan.outputs.simulator != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SCHEME='${{ steps.xcode.outputs.scheme }}'
+          CONFIG='${{ steps.plan.outputs.build_configuration }}'
+          set +e
+          xcodebuild archive \
+            -workspace "ios/$SCHEME.xcworkspace" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIG" \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/$SCHEME.xcarchive" \
+            OTHER_CODE_SIGN_FLAGS="--keychain ${{ steps.signing.outputs.keychain }}" \
+            2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" | xcpretty
+          # xcpretty only prettifies; xcodebuild's own exit status is the verdict.
+          # Swallowing it (`|| true`) turned compile errors into green builds.
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          if [ "$STATUS" != "0" ]; then
+            echo "::error::xcodebuild archive failed (exit $STATUS). The full log is in the xcode-logs artifact."
+            exit "$STATUS"
+          fi
+          test -d "$RUNNER_TEMP/$SCHEME.xcarchive"
+
+      - name: Export IPA
+        if: inputs.platform == 'ios' && steps.plan.outputs.simulator != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SCHEME='${{ steps.xcode.outputs.scheme }}'
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>${{ steps.plan.outputs.export_method }}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>${{ steps.signing.outputs.team_id }}</string>
+            <key>signingCertificate</key><string>${{ steps.signing.outputs.identity }}</string>
+            <key>provisioningProfiles</key><dict>
+              <key>${{ steps.signing.outputs.bundle_id }}</key><string>${{ steps.signing.outputs.profile_uuid }}</string>
+            </dict>
+            <key>compileBitcode</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/$SCHEME.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export"
+          mkdir -p build && cp "$RUNNER_TEMP"/export/*.ipa build/
+
+      - name: Build for simulator (iOS)
+        if: inputs.platform == 'ios' && steps.plan.outputs.simulator == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SCHEME='${{ steps.xcode.outputs.scheme }}'
+          # A simulator build is unsigned and stays a .app — there is no export
+          # step, and the result is what a simulator can install directly.
+          set +e
+          xcodebuild build \
+            -workspace "ios/$SCHEME.xcworkspace" \
+            -scheme "$SCHEME" \
+            -configuration '${{ steps.plan.outputs.build_configuration }}' \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "$RUNNER_TEMP/derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$RUNNER_TEMP/xcodebuild.log" | xcpretty
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          if [ "$STATUS" != "0" ]; then
+            echo "::error::xcodebuild build failed (exit $STATUS). The full log is in the xcode-logs artifact."
+            exit "$STATUS"
+          fi
+          mkdir -p build
+          APP=$(find "$RUNNER_TEMP/derived/Build/Products" -maxdepth 3 -name "*.app" | head -1)
+          if [ -z "$APP" ] || [ ! -f "$APP/Info.plist" ]; then
+            echo "::error::xcodebuild reported success but produced no usable .app bundle."
+            exit 1
+          fi
+          # Tar it: a .app is a directory, and upload-artifact would flatten the
+          # bundle's symlinks, leaving something the simulator refuses to install.
+          tar -czf "build/$(basename "$APP" .app)-simulator.tar.gz" -C "$(dirname "$APP")" "$(basename "$APP")"
+
+      - name: Build (Android)
+        if: inputs.platform == 'android'
+        shell: bash
+        env:
+          KEYSTORE: ${{ secrets.EAS_ANDROID_KEYSTORE }}
+          STORE_PASSWORD: ${{ secrets.EAS_ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.EAS_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.EAS_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          cd android
+          SIGNING_ARGS=()
+          if [ -n "${KEYSTORE:-}" ]; then
+            echo "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+            # AGP honours these injected properties for any assemble/bundle task,
+            # so the project's own Gradle files are never edited.
+            SIGNING_ARGS=(
+              "-Pandroid.injected.signing.store.file=$RUNNER_TEMP/release.keystore"
+              "-Pandroid.injected.signing.store.password=$STORE_PASSWORD"
+              "-Pandroid.injected.signing.key.alias=$KEY_ALIAS"
+              "-Pandroid.injected.signing.key.password=$KEY_PASSWORD"
+            )
+          fi
+          ./gradlew '${{ steps.plan.outputs.gradle_command }}' "${SIGNING_ARGS[@]}" --no-daemon
+          cd ..
+          mkdir -p build
+          find android/app/build/outputs -name "*.aab" -o -name "*.apk" | xargs -I{} cp {} build/
+
+      - name: Publish for install
+        # Internal builds go to the install service so a QR code can put them on
+        # a phone: GitHub artifacts are zips behind a login, which iOS and Android
+        # cannot install. Opt-in via the EAS_INSTALL_URL variable.
+        if: steps.plan.outputs.distribution == 'internal' && steps.plan.outputs.simulator != 'true' && vars.EAS_INSTALL_URL != ''
+        shell: bash
+        env:
+          INSTALL_URL: ${{ vars.EAS_INSTALL_URL }}
+          INSTALL_TOKEN: ${{ secrets.EAS_INSTALL_TOKEN }}
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+          APP_NAME: ${{ steps.plan.outputs.app_name }}
+          APP_VERSION: ${{ steps.plan.outputs.app_version }}
+          ANDROID_PACKAGE: ${{ steps.plan.outputs.android_package }}
+        run: |
+          set -euo pipefail
+          if [ -z "${INSTALL_TOKEN:-}" ]; then
+            echo "::warning::EAS_INSTALL_URL is set but the EAS_INSTALL_TOKEN secret is not; skipping install publishing."
+            exit 0
+          fi
+          INSTALL_URL="${INSTALL_URL%/}"
+          if [ "$EAS_PLATFORM" = "ios" ]; then
+            FILE=$(find build -maxdepth 1 -name '*.ipa' | head -1)
+            NAME=app.ipa
+            # The IPA is the source of truth for what iOS will check at install.
+            unzip -p "$FILE" 'Payload/*.app/Info.plist' > "$RUNNER_TEMP/Info.plist"
+            INFO() { plutil -extract "$1" raw -o - "$RUNNER_TEMP/Info.plist" 2>/dev/null || true; }
+            BUNDLE_ID=$(INFO CFBundleIdentifier)
+            VERSION=$(INFO CFBundleShortVersionString)
+            BUILD_NUMBER=$(INFO CFBundleVersion)
+            DISPLAY_NAME=$(INFO CFBundleDisplayName)
+          else
+            FILE=$(find build -maxdepth 1 -name '*.apk' | head -1)
+            NAME=app.apk
+            BUNDLE_ID="$ANDROID_PACKAGE"
+            VERSION="$APP_VERSION"
+            BUILD_NUMBER=""
+            DISPLAY_NAME=""
+          fi
+          if [ -z "$FILE" ]; then
+            echo "::error::No installable $NAME was produced, so there is nothing to publish."
+            exit 1
+          fi
+
+          API="$INSTALL_URL/api/uploads/builds/$DISPATCH_ID"
+          AUTH=(-H "Authorization: Bearer $INSTALL_TOKEN")
+          # R2 multipart in 50 MiB parts: comfortably under the Workers request
+          # body limit, and above R2's 5 MiB minimum for every part but the last.
+          UPLOAD_ID=$(curl -fsS -X POST "${AUTH[@]}" "$API/$NAME?mpu=create" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["uploadId"])')
+          split -b 50m "$FILE" "$RUNNER_TEMP/install-part-"
+          N=0
+          : > "$RUNNER_TEMP/install-parts.jsonl"
+          for PART in "$RUNNER_TEMP"/install-part-*; do
+            N=$((N + 1))
+            curl -fsS -X PUT "${AUTH[@]}" --data-binary @"$PART" \
+              "$API/$NAME?mpu=part&uploadId=$UPLOAD_ID&partNumber=$N" >> "$RUNNER_TEMP/install-parts.jsonl"
+            echo >> "$RUNNER_TEMP/install-parts.jsonl"
+          done
+          python3 -c 'import json,sys; print(json.dumps({"parts": [json.loads(l) for l in open(sys.argv[1]) if l.strip()]}))' \
+            "$RUNNER_TEMP/install-parts.jsonl" > "$RUNNER_TEMP/install-complete.json"
+          curl -fsS -X POST "${AUTH[@]}" -H 'content-type: application/json' \
+            --data-binary @"$RUNNER_TEMP/install-complete.json" "$API/$NAME?mpu=complete&uploadId=$UPLOAD_ID" >/dev/null
+
+          # meta.json goes last: the install page only appears once the binary
+          # it points at is complete.
+          SIZE=$(wc -c < "$FILE" | tr -d ' ')
+          export BUNDLE_ID VERSION BUILD_NUMBER SIZE
+          export NAME_SHOWN="${DISPLAY_NAME:-$APP_NAME}"
+          python3 - > "$RUNNER_TEMP/install-meta.json" <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          # Ad-hoc builds only: the install page lists these devices, and warns a
+          # registered phone that is not one of them before it installs.
+          path = os.path.join(os.environ["RUNNER_TEMP"], "provisioned-devices.json")
+          provisioned = json.load(open(path)) if os.environ["EAS_PLATFORM"] == "ios" and os.path.exists(path) else None
+          print(json.dumps({
+              "platform": os.environ["EAS_PLATFORM"],
+              "name": os.environ["NAME_SHOWN"],
+              "bundleId": os.environ["BUNDLE_ID"],
+              "version": os.environ["VERSION"],
+              "buildNumber": os.environ["BUILD_NUMBER"] or None,
+              "profile": os.environ["EAS_PROFILE"],
+              "commit": os.environ["GITHUB_SHA"],
+              "repo": os.environ["GITHUB_REPOSITORY"],
+              "runId": int(os.environ["GITHUB_RUN_ID"]),
+              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "size": int(os.environ["SIZE"]),
+              "provisionedDevices": provisioned,
+          }))
+          PY
+          curl -fsS -X PUT "${AUTH[@]}" --data-binary @"$RUNNER_TEMP/install-meta.json" "$API/meta.json" >/dev/null
+
+          PAGE="$INSTALL_URL/install/$DISPATCH_ID"
+          echo "Install page: $PAGE"
+          echo "### 📲 [Install this build]($PAGE)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload application archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-archive
+          path: build/*
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload Xcode logs
+        if: always() && inputs.platform == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-logs
+          path: ${{ runner.temp }}/xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Clean up credentials
+        if: always() && inputs.platform == 'ios'
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/eas-build.keychain-db" 2>/dev/null || true
+          UUID='${{ steps.signing.outputs.profile_uuid }}'
+          if [ -n "$UUID" ]; then
+            rm -f ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision \
+                  ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/"$UUID".mobileprovision
+          fi
