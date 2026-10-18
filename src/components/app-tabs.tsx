@@ -17,6 +17,19 @@ export default function AppTabs() {
   const t = useTranslation();
 
   return (
+    // 四个 tab 的图标统一走位图：几何与配色由 scripts/generate-tab-icons.js 从
+    // Hugeicons SVG 栅成 24/48/72 三倍率（改 theme.ts 的 primary / canvas 后重跑）。
+    //
+    // 选中态按参考截图做双色：描边用主题色 primary，封闭区填 primary 混 30% canvas
+    // 的淡色。tab 栏图标由原生渲染，不吃 SVG 也不吃 React 元素，只能走 src；而 iOS 的
+    // UIImage 只有 template（整图当单色掩码、tab 栏统一染色）和 original（保留图自身
+    // 颜色）两档，react-native-screens 又要求 icon 与 selectedIcon 解析成同一种类型
+    // —— 双色只能整颗烘进位图，未选中态因此也不跟随 tint，描边按模式照着 UIKit 给
+    // SF Symbol 的颜色烘（亮 #8E8E93 / 暗 #FFFFFF）。现在四个 tab 全是这套位图，
+    // 这两色就是全部的未选中观感，要调只改脚本里的 UNSELECTED_STROKE。
+    //
+    // md 留着给 Android：那里 md 优先于 src，且图片图标会被 tint 压成单色
+    // （tinting: "original" expo-router 没透出），双色只有 iOS 有。
     <NativeTabs
       backgroundColor={colors.canvas}
       tintColor={colors.primary}
@@ -24,23 +37,14 @@ export default function AppTabs() {
     >
       <NativeTabs.Trigger name="home" testID="home-tab">
         <NativeTabs.Trigger.Label>{t("tab.home")}</NativeTabs.Trigger.Label>
-        {/* 试用：首页 tab 换成 Hugeicons 的 Home，选中态按参考截图做双色 ——
-            描边用主题色 primary，封闭区填 primary 混 30% canvas 的淡色，门留成「洞」
-            露出后面的 tab 栏底色。几何与配色由 scripts/generate-tab-icons.js 栅成
-            24/48/72 三倍率位图；改 theme.ts 的 primary / canvas 后重跑那个脚本。
-
-            为什么两个状态共用 renderingMode="original"：iOS 的 UIImage 只有 template
-            （整图当单色掩码、tab 栏统一染色）和 original（保留图自身颜色）两档，双色
-            只能整颗烘进去；而 react-native-screens 要求 icon 与 selectedIcon 解析成
-            同一种类型，所以未选中态也一起保色 —— 它的描边因此固定成 iOS systemGray，
-            不再跟随 tintColor。选中态的 label 仍会变 primary，选中感不止靠图标。
-
-            md 留着给 Android：Android 上 md 优先于 src，且那里的图片图标会被 tint
-            压成单色（tinting: "original" expo-router 没透出），双色只有 iOS 有。 */}
+        {/* 选中态填房子外形，门用 evenodd 挖成洞，露出后面的 tab 栏底色 */}
         <NativeTabs.Trigger.Icon
           md="home"
           src={{
-            default: require("@/assets/images/tab-icons/home.png"),
+            default:
+              scheme === "dark"
+                ? require("@/assets/images/tab-icons/home-dark.png")
+                : require("@/assets/images/tab-icons/home.png"),
             selected:
               scheme === "dark"
                 ? require("@/assets/images/tab-icons/home-selected-dark.png")
@@ -52,17 +56,39 @@ export default function AppTabs() {
 
       <NativeTabs.Trigger name="medica" testID="medica-tab">
         <NativeTabs.Trigger.Label>{t("tab.medica")}</NativeTabs.Trigger.Label>
+        {/* 选中态只填箱体：提手是开放路径，填了会多一条贴着箱顶的色带 */}
         <NativeTabs.Trigger.Icon
-          sf={{ default: "pills", selected: "pills.fill" }}
           md="medication"
+          src={{
+            default:
+              scheme === "dark"
+                ? require("@/assets/images/tab-icons/medica-dark.png")
+                : require("@/assets/images/tab-icons/medica.png"),
+            selected:
+              scheme === "dark"
+                ? require("@/assets/images/tab-icons/medica-selected-dark.png")
+                : require("@/assets/images/tab-icons/medica-selected.png"),
+          }}
+          renderingMode="original"
         />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile" testID="profile-tab">
         <NativeTabs.Trigger.Label>{t("tab.profile")}</NativeTabs.Trigger.Label>
+        {/* 选中态填外圆环，头用 evenodd 挖成洞；肩是开放路径，不填 */}
         <NativeTabs.Trigger.Icon
-          sf={{ default: "person", selected: "person.fill" }}
           md="person"
+          src={{
+            default:
+              scheme === "dark"
+                ? require("@/assets/images/tab-icons/profile-dark.png")
+                : require("@/assets/images/tab-icons/profile.png"),
+            selected:
+              scheme === "dark"
+                ? require("@/assets/images/tab-icons/profile-selected-dark.png")
+                : require("@/assets/images/tab-icons/profile-selected.png"),
+          }}
+          renderingMode="original"
         />
       </NativeTabs.Trigger>
 
@@ -70,9 +96,20 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>
           {t("tab.playground")}
         </NativeTabs.Trigger.Label>
+        {/* 选中态填六边形轮廓，内部三条棱与顶/底细节画在填充之上 */}
         <NativeTabs.Trigger.Icon
-          sf={{ default: "hammer", selected: "hammer.fill" }}
           md="construction"
+          src={{
+            default:
+              scheme === "dark"
+                ? require("@/assets/images/tab-icons/playground-dark.png")
+                : require("@/assets/images/tab-icons/playground.png"),
+            selected:
+              scheme === "dark"
+                ? require("@/assets/images/tab-icons/playground-selected-dark.png")
+                : require("@/assets/images/tab-icons/playground-selected.png"),
+          }}
+          renderingMode="original"
         />
       </NativeTabs.Trigger>
     </NativeTabs>
