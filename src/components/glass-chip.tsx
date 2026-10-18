@@ -31,7 +31,8 @@ export function GlassChip({
   const theme = useTheme();
   const nativeGlass = useLiquidGlassEnabled();
 
-  // 玻璃开启：印刷色不随暗色翻面（叠在 canvas 上的透明玻璃）。
+  // 玻璃开启：文字色随明暗模式翻面 —— 浅色 canvas 会把玻璃提亮成亮面（黑字），
+  // 暗色 canvas 上玻璃仍是暗面（亮字），不翻面会看不见（2026-10-18 真机截图）。
   // 实心 fallback（API 不可用 / 降透明 / Android）：与 Android 相同的 token，
   // 禁止把 onGlassChipInactive（#000）铺到暗色 surface（#1C1C1E）上。
   const labelColor = nativeGlass

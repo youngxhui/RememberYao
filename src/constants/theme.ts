@@ -23,9 +23,8 @@ export const Colors = {
     primary: "#0F766E",
     onPrimary: "#FFFFFF",
     primarySoft: "#E6F4F1",
-    // 液态玻璃 chip 的文字色。玻璃的明暗由背后的页面底色决定，不随明暗模式翻面，
-    // 所以两端共用同一组值（同 archive 的「纸与印刷色」是实物）：
-    // 选中态底是品牌色玻璃（偏深）配白字，未选中态是透明玻璃（偏亮）配黑字
+    // 液态玻璃 chip 的文字色。浅色 canvas 会把透明玻璃提亮成亮面，配黑字；
+    // 暗色 canvas 上玻璃仍是暗面，文字翻面成亮色（见 dark 段注释）
     onGlassChipActive: "#FFFFFF",
     onGlassChipInactive: "#000000",
     // 服药状态：已服 / 即将到期 / 漏服
@@ -103,9 +102,12 @@ export const Colors = {
     primary: "#2DD4BF",
     onPrimary: "#062B27",
     primarySoft: "#14312D",
-    // 同 light：玻璃 chip 的文字色不随明暗模式翻面
-    onGlassChipActive: "#FFFFFF",
-    onGlassChipInactive: "#000000",
+    // 暗色下玻璃采样的是暗色 canvas，并不会像浅色模式那样被提亮成亮玻璃
+    // （2026-10-18 真机截图：黑字压在暗玻璃上完全不可读），文字必须翻面：
+    // 选中态是亮青玻璃 #2DD4BF 配深字（白字对比度不足），
+    // 未选中态是暗玻璃配亮灰字（= dark.textSecondary）
+    onGlassChipActive: "#062B27",
+    onGlassChipInactive: "#B0B4BA",
     success: "#4ADE80",
     successSoft: "#132B1C",
     warning: "#FBBF24",
