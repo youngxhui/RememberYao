@@ -1,0 +1,81 @@
+name: iOS 发布（指纹 → OTA / 构建 → TestFlight）
+
+# 手动触发，不挂任何自动触发器（push / schedule 都没有）
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: OTA 更新发布的 channel，需与 eas.json 里 production 构建的 channel 一致
+        type: string
+        default: production
+        required: false
+      changelog:
+        description: TestFlight「What to Test」说明，不填则不写测试备注
+        type: string
+        required: false
+      internal_group:
+        description: TestFlight 内测组名，不填则只沿用 App Store Connect 的自动分发设置
+        type: string
+        required: false
+
+jobs:
+  # 1. 算当前提交的原生指纹（只算 iOS，Android 暂不接入）
+  #    environment 必须和 production 构建 profile 解析出的环境一致：
+  #    production 没写 distribution，EAS 按 store 处理 → production 环境
+  fingerprint:
+    name: 计算 iOS 指纹
+    type: fingerprint
+    environment: production
+
+  # 2. 拿这个指纹去 EAS 上找已经存在的 store 构建
+  #    找得到 → 原生层没变，新 JS 可以直接 OTA 推到存量构建上
+  #    找不到 → 原生层变了（升级 SDK / 增删原生依赖 / 改 app.json 原生配置），必须重新出包
+  #    没匹配到时该 job 仍然成功，只是 outputs 为空
+  get_build:
+    name: 查找同指纹的线上构建
+    type: get-build
+    needs: [fingerprint]
+    params:
+      platform: ios
+      profile: production
+      distribution: store
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+
+  # 3a. 指纹一致：直接发 OTA，不碰原生构建
+  #     runtimeVersion 用 fingerprint 策略，所以同指纹的存量构建一定能收到这次更新
+  update:
+    name: OTA 更新（指纹一致）
+    type: update
+    needs: [get_build]
+    if: ${{ needs.get_build.outputs.build_id }}
+    params:
+      channel: ${{ inputs.channel || 'production' }}
+      platform: ios
+
+  # 3b. 指纹不一致：出 iOS release 构建（distribution 默认 store，autoIncrement 自动涨 buildNumber）
+  build_ios:
+    name: iOS release 构建（指纹不一致）
+    type: build
+    needs: [get_build]
+    if: ${{ !needs.get_build.outputs.build_id }}
+    params:
+      platform: ios
+      profile: production
+
+  # 4. 构建完成提交 TestFlight
+  #    internal_groups / changelog 用 || 兜底：输入留空时给空数组 / 空串，避免把空值当组名报错
+  #    changelog 非空时 job 会等 App Store Connect 处理完构建（默认最多 30 分钟）
+  testflight:
+    name: 提交 TestFlight
+    type: testflight
+    needs: [build_ios]
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
+      internal_groups: ${{ inputs.internal_group || fromJSON('[]') }}
+      changelog: ${{ inputs.changelog || '' }}
+
+# Android 暂不接入。要加的时候照 iOS 这套复制一遍：
+#   fingerprint 的 android_fingerprint_hash → get-build(platform: android)
+#   → update(platform: android) / build(platform: android, profile: production)
+# 注意 Android 侧 production 构建还需要补 buildType / 签名配置，且 Google Play 提交走 submit job 而不是 testflight。
