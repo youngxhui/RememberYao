@@ -48,6 +48,7 @@ jobs:
     type: update
     needs: [get_build]
     if: ${{ needs.get_build.outputs.build_id }}
+    environment: production
     params:
       channel: ${{ inputs.channel || 'production' }}
       platform: ios
