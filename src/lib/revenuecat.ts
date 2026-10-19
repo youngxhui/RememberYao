@@ -1,12 +1,9 @@
 import Purchases, {
   LOG_LEVEL,
-  PACKAGE_TYPE,
   PURCHASES_ERROR_CODE,
   type CustomerInfo,
   type CustomerInfoUpdateListener,
   type PurchasesError,
-  type PurchasesOffering,
-  type PurchasesPackage,
 } from "react-native-purchases";
 import RevenueCatUI, {
   PAYWALL_RESULT,
@@ -20,11 +17,11 @@ import RevenueCatUI, {
  * 屏幕只消费这里的结果对象与 Hook（`@/hooks/use-subscription`），
  * 不在界面里直接调 `Purchases.*`。
  *
- * 两套购买入口，按优先级：
- * 1. **RevenueCat Paywall**（`presentProPaywall`）：付费墙在 RevenueCat 后台
- *    配置，改文案 / 改价格 / 改商品组合都不发版；购买、恢复、退款全在原生墙内完成。
- * 2. **自带商品列表**（`fetchCurrentOffering` + `purchasePackage`）：后台还没配
- *    offering / paywall 时的兜底，用 `PurchasesPackage` 自己渲染行。
+ * 购买入口只有一个：**RevenueCat Paywall**（`presentProPaywall`）——
+ * 付费墙在 RevenueCat 后台配置（商品、价格、文案、样式全在那边），
+ * 改什么都不用发版；购买、恢复购买都在墙内由 SDK 完成。
+ * App 不自己渲染商品列表 / 不自己调 purchasePackage：自建购买流要自己
+ * 处理结果回调、权益刷新、退款，还绕不开墙里已经做好的转化优化。
  *
  * 权益模型（RevenueCat 后台）：
  * - 商品：`lifetime`（买断，非订阅）、`yearly`（年订阅）、`monthly`（月订阅）
@@ -122,14 +119,6 @@ export type PurchaseFailureCode =
   | "no_offerings"
   | "unknown";
 
-export type PurchaseResult =
-  | { status: "purchased"; customerInfo: CustomerInfo }
-  /** 用户主动取消了系统购买弹窗 —— 不是错误，不该弹提示 */
-  | { status: "cancelled" }
-  /** 支付待确认（如家长审批 / 延时到账）：权益稍后到，不用当失败 */
-  | { status: "pending" }
-  | { status: "failed"; code: PurchaseFailureCode };
-
 export type RestoreResult =
   | { status: "restored"; customerInfo: CustomerInfo; isPro: boolean }
   | { status: "failed"; code: PurchaseFailureCode };
@@ -143,10 +132,6 @@ export type PaywallResult =
   | { status: "cancelled" }
   /** 已拥有权益，paywall 没弹（presentPaywallIfNeeded 的返回值） */
   | { status: "not_presented" }
-  | { status: "failed"; code: PurchaseFailureCode };
-
-export type OfferingResult =
-  | { status: "ok"; offering: PurchasesOffering }
   | { status: "failed"; code: PurchaseFailureCode };
 
 /** PurchasesError → 失败分类。纯函数，方便单测。
@@ -212,45 +197,7 @@ export function addCustomerInfoListener(
   };
 }
 
-// ─── 商品与购买 ────────────────────────────────
-
-/**
- * 取当前 offering（后台标记为 Current 的那个）。
- * 没有配置 current offering 时返回 `no_offerings` —— 调用方回落到
- * 「付费墙不可用」的提示，别把用户晾在一句「出错了」上。
- */
-export async function fetchCurrentOffering(): Promise<OfferingResult> {
-  if (!configured) return { status: "failed", code: "not_configured" };
-  try {
-    const offerings = await Purchases.getOfferings();
-    const offering = offerings.current;
-    if (!offering) return { status: "failed", code: "no_offerings" };
-    return { status: "ok", offering };
-  } catch (error) {
-    return { status: "failed", code: failureCodeFromError(error) };
-  }
-}
-
-/**
- * 买一个 package（自带商品列表用；RevenueCat Paywall 内部走原生购买，
- * 不经过这里）。
- *
- * 结果对象而不是抛错：用户取消是正常路径，不该走 catch。
- */
-export async function purchasePackage(
-  aPackage: PurchasesPackage,
-): Promise<PurchaseResult> {
-  if (!configured) return { status: "failed", code: "not_configured" };
-  try {
-    const { customerInfo } = await Purchases.purchasePackage(aPackage);
-    return { status: "purchased", customerInfo };
-  } catch (error) {
-    const code = failureCodeFromError(error);
-    if (code === "cancelled") return { status: "cancelled" };
-    if (code === "pending") return { status: "pending" };
-    return { status: "failed", code };
-  }
-}
+// ─── 恢复购买 ────────────────────────────────
 
 /**
  * 恢复购买：换机 / 重装 / 多设备后用。恢复成功但权益没激活也返回
@@ -268,24 +215,6 @@ export async function restorePurchases(): Promise<RestoreResult> {
   } catch (error) {
     return { status: "failed", code: failureCodeFromError(error) };
   }
-}
-
-/**
- * 兜底商品列表的展示顺序：永久 > 年付 > 月付。
- * 价格锚点从高到低，年付夹在中间最容易被接受（RevenueCat 后台的推荐序）。
- * 纯函数，排序不影响传入数组。
- */
-export function sortPackagesForDisplay(
-  packages: PurchasesPackage[],
-): PurchasesPackage[] {
-  const order: PACKAGE_TYPE[] = [
-    PACKAGE_TYPE.LIFETIME,
-    PACKAGE_TYPE.ANNUAL,
-    PACKAGE_TYPE.MONTHLY,
-  ];
-  return [...packages].toSorted(
-    (a, b) => order.indexOf(a.packageType) - order.indexOf(b.packageType),
-  );
 }
 
 // ─── Paywall / Customer Center ────────────────────────────
@@ -326,8 +255,8 @@ export async function presentProPaywall(): Promise<PaywallResult> {
       case PAYWALL_RESULT.CANCELLED:
         return { status: "cancelled" };
       default:
-        // ERROR：多半是后台还没配 offering / paywall。
-        // 报成 no_offerings，调用方据此回落到自带商品列表
+        // ERROR：远程付费墙没加载出来（网络 / 后台 offering 或 paywall
+        // 没配好）。报成 no_offerings，调用方提示「面板加载失败」
         return { status: "failed", code: "no_offerings" };
     }
   } catch (error) {

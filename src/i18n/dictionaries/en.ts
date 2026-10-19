@@ -422,7 +422,6 @@ export const en = {
     subtitle: "Back an indie dev and unlock the advanced features",
     sectionStatus: "Subscription",
     sectionBenefits: "Pro includes",
-    sectionPlans: "Choose a plan",
     status: "Status",
     statusActive: "Active",
     statusInactive: "Not subscribed",
@@ -442,9 +441,7 @@ export const en = {
     planLifetime: "Lifetime",
     planYearly: "Yearly",
     planMonthly: "Monthly",
-    perMonth: "{price} / month",
-    fallbackHint:
-      "The subscription panel failed to load — pick a plan below instead",
+    paywallFailed: "The subscription panel failed to load — try again later",
     // App Store review requires terms and privacy links at the purchase entry
     terms: "Terms of Use",
     privacy: "Privacy Policy",

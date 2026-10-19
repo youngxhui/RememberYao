@@ -35,6 +35,7 @@
 | 数据 | `expo-sqlite` + `drizzle-orm`（本地 SQLite），`src/lib/store.ts` 单点持久化 |
 | 头像照片 | `expo-image-picker` + `expo-image-manipulator` + `expo-file-system`（选图 → 裁方缩放 → 存沙盒） |
 | 通知 | `expo-notifications`（本地调度 + 通知栏操作按钮） |
+| 订阅 | `react-native-purchases` + `react-native-purchases-ui`（RevenueCat：远程付费墙 + Customer Center；权益 `rememberyao_pro`，商品 `lifetime` / `yearly` / `monthly`） |
 | 多语言 | `expo-localization` + 自建 `src/i18n`（zh/en 运行时切换，`t()` 路径类型安全） |
 | 语言 | TypeScript strict，实验特性 `typedRoutes` + `reactCompiler` 已开启 |
 | 测试 | Maestro（`maestro/*.yaml`），暂无单元测试 |
@@ -127,25 +128,32 @@ maestro test maestro/dashboard.yaml     # 首页（今日）冒烟：引导页 �
 44. 提交前跑 `bun run check`（typecheck + lint + format:check）。当前基线为 0 errors / 0 warnings。
 45. **不要主动进行 UI 自动化验证**：不启动模拟器 / 真机跑应用、不截图对比、不跑 Maestro 流来验证自己的改动。改动的正确性以 `bun run check` + 通读受影响代码为准，界面最终由开发者在真机 / 模拟器上亲自确认。Maestro 与 `expo run:*` 只在用户明确要求时才执行。
 
+### 订阅（RevenueCat）
+
+46. **购买与权益只走 `src/lib/revenuecat.ts`**（唯一碰 SDK 的地方，模式同 `notifications.ts`）与 `@/hooks/use-subscription` 的 `useSubscription()`。屏幕禁止直接 `import Purchases` / `RevenueCatUI`。
+47. **界面只认权益 `rememberyao_pro`，不认商品**：买断 / 年付 / 月付（以及以后加的季付）都挂同一个权益下，`isProActive(customerInfo)` 是唯一判据。加商品不改代码，只在 RevenueCat 后台挂权益。
+48. **付费墙必须用 RevenueCat 远程配置**（`presentProPaywall` → `presentPaywallIfNeeded`）：商品、价格、文案、样式全在后台，改什么都不发版。**不要在 App 里自建商品列表 / 自调 `purchasePackage`** —— 自建购买流要自己接结果回调、权益刷新、退款，还丢掉墙里已做好的转化与 A/B。
+49. **API Key 分平台**：测试期用 `test_`（Test Store，不接真实商店）；上线换 iOS `appl_…` / Android `goog_…` 两个**不同**的正式 key，用 EAS 环境变量注入（`EXPO_PUBLIC_RC_API_KEY_IOS` / `_ANDROID`），**不进仓库**。混用 key 会串商店账。
+
 ## 目录结构
 
 ```
 src/
   app/                    # 只放路由
-    _layout.tsx           ThemeProvider + 根 Stack（index / (tabs) / onboarding / records / playground）+ 通知初始化/同步
+    _layout.tsx           ThemeProvider + 根 Stack（index / (tabs) / onboarding / records）+ 通知初始化/同步 + RevenueCat 配置
     index.tsx             分流：未看过引导页 → onboarding，否则 → 首页
     onboarding.tsx        首次启动引导页：放在 tab 组之外，全屏无 tab 栏
     records.tsx           服药记录：按日期查历史与当日服药率（界面待完善）；不占 tab 位，路径仍是 /records
-    playground/           调试屏：tab 组之外，无 tab 入口，从代码 push /playground
     (tabs)/
       _layout.tsx         AppTabs（NativeTabs），trigger name 用组内相对路由名
       home/               今日：只有路由，实现见 src/screens/home（纯 RN）
       medica/             药品：index（只有路由）+ detail / form / twin
-      profile/            我的：index（只有路由）+ persons / person-detail / plan-form / settings/（二级路由：index 三个入口 + general / notifications / about；目录下**没有 _layout.tsx**，见待办的 Stack 嵌套坑）
+      playground/         调试屏：index 只有路由 + _layout.tsx（开导航栏，结构同 home）；实现内联在路由文件里
+      profile/            我的：index（只有路由）+ persons / person-detail / plan-form / pro（订阅屏）+ settings/（二级路由：index 三个入口 + general / notifications / about；目录下**没有 _layout.tsx**，见待办的 Stack 嵌套坑）
   screens/
     home/                 首页实现：index（纯 RN：大字日期 / 通知横幅 / 区块标题，成员筛选走系统工具栏右上角菜单）+ stock-panel（库存速览）
     medica/               药品库实现：index（纯 RN：FlatList + 分类筛选）+ filter-row（分类 chip 横滑）+ twin（外壳纯 RN，铝箔网格留 Expo UI 岛）
-    profile/              我的实现：index（档案横排 / 本周概览 / 家庭成员 / 菜单）+ settings/（纯 RN：index 三个分区入口 + general / notifications / about 三个二级屏，共享 setting-row 与 huge-icon，见 design/settings.html）
+    profile/              我的实现：index（档案横排 / 本周概览 / 家庭成员 / 菜单）+ pro（RememberYao Pro 订阅屏：权益状态 + 远程付费墙 + Customer Center）+ settings/（纯 RN：index 三个分区入口 + Pro 入口 + general / notifications / about 三个二级屏，见 design/settings.html）
   db/
     schema.ts             Drizzle 表定义（snake_case 列名、索引）
     client.ts             开库 + 版本不符即整库重建
@@ -159,13 +167,17 @@ src/
     store.ts              数据层：写操作编排（读所需 → 纯函数决策 → 事务写差异）、
                           提醒同步、按屏幕的查询 Hook、通知调度数据；再导出 entities
     notifications.ts      通知层：权限、调度、操作按钮、响应处理、与 store 同步
+    revenuecat.ts         订阅层（RevenueCat）：SDK 配置、CustomerInfo、权益判断、
+                          远程付费墙、Customer Center、恢复购买；结果对象 + 失败码，不碰词典
     onboarding.ts         引导页"已看过"标记
     avatar-photo.ts       头像照片：选图 → 裁成正方形 → 缩到 256² → 存 document/avatars
-  hooks/                  use-theme / use-color-scheme / use-onboarding-gate / use-medication-export
+  hooks/                  use-theme / use-color-scheme / use-onboarding-gate / use-medication-export /
+                          use-subscription（CustomerInfo 查询 Hook：权益状态 + 监听 + 回前台刷新）
   components/             app-tabs、avatar、content-glass、glass-chip、glass-host-button、screen-scaffold、
                          rn-form / rn-input-shell / rn-section-card / rn-datetime-picker / rn-picker /
                          rn-round-icon-button、progress-bar、dose-timeline、reminder-card-stack、mini-archive、
-                         symbol-icon、toolbar-icons(.android)、icons、observe-error-fallback、external-link
+                         symbol-icon、setting-row / huge-icon（2026-10-19 从 screens/profile/settings 提升：
+                         Pro 屏成为第二个使用方）、toolbar-icons(.android)、icons、observe-error-fallback、external-link
   screens/                每屏的实现（home / medica[含 twin-foil 铝箔药板] / profile）
   utils/color.ts          withAlpha / mixColor：半透明叠色与亮暗变体
   constants/theme.ts      颜色 / 字体 / 间距 / 圆角（唯一 token 来源）
@@ -191,4 +203,5 @@ ios/                      prebuild 产物；改 app.json 后需重新 prebuild
 - 单元测试：`store.ts` 的提醒生成 / 库存扣减是纯函数，适合优先覆盖。
 - **原生依赖已变更**：新增 `expo-sqlite` / `expo-localization`（app.json plugins 已自动登记）、`expo-haptics`（Mini Archive 开合 commit 触感，需 `pod install` 后重新 `npx expo run:ios` 才生效）。iOS 端必须重新 `npx expo run:ios` 才会生效，Expo Go 跑不起来。
 - **头像照片已实施**：`persons.avatar_uri` 存本地文件 URI（null = 没照片，界面退回「底色 + 姓名首字」），新增 `expo-image-picker` / `expo-image-manipulator` / `expo-file-system` 三个原生模块与 `src/lib/avatar-photo.ts`（相册选图 → 缩到 256² → 居中裁方 → 存 `document/avatars/`）。picker 返回的 URI 在相册 / 临时目录里、系统会回收，必须自己落一份；`allowsEditing` 在部分平台被忽略，所以裁方放在缩放之后兜底。`SCHEMA_VERSION` 3 → 4（删库重建，本地数据清空）。入口是添加 / 编辑成员表单（`persons.tsx`）的「头像」行：选照片 / 更换 / 移除；移除靠 `updatePerson` 补丁显式传 `null`（`definedValues` 只丢 `undefined`，这就是「不改」与「清空」的分界），换图或移除成功后旧文件才删，删成员时沙盒照片一并清掉。选中某人时，首页工具栏右上角菜单的图标就是他的照片（工具栏图标槽只收「SF Symbol 或图片源」，照片正好是图片源；没照片才退回 `memberFilterIcon`）。**真机未验证**：① 相册权限弹窗与拒绝后的提示；② 照片在纯 RN 树各处（「我的」成员卡、plan-form、quick-add、个人信息页大头像）上的尺寸与居中；③ **iOS 工具栏里的照片是方的** —— `UIBarButtonItem` 的 image 不加圆角，而各处头像都是圆的，要圆角得在像素上预 masks（纯 JS 编 PNG 或加原生模块），当前先接受方形；④ Android 端三个新模块与 `avatar_uri` 读写；⑤ 换图后旧文件是否真的删掉。
+- **RevenueCat 订阅已实施**（2026-10-19）：`react-native-purchases` + `react-native-purchases-ui` 10.14.0，封装层 `src/lib/revenuecat.ts`、查询 Hook `src/hooks/use-subscription.ts`、入口屏 `src/screens/profile/pro.tsx`（路由 `/profile/pro`，从设置根屏第四个分区入口进）。**购买入口只有 RevenueCat 远程付费墙**（`presentProPaywall` → `presentPaywallIfNeeded`，权益 `rememberyao_pro`），App 不渲染商品列表、不自调 `purchasePackage`；已开通时只留「管理订阅」（`presentCustomerCenter`）。权益更新三条路径：CustomerInfo 监听、回前台失效缓存重读、屏幕聚焦 reload。API Key 当前是 `test_`（Test Store），上线前换平台正式 key（EAS 环境变量，不进仓库）。**真机未验证**：① `pod install` 已带入 `RNPurchases 10.14.0` / `RevenueCat 5.95.0`（`ios/Podfile.lock`），但要一次完整 `npx expo run:ios` 才生效；② Test Store 下付费墙的加载与购买闭环；③ Customer Center 弹层；④ 「当前方案」按商品 id 包含判断（Google Play 的 `productId:basePlan`）在 Android 上的实际取值；⑤ 条款 / 隐私链接还是 `example.com` 占位，**上线前必须换真实地址**（App Store 3.1.1 / 5.1.1）。
 - **i18n 漏翻检查**：新增界面文案后确认 `zh.ts` / `en.ts` 键名一致（`bun run check` 只能查出「用了不存在的键」，查不出「en 缺翻译」）。两侧键数应始终相等。

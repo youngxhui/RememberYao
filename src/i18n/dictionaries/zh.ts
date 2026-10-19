@@ -407,7 +407,6 @@ export const zh = {
     subtitle: "支持独立开发，也解锁进阶能力",
     sectionStatus: "订阅状态",
     sectionBenefits: "Pro 包含",
-    sectionPlans: "选择方案",
     status: "当前状态",
     statusActive: "已开通",
     statusInactive: "未开通",
@@ -427,8 +426,7 @@ export const zh = {
     planLifetime: "永久版",
     planYearly: "按年订阅",
     planMonthly: "按月订阅",
-    perMonth: "折合 {price} / 月",
-    fallbackHint: "订阅面板加载失败，可以直接在下面选择方案",
+    paywallFailed: "订阅面板加载失败，请稍后再试",
     // App Store 审核要求购买入口可触达条款与隐私政策，链接常量在屏幕文件里
     terms: "服务条款",
     privacy: "隐私政策",
