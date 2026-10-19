@@ -4,12 +4,10 @@ import { Stack, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   Pressable as RNPressable,
-  ScrollView as RNScrollView,
   StyleSheet,
   Text as RNText,
   View as RNView,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ContentGlass } from "@/components/content-glass";
 import { GlassChip } from "@/components/glass-chip";
@@ -37,7 +35,7 @@ import {
 import { withAlpha } from "@/utils/color";
 
 /**
- * Playground：纯 RN 调试屏。
+ * Playground：纯 RN 调试屏，骨架与生产屏同构（ScreenScaffold + Padded）。
  * 刻意不用 Host / SwiftUI 组件 —— MiniArchive 嵌在 SwiftUI ScrollView 下
  * 触摸链路存疑，这里全用 RN 视图做隔离对照，便于定位交互问题。
  */
@@ -45,7 +43,6 @@ export default function PlaygroundScreen() {
   const theme = useTheme();
   const router = useRouter();
   const t = useTranslation();
-  const insets = useSafeAreaInsets();
   const [variant, setVariant] = useState<"regular" | "clear">("regular");
   // 按需读取：调试屏陈列药品档案与牌堆，各取自己那份
   const {
@@ -96,22 +93,17 @@ export default function PlaygroundScreen() {
     <>
       <Stack.Title large>{t("tab.playground")}</Stack.Title>
 
-      <RNView style={{ flex: 1, backgroundColor: theme.background }}>
-        <RNScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{
-            // 本屏在根 Stack 里且 headerShown: false，内容从 y=0 起排。不手动避开
-            // 顶部的话第一块会落进状态栏 —— 那块区域的点击由系统接管，按钮永远按不到。
-            // 底部跟安全区走：调试屏已不在 tab 组内，没有 tab 栏要避让
-            paddingTop: insets.top + Spacing.two,
-            paddingBottom: insets.bottom + Spacing.five,
-          }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* 首屏加载没结束时不显示空态；组件自带「暂无药品档案」空态 */}
-          {!loading ? (
-            <>
+      <ScreenScaffold>
+        {/* 首屏加载没结束时不显示空态；组件自带「暂无药品档案」空态 */}
+        {loading ? (
+          <Padded>
+            <RNText style={{ color: theme.textSecondary }}>
+              {t("home.loading")}
+            </RNText>
+          </Padded>
+        ) : (
+          <>
+            <Padded>
               <RNPressable
                 testID="playground-test-notification-button"
                 accessibilityRole="button"
@@ -120,7 +112,6 @@ export default function PlaygroundScreen() {
                 }}
                 // style 必须是函数形式才拿得到 pressed —— 写成静态对象按压时毫无反馈
                 style={({ pressed }) => ({
-                  marginHorizontal: Spacing.three,
                   paddingVertical: Spacing.two,
                   borderRadius: 12,
                   borderCurve: "continuous",
@@ -149,7 +140,6 @@ export default function PlaygroundScreen() {
                   router.push("/records");
                 }}
                 style={({ pressed }) => ({
-                  marginHorizontal: Spacing.three,
                   marginTop: Spacing.two,
                   paddingVertical: Spacing.two,
                   borderRadius: 12,
@@ -172,16 +162,12 @@ export default function PlaygroundScreen() {
                   打开服药记录（临时入口）
                 </RNText>
               </RNPressable>
+            </Padded>
 
-              {/* ─── 液态玻璃组件演示 ─── */}
+            {/* ─── 液态玻璃组件演示 ─── */}
+            <Padded>
               <RNView
-                style={[
-                  {
-                    marginTop: Spacing.five,
-                    paddingHorizontal: Spacing.three,
-                  },
-                  styles.glassDemoContainer,
-                ]}
+                style={[styles.glassDemoContainer, { marginTop: Spacing.five }]}
               >
                 {/* 渲染后端提示 */}
                 <RNText
@@ -246,15 +232,11 @@ export default function PlaygroundScreen() {
                   </GlassView>
                 </RNPressable>
               </RNView>
+            </Padded>
 
-              {/* ─── 迁移组件展示 ─── */}
-              <RNView
-                style={{
-                  marginTop: Spacing.five,
-                  paddingHorizontal: Spacing.three,
-                  gap: Spacing.four,
-                }}
-              >
+            {/* ─── 迁移组件展示 ─── */}
+            <Padded>
+              <RNView style={{ marginTop: Spacing.five, gap: Spacing.four }}>
                 <RNText
                   style={{
                     color: theme.textSecondary,
@@ -462,24 +444,21 @@ export default function PlaygroundScreen() {
                   </ScreenScaffold>
                 </RNView>
               </RNView>
+            </Padded>
 
-              <MiniArchive
-                entries={entries}
-                onSelectEntry={(entry) => {
-                  router.push({
-                    pathname: "/(tabs)/medica/detail",
-                    params: { id: entry.id },
-                  });
-                }}
-              />
-              {/* 纯 RN 屏直接挂载即可（无需 RNHostView），
-                  在这里对照验证 Pan 手势与外层滚动是否冲突 */}
-              <RNView
-                style={{
-                  marginTop: Spacing.five,
-                  paddingHorizontal: Spacing.three,
-                }}
-              >
+            <MiniArchive
+              entries={entries}
+              onSelectEntry={(entry) => {
+                router.push({
+                  pathname: "/(tabs)/medica/detail",
+                  params: { id: entry.id },
+                });
+              }}
+            />
+            {/* 纯 RN 屏直接挂载即可（无需 RNHostView），
+                在这里对照验证 Pan 手势与外层滚动是否冲突 */}
+            <Padded>
+              <RNView style={{ marginTop: Spacing.five }}>
                 <RNText
                   style={{
                     color: theme.textSecondary,
@@ -502,14 +481,10 @@ export default function PlaygroundScreen() {
                   </RNText>
                 ) : null}
               </RNView>
-            </>
-          ) : (
-            <RNText style={{ color: theme.textSecondary }}>
-              {t("home.loading")}
-            </RNText>
-          )}
-        </RNScrollView>
-      </RNView>
+            </Padded>
+          </>
+        )}
+      </ScreenScaffold>
     </>
   );
 }

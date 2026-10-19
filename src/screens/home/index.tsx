@@ -1,11 +1,9 @@
 import { useObserve } from "expo-observe";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import { Linking } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 
 import { ReminderCardStack } from "@/components/reminder-card-stack";
-import { RnRoundIconButton } from "@/components/rn-round-icon-button";
 import { ScreenScaffold, Padded } from "@/components/screen-scaffold";
 import { SymbolIcon } from "@/components/symbol-icon";
 import { memberFilterIcon } from "@/components/toolbar-icons";
@@ -149,12 +147,11 @@ export function Home() {
   );
 }
 
-/** 巨型日期头部：右侧是添加药品的圆形按钮 */
+/** 巨型日期头部 */
 function HeroHeader() {
   const theme = useTheme();
   const t = useTranslation();
   const { language } = useI18n();
-  const router = useRouter();
   const [year, month, day] = todayKey().split("-").map(Number);
   const date = new Date(year, month - 1, day);
   const weekday = weekdayName(date, language === "zh" ? "zh-CN" : "en-US");
@@ -210,16 +207,6 @@ function HeroHeader() {
           {t("home.weekdayToday", { weekday })}
         </Text>
       </View>
-      <RnRoundIconButton
-        testID="home-add-medication-button"
-        label={t("common.add")}
-        icon={{ ios: "plus", android: "add" }}
-        size={44}
-        iconSize={24}
-        onPress={() => {
-          router.push("/(tabs)/medica/form");
-        }}
-      />
     </View>
   );
 }
