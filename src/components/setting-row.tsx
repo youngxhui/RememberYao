@@ -5,10 +5,13 @@ import {
   View as RNView,
 } from "react-native";
 
+import {
+  HUGI_ICONS,
+  HugeIcon,
+  type HugeIconName,
+} from "@/components/huge-icon";
 import { Fonts, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-
-import { HUGI_ICONS, HugeIcon, type HugeIconName } from "./huge-icon";
 
 /** 分组行内边距（design/settings.html 的 .setting-item padding 16px） */
 export const ROW_PADDING = Spacing.three;
@@ -17,6 +20,11 @@ export const ICON_SIZE = 18;
 
 /**
  * 一行设置：图标 + 标题 / 副标题在左，控件在右。
+ *
+ * 2026-10-19 从 `src/screens/profile/settings/setting-row.tsx` 提升到
+ * `src/components/`：第二个屏幕（「我的 → RememberYao Pro」）开始复用，
+ * 够上了 docs/conventions/ui-design.md 的提升门槛。设置页一族与 Pro 屏
+ * 共用同一套行度量，观感不会裂。
  *
  * `onPress` 只给「导航行」：整行点击进下一层 / 开 sheet，右端是箭头或数值这类
  * 非交互内容。**控制行**（有 Switch / Picker）不给 `onPress` —— 否则外层手势会

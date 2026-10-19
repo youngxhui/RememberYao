@@ -4,11 +4,10 @@ import { View as RNView } from "react-native";
 import { RnPicker } from "@/components/rn-picker";
 import { SectionCard, SectionTitle } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
+import { SettingRow } from "@/components/setting-row";
 import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useMedicationExport } from "@/hooks/use-medication-export";
 import { LANGUAGE_LABELS, LANGUAGES, useI18n } from "@/i18n";
-
-import { SettingRow } from "./setting-row";
 
 /**
  * 二级屏 · 通用：语言 + 导出报告。

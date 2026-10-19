@@ -10,11 +10,10 @@ import {
 
 import { SectionCard, SectionTitle } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
+import { RowDivider, SettingRow } from "@/components/setting-row";
 import { BottomTabInset, Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n } from "@/i18n";
-
-import { RowDivider, SettingRow } from "./setting-row";
 
 /**
  * 二级屏 · 关于：隐私政策（长文，收在 TrueSheet 里）+ 版本号 + 免责声明。

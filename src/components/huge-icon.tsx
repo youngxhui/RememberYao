@@ -1,10 +1,14 @@
 /**
  * Hugeicons 的 SVG path 数据 + `react-native-svg` 渲染组件。
  *
- * 只服务设置页这一族屏幕（`src/app/(tabs)/profile/settings`）。2026-10-17 开发者要求
- * **二级屏不要行首图标**，所以现在只剩两处：一级三个分区入口的行首图标，和各级行尾的
- * 箭头。其他屏幕仍走 `@/components/symbol-icon` 的 `SymbolIcon`
- * （expo-symbols）—— 见 docs/conventions/ui-design.md 的图标小节。
+ * 2026-10-19 从 `src/screens/profile/settings/huge-icon.tsx` 提升到
+ * `src/components/`：原本按 ui-design.md 的门槛 colocate 在设置页目录里
+ * （「等第二个屏幕采用再移出」），`setting-row` 因 Pro 屏复用先搬了过来，
+ * 它依赖本文件，只能一起搬。
+ *
+ * 服务对象：设置页一族（一级三个分区入口的行首图标、各级行尾箭头）与
+ * 「RememberYao Pro」屏的入口图标。其他屏幕仍走 `@/components/symbol-icon`
+ * 的 `SymbolIcon`（expo-symbols）—— 见 docs/conventions/ui-design.md 的图标小节。
  *
  * 为什么设置页单独走一套：expo-symbols 在 iOS 是 SF Symbol、Android 是 Material Symbols
  * 字形名，两端字形不同源（iOS 的 `.fill` 实心变体在 Android 没有对应物），同一行设置在
@@ -19,10 +23,6 @@
  * —— 前两个由组件统一覆盖（组件默认 1.8，比源数据的 1.5 粗一档），第三个是 React 的 key。
  * **逐路径的 `strokeLinecap` / `strokeLinejoin` 原样保留**：源数据本身不统一（Moon01 / Alert01
  * 有的路径写了、有的没写），全局强制 round 会改掉原设计的接头样式。
- *
- * 按 docs/conventions/ui-design.md 的提升门槛，本文件 colocate 在设置页的屏幕目录里
- * （Hugeicons 目前只有设置页用）；等第二个屏幕采用再移到 `src/components/`，
- * 语义键顺带并到 `@/components/icons` 旁边。
  */
 
 import { Circle, Path, Svg } from "react-native-svg";
@@ -114,6 +114,33 @@ export const HUGI_ICONS = {
       "path",
       {
         d: "M9.00005 18C9.00005 18 15 13.5811 15 12C15 10.4188 9 6 9 6",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+      },
+    ],
+  ],
+  /** 「RememberYao Pro」入口行首图标（设置页第四个分区入口） */
+  settingsPro: [
+    [
+      "path",
+      {
+        d: "M5 21H19",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+      },
+    ],
+    [
+      "path",
+      {
+        d: "M12.125 12.75H12M12.25 12.75C12.25 12.8881 12.1381 13 12 13C11.8619 13 11.75 12.8881 11.75 12.75C11.75 12.6119 11.8619 12.5 12 12.5C12.1381 12.5 12.25 12.6119 12.25 12.75Z",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+      },
+    ],
+    [
+      "path",
+      {
+        d: "M14.9152 7.61089L13.8078 5.38179C13.019 3.79393 12.6246 3 12 3C11.3754 3 10.981 3.79393 10.1922 5.38179L9.08483 7.61089C8.58107 8.62494 8.32919 9.13197 7.87976 9.24608C7.8485 9.25401 7.81689 9.26043 7.78503 9.26533C7.32682 9.3357 6.89919 8.96678 6.04393 8.22895C4.0124 6.47635 2.99663 5.60004 2.38034 5.94899C2.34045 5.97157 2.30213 5.99686 2.26565 6.02467C1.70197 6.45439 2.09541 7.74136 2.88229 10.3153L4.04783 14.1279C4.47098 15.5121 4.68255 16.2042 5.21787 16.6021C5.75318 17 6.47261 17 7.91147 17L16.0886 16.9999C17.5274 16.9999 18.2468 16.9999 18.7821 16.602C19.3175 16.2041 19.529 15.512 19.9522 14.1279L21.1177 10.3153C21.9046 7.74137 22.298 6.4544 21.7344 6.02468C21.6979 5.99687 21.6595 5.97158 21.6197 5.94899C21.0034 5.60006 19.9876 6.47636 17.9561 8.22896C17.1008 8.96679 16.6732 9.3357 16.215 9.26533C16.1831 9.26043 16.1515 9.25401 16.1202 9.24607C15.6708 9.13197 15.4189 8.62494 14.9152 7.61089Z",
         strokeLinecap: "round",
         strokeLinejoin: "round",
       },

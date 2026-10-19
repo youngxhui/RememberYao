@@ -1,13 +1,12 @@
 import { Stack, useRouter } from "expo-router";
 import { View as RNView } from "react-native";
 
+import { HUGI_ICONS } from "@/components/huge-icon";
 import { SectionCard } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
+import { SettingRow } from "@/components/setting-row";
 import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useI18n } from "@/i18n";
-
-import { HUGI_ICONS } from "./huge-icon";
-import { SettingRow } from "./setting-row";
 
 /**
  * 设置根屏：通用 / 通知 / 关于 三个入口，各推进一层二级屏。
@@ -78,6 +77,20 @@ export function SettingsIndex() {
               label={t("settings.aboutEntry")}
               onPress={() => {
                 router.push("/profile/settings/about");
+              }}
+              showChevron
+            />
+          </SectionCard>
+
+          {/* RememberYao Pro：订阅状态 + 付费墙入口。独立一张卡 ——
+              它不是设置项，是商业化入口，不该和三个设置分区读成一组 */}
+          <SectionCard tone="outline">
+            <SettingRow
+              testID="settings-pro-row"
+              icon={HUGI_ICONS.settingsPro}
+              label={t("pro.title")}
+              onPress={() => {
+                router.push("/profile/pro");
               }}
               showChevron
             />

@@ -13,6 +13,12 @@ import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import { RnPicker } from "@/components/rn-picker";
 import { SectionCard, SectionTitle } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
+import {
+  RowDivider,
+  ROW_PADDING,
+  SettingRow,
+  ValueAndChevron,
+} from "@/components/setting-row";
 import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n } from "@/i18n";
@@ -29,13 +35,6 @@ import {
   updateSettings,
   useSettings,
 } from "@/lib/store";
-
-import {
-  ROW_PADDING,
-  RowDivider,
-  SettingRow,
-  ValueAndChevron,
-} from "./setting-row";
 
 /** 免打扰的默认区间：22:00–07:00（跨零点） */
 const DEFAULT_QUIET_START = "22:00";

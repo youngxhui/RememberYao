@@ -4,6 +4,7 @@ import { Stack } from "expo-router/stack";
 import { useEffect, useMemo } from "react";
 import { AppState, StatusBar, useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ObserveErrorFallback } from "@/components/observe-error-fallback";
 import { useTheme } from "@/hooks/use-theme";
@@ -14,6 +15,7 @@ import {
   registerLocalizedNotificationTexts,
   syncNotificationsWithStore,
 } from "@/lib/notifications";
+import { configureRevenueCat } from "@/lib/revenuecat";
 import { ensureDefaultPerson, setPostMutationHook } from "@/lib/store";
 
 // 按路由分别上报渲染 / 交互耗时。集成开关运行期不能改（挂载后再调 configure 会抛），
@@ -34,7 +36,9 @@ Observe.configure({
 export default function ObservedRootLayout() {
   return (
     <ObserveRoot errorBoundaryFallback={ObserveErrorFallback}>
-      <RootLayout />
+      <SafeAreaProvider>
+        <RootLayout />
+      </SafeAreaProvider>
     </ObserveRoot>
   );
 }
@@ -111,6 +115,12 @@ function AppShell() {
   useEffect(() => {
     void registerLocalizedNotificationTexts();
   }, [language]);
+
+  // RevenueCat（应用内购买）：尽早配置，早于任何购买入口。幂等，
+  // web 上自动跳过；购买状态由 useSubscription 自己拉取
+  useEffect(() => {
+    void configureRevenueCat();
+  }, []);
 
   return (
     <ThemeProvider value={navigationTheme}>

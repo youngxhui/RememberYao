@@ -1,4 +1,5 @@
 import { ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Spacing, BottomTabInset } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -53,7 +54,7 @@ export function ScreenScaffold({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      {children}
+      <SafeAreaView>{children}</SafeAreaView>
     </ScrollView>
   );
 }

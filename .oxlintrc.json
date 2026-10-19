@@ -69,6 +69,15 @@
       }
     },
     {
+      // 订阅 Hook 的首次载入：load() 是 async，setState 发生在 await 之后的微任务里，
+      // 不是同步调用，不会级联渲染。react/set-state-in-effect 看不穿 async 边界，属误报；
+      // oxlint 行内禁用对该规则无效，故在此按文件关闭（与 src/lib/store.ts 同一理由）。
+      "files": ["src/hooks/use-subscription.ts"],
+      "rules": {
+        "react/set-state-in-effect": "off"
+      }
+    },
+    {
       // 语言切换后要重注册通知文案：effect 体内经 getTranslator() 间接读
       // language，lint 看不穿这层间接依赖，误判为多余依赖
       "files": ["src/app/_layout.tsx"],

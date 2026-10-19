@@ -95,6 +95,7 @@ export default function PlaygroundScreen() {
   return (
     <>
       <Stack.Title large>{t("tab.playground")}</Stack.Title>
+
       <RNView style={{ flex: 1, backgroundColor: theme.background }}>
         <RNScrollView
           style={{ flex: 1 }}
@@ -175,7 +176,10 @@ export default function PlaygroundScreen() {
               {/* ─── 液态玻璃组件演示 ─── */}
               <RNView
                 style={[
-                  { marginTop: Spacing.five, paddingHorizontal: Spacing.three },
+                  {
+                    marginTop: Spacing.five,
+                    paddingHorizontal: Spacing.three,
+                  },
                   styles.glassDemoContainer,
                 ]}
               >
