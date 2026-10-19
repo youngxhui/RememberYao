@@ -289,7 +289,7 @@ type MeasuredWidth = {
 
 - `src/app/playground`：整屏纯 RN 的例子（Reanimated 提醒卡堆叠手势、横向 chip 滚动、`ContentGlass` / `GlassChip` 对照）。
 - `src/screens/home`、`src/screens/profile`：**已迁成纯 RN**（迁移计划 PR4 / PR5）。曾经是「Expo UI 为主的整屏 + `useExpoUiContentWidth` 喂宽」，现在牌堆 / 库存 / Mini Archive 直接挂 RN 树，宽度走 `onLayout` 与 `flex`；`ScreenScaffold` 默认无水平 padding，通栏用 `FullBleed`、内缩用 `Padded`。
-- `src/screens/medica/twin.tsx`：**残留岛的正确样本** —— 铝箔网格与图例仍活在 `TwinFoilIsland` 的 `Host` 里（SwiftUI 径向渐变，`LiquidGlassView` 替代不了），宽度由 RN 父级 `onLayout` 实测喂入；页头 / 进度 / 开启表单 / 格子都是 RN。
+- `src/screens/medica/twin.tsx`：**残留岛的正确样本** —— 铝箔网格与图例仍活在 `TwinFoilIsland` 的 `Host` 里（SwiftUI 径向渐变，`GlassView` 替代不了），宽度由 RN 父级 `onLayout` 实测喂入；页头 / 进度 / 开启表单 / 格子都是 RN。
 - ~~`src/components/expo-ui-island.tsx`：RN 父树里挂 `@expo/ui` 原生控件的唯一边界~~ —— **已删除**（§6.8）。`glass-chip.tsx` 的 `GlassChipRow` 同理：屏幕不得自己 import 玻璃包，需要时用共享组件。
 - `src/components/mini-archive.tsx`：RN island 的固有尺寸、safe-area fallback、宽度缓存失效和 `matchContents`。
 - `src/components/avatar.tsx`、`src/components/progress-bar.tsx`：曾是小型 RN island 的 `RNHostView` 边界示例；双轨包装已删，现在分别只剩 `AvatarMark` 与 `ProgressBarRn`，都是纯 RN 组件。

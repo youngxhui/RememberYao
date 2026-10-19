@@ -1,5 +1,8 @@
-import { GlassContainer, GlassView } from "expo-glass-effect";
-import { supportsNativeGlass } from "expo-liquid-glass-view";
+import {
+  GlassContainer,
+  GlassView,
+  isLiquidGlassAvailable,
+} from "expo-glass-effect";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -68,7 +71,7 @@ export default function PlaygroundScreen() {
   const loading =
     medicationsLoading || personsLoading || plansLoading || remindersLoading;
   // 当前设备是否支持原生 UIGlassEffect（iOS 26+）
-  const nativeSupported = supportsNativeGlass;
+  const nativeSupported = isLiquidGlassAvailable();
   // 牌堆里标记服用后刷新这一屏的查询（写操作已落库，重读即可）
   const reload = useCallback(() => {
     reloadMedications();
@@ -178,7 +181,7 @@ export default function PlaygroundScreen() {
                 >
                   {nativeSupported
                     ? "LiquidGlass: 原生 UIGlassEffect (iOS 26+)"
-                    : "LiquidGlass: Metal 回退 / 降级为普通 View"}
+                    : "LiquidGlass: 不可用（需 iOS 26+，内容玻璃退化为实心底）"}
                 </RNText>
 
                 {/* variant 切换 */}
