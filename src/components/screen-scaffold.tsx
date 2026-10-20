@@ -66,9 +66,11 @@ export function ScreenScaffold({
   );
 }
 
-/** 内缩一档：home / records / 表单的常规区块 */
+/** 内缩一档：home / records / 表单的常规区块。
+ *  间距写 Tamagui 的 token 名（screen = Spacing.screen），不要用 RN 的
+ *  `paddingHorizontal` —— 那不是 Tamagui 的合法 prop，会被当未知 prop 吞掉 */
 export function Padded({ children }: { children: React.ReactNode }) {
-  return <View paddingHorizontal="screen">{children}</View>;
+  return <View paddingInline="screen">{children}</View>;
 }
 
 /** 通栏：profile Mini Archive。必须顶到屏幕左右缘。 */

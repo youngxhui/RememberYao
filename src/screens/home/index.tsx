@@ -100,8 +100,21 @@ export function Home() {
     [activePersonId, reminders],
   );
 
-  // 首屏加载没结束时不渲染内容，避免空列表闪一下再刷出来
-  if (checkingOnboarding || loading) return null;
+  // 首屏加载没结束时不显示 empty 态，但必须给 loading 反馈。
+  // 早年这里直接 return null：DB 慢和同步链卡死看起来一模一样（2026-10-20 真机
+  // 截图：整块内容区空白，只有标题和 tab 栏），既违反四态规则也没法排查
+  if (checkingOnboarding || loading) {
+    return (
+      <>
+        <Stack.Title large>{t("home.title")}</Stack.Title>
+        <ScreenScaffold>
+          <Padded>
+            <Text color="$textSecondary">{t("home.loading")}</Text>
+          </Padded>
+        </ScreenScaffold>
+      </>
+    );
+  }
 
   return (
     <>
