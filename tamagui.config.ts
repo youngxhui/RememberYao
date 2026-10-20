@@ -20,6 +20,12 @@ import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
  *
  * 屏幕里写半透明色（`withAlpha(theme.danger, 0.06)` 那类）仍走
  * `@/utils/color` + `useTheme()`：那是算出来的值，不是设计 token，不往这里塞。
+ *
+ * 还有一条 native 特有的语义坑：**`Text` 的 `lineHeight` 给裸数字会被当成
+ * fontSize 的倍数**（@tamagui/web 的 nativeTextMetrics：`style.lineHeight =
+ * fontSize * lineHeight`），只有带 px 后缀的字符串才是绝对像素。要设计稿的
+ * 绝对行高一律写 `lineHeight="58px"` —— 首页大日期曾因 `lineHeight={58}`
+ * 被撑成 56×58=3248pt、把整屏内容顶出视口（2026-10-20 修复，全仓已统一）。
  */
 
 /** light / dark 两份色表键名一致、取值不同，参数收并集 */

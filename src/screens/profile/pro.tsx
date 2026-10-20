@@ -321,7 +321,7 @@ export function ProScreen() {
               </XStack>
               <Text
                 fontSize={12}
-                lineHeight={18}
+                lineHeight="18px"
                 color="textSecondary"
                 textAlign="center"
               >

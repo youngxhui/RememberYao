@@ -63,7 +63,7 @@ export function SettingsAbout() {
             paddingTop="three"
             paddingInline="two"
             fontSize={13}
-            lineHeight={21}
+            lineHeight="21px"
             color="textSecondary"
             textAlign="center"
           >
@@ -86,7 +86,7 @@ export function SettingsAbout() {
             <Text fontSize={17} fontWeight="700" color="text">
               {t("settings.privacyTitle")}
             </Text>
-            <Text fontSize={14} color="textSecondary" lineHeight={20}>
+            <Text fontSize={14} color="textSecondary" lineHeight="20px">
               {t("settings.privacyBody")}
             </Text>
             <View

@@ -271,7 +271,7 @@ export default function MedicationDetailScreen() {
                       {t("medication.restockInvalid")}
                     </Text>
                   ) : null}
-                  <Text fontSize={12} color="textSecondary" lineHeight={18}>
+                  <Text fontSize={12} color="textSecondary" lineHeight="18px">
                     {t("medication.restockPacksHint", {
                       perPack: twin.slotsPerPack,
                       unit: medicationUnitLabel(medication.unit, t),
@@ -316,7 +316,7 @@ export default function MedicationDetailScreen() {
                       {t("medication.restockInvalid")}
                     </Text>
                   ) : null}
-                  <Text fontSize={12} color="textSecondary" lineHeight={18}>
+                  <Text fontSize={12} color="textSecondary" lineHeight="18px">
                     {t("medication.restockHint")}
                   </Text>
                 </View>
@@ -616,7 +616,7 @@ function BasicInfo({
             <Text fontSize={13} fontWeight="600" color="textSecondary">
               {t("medication.notes")}
             </Text>
-            <Text fontSize={15} lineHeight={21} color="text">
+            <Text fontSize={15} lineHeight="21px" color="text">
               {medication.notes}
             </Text>
           </View>
@@ -696,7 +696,7 @@ function PlanSection({
                   numberOfLines={2}
                   fontSize={13}
                   color="textSecondary"
-                  lineHeight={18}
+                  lineHeight="18px"
                 >
                   {t("medication.doseLine", { amount: plan.doseAmount, unit })}
                   {`\n${t("plan.perDay", { count: plan.times.length })} · ${plan.times.join(" / ")}`}

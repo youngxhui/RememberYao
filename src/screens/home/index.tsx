@@ -5,7 +5,7 @@ import { Linking } from "react-native";
 import { Button, Text, View, XStack, YStack } from "tamagui";
 
 import { ReminderCardStack } from "@/components/reminder-card-stack";
-import { ScreenScaffold, Padded } from "@/components/screen-scaffold";
+import { Padded, ScreenScaffold } from "@/components/screen-scaffold";
 import { SymbolIcon } from "@/components/symbol-icon";
 import { memberFilterIcon } from "@/components/toolbar-icons";
 import { useOnboardingGate } from "@/hooks/use-onboarding-gate";
@@ -178,7 +178,7 @@ function HeroHeader() {
         <XStack alignItems="flex-end" gap="two">
           <Text
             fontSize={56}
-            lineHeight={58}
+            lineHeight="58px"
             fontWeight="800"
             letterSpacing={-2}
             color="text"
@@ -371,7 +371,7 @@ function FirstRunEmpty({ onAdd }: { onAdd: () => void }) {
       </Text>
       <Text
         fontSize={14}
-        lineHeight={20}
+        lineHeight="20px"
         color="textSecondary"
         textAlign="center"
       >

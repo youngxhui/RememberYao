@@ -449,10 +449,10 @@ function TwinOverview({
         }}
       >
         <Text
+          lineHeight="34px"
           style={{
             fontFamily: "system-ui",
             fontSize: 32,
-            lineHeight: 34,
             fontWeight: "800",
             letterSpacing: -0.96,
             color: "text",
@@ -566,9 +566,9 @@ function EnableTwinCard({
       <SectionCard>
         <View style={{ gap: "three" }}>
           <Text
+            lineHeight="19px"
             style={{
               fontSize: 13,
-              lineHeight: 19,
               color: "textSecondary",
             }}
           >

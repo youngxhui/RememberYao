@@ -206,7 +206,7 @@ function StatCard({
     >
       <Text
         fontSize={28}
-        lineHeight={30}
+        lineHeight="30px"
         fontWeight="800"
         letterSpacing={-0.84}
         color={valueColor ?? "text"}

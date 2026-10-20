@@ -561,7 +561,7 @@ function CheckboxRow({
             color="onPrimary"
             fontSize={14}
             fontWeight="700"
-            lineHeight={16}
+            lineHeight="16px"
           >
             ✓
           </Text>

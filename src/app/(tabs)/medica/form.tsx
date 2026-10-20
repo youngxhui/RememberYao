@@ -356,7 +356,7 @@ export default function MedicationFormScreen() {
                 {specError ? (
                   <ErrorText text={t("medication.blisterSpecInvalid")} />
                 ) : null}
-                <Text fontSize={13} lineHeight={18} color="textSecondary">
+                <Text fontSize={13} lineHeight="18px" color="textSecondary">
                   {isEditing
                     ? hasTwin
                       ? t("medication.blisterSpecHintExisting")
@@ -458,7 +458,7 @@ export default function MedicationFormScreen() {
             </Field>
 
             <Field label={t("medication.takers")}>
-              <Text fontSize={13} lineHeight={18} color="textSecondary">
+              <Text fontSize={13} lineHeight="18px" color="textSecondary">
                 {persons.length === 0
                   ? t("medication.takersNone")
                   : t("medication.takersHint")}
