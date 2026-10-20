@@ -16,7 +16,7 @@ import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
  *    theme 名切换明暗，`TamaguiProvider` 的 `defaultTheme` 跟着系统配色走；
  * 2. 给 Button 的 sm / md / lg 三档尺寸接上项目的字号、间距与圆角
  *    （默认配置是 tailwind 数字档，与 design/ 的 15/17px、Spacing 对不上）；
- * 3. 补一套项目语义名的 space / radius token，屏幕里写 `$three` / `$card`。
+ * 3. 补一套项目语义名的 space / radius token，屏幕里写 `three` / `card`。
  *
  * 屏幕里写半透明色（`withAlpha(theme.danger, 0.06)` 那类）仍走
  * `@/utils/color` + `useTheme()`：那是算出来的值，不是设计 token，不往这里塞。
