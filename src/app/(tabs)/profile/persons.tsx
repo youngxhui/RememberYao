@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { TextInput } from "react-native";
+import { Button, Text, View, XStack, YStack } from "tamagui";
 
 import { AvatarMark } from "@/components/avatar";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
 import { ScreenScaffold } from "@/components/screen-scaffold";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import {
@@ -56,7 +57,8 @@ function parseAge(raw: string): number | null | undefined {
  * 同一套模式。编辑覆盖全部家庭成员与默认用户「自己」（改名也走这里）。
  *
  * 排版与添加药品共用 rn-form 基元：ScrollView + 分区卡片（label 在上、控件收在
- * 圆角描边盒子里）。
+ * 圆角描边盒子里）。容器与按钮走 Tamagui 原语 + token 名，
+ * `TextInput` 仍是 RN 的（不吃 token 名，文字色继续走 `useTheme()`）。
  */
 export default function PersonsScreen() {
   const router = useRouter();
@@ -168,7 +170,7 @@ export default function PersonsScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View flex={1} backgroundColor="$canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>
           {isEditing ? t("person.editTitle") : t("person.addMember")}
@@ -179,20 +181,18 @@ export default function PersonsScreen() {
 
   if (isEditing && !editingPerson) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View flex={1} backgroundColor="$canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>
           {isEditing ? t("person.editTitle") : t("person.addMember")}
         </Stack.Title>
         <View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            paddingTop: 120,
-          }}
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          paddingTop={120}
         >
-          <Text style={{ color: theme.textSecondary, fontSize: 15 }}>
+          <Text color="$textSecondary" fontSize={15}>
             {t("person.notFound")}
           </Text>
         </View>
@@ -213,7 +213,7 @@ export default function PersonsScreen() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <View style={{ gap: Spacing.four }}>
+        <YStack gap="four">
           <Subtitle
             text={t(isEditing ? "person.editSubtitle" : "person.formSubtitle")}
           />
@@ -238,74 +238,57 @@ export default function PersonsScreen() {
             {nameError ? <ErrorText text={t("person.nameRequired")} /> : null}
 
             <Field label={t("person.avatar")}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: Spacing.rowGap,
-                }}
-              >
+              <XStack alignItems="center" gap="rowGap">
                 <AvatarMark
                   color={previewColor}
                   name={namePreview || t("person.defaultName")}
                   uri={photoUri}
                   size={48}
                 />
-                <View style={{ gap: Spacing.two }}>
-                  <Pressable
+                <YStack gap="two">
+                  <Button
                     testID="person-avatar-picker-button"
                     onPress={() => {
                       void choosePhoto();
                     }}
-                    style={({ pressed }) => ({
-                      paddingHorizontal: Spacing.three,
-                      paddingVertical: Spacing.two,
-                      borderRadius: Radius.card,
-                      borderCurve: "continuous",
-                      backgroundColor: pressed
-                        ? theme.backgroundSelected
-                        : theme.surface,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minHeight: 44,
-                    })}
+                    size={false}
+                    backgroundColor="$surface press:$backgroundSelected"
+                    borderWidth={1}
+                    borderColor="$border"
+                    borderRadius="card"
+                    borderCurve="continuous"
+                    paddingInline="three"
+                    paddingBlock="two"
+                    minHeight={44}
+                    color="$text"
+                    fontSize={15}
+                    fontWeight="600"
                   >
-                    <Text
-                      style={{
-                        fontSize: 15,
-                        fontWeight: "600",
-                        color: theme.text,
-                      }}
-                    >
-                      {photoUri
-                        ? t("person.avatarChange")
-                        : t("person.avatarChoose")}
-                    </Text>
-                  </Pressable>
+                    {photoUri
+                      ? t("person.avatarChange")
+                      : t("person.avatarChoose")}
+                  </Button>
                   {photoUri ? (
-                    <Pressable
+                    <Button
                       testID="person-avatar-remove-button"
                       onPress={() => {
                         setPhotoUri(undefined);
                         setPhotoTouched(true);
                       }}
+                      size={false}
+                      alignSelf="stretch"
+                      padding={0}
+                      borderWidth={0}
+                      backgroundColor="transparent"
+                      color="$danger"
+                      fontSize={14}
+                      fontWeight="600"
                     >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "600",
-                          color: theme.danger,
-                          textAlign: "center",
-                        }}
-                      >
-                        {t("person.avatarRemove")}
-                      </Text>
-                    </Pressable>
+                      {t("person.avatarRemove")}
+                    </Button>
                   ) : null}
-                </View>
-              </View>
+                </YStack>
+              </XStack>
             </Field>
             {photoDenied ? (
               <ErrorText text={t("person.avatarPermission")} />
@@ -379,32 +362,25 @@ export default function PersonsScreen() {
             <HintText text={t("person.multiValueHint")} />
           </FormSection>
 
-          <Pressable
+          <Button
             testID={isEditing ? "person-save-button" : "person-add-button"}
             onPress={() => {
               void save();
             }}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? theme.primarySoft : theme.primary,
-              borderRadius: Radius.card,
-              borderCurve: "continuous",
-              paddingVertical: Spacing.three,
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: 44,
-            })}
+            size={false}
+            borderWidth={0}
+            backgroundColor="$primary press:$primarySoft"
+            color="$onPrimary"
+            borderRadius="card"
+            borderCurve="continuous"
+            paddingBlock="three"
+            minHeight={44}
+            fontSize={15}
+            fontWeight="600"
           >
-            <Text
-              style={{
-                color: theme.onPrimary,
-                fontSize: 15,
-                fontWeight: "600",
-              }}
-            >
-              {isEditing ? t("person.saveButton") : t("person.addMemberButton")}
-            </Text>
-          </Pressable>
-        </View>
+            {isEditing ? t("person.saveButton") : t("person.addMemberButton")}
+          </Button>
+        </YStack>
       </ScreenScaffold>
     </>
   );

@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { TextInput } from "react-native";
+import { Button, Text, View, XStack, YStack } from "tamagui";
 
 import { AvatarMark } from "@/components/avatar";
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
@@ -16,7 +17,7 @@ import { InputShell } from "@/components/rn-input-shell";
 import { RnPicker } from "@/components/rn-picker";
 import { HairLine } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n, useTranslation } from "@/i18n";
 import { requestNotificationPermission } from "@/lib/notifications";
@@ -62,6 +63,8 @@ const DEFAULT_DOSE = "1";
  */
 export default function PlanFormScreen() {
   const router = useRouter();
+  // 只剩 RnDateTimePicker 的 accentColor 要真实色值（原生视图 prop，不解析 $token）；
+  // 其余颜色一律 Tamagui token
   const theme = useTheme();
   const { t, language } = useI18n();
   const picker = pickerFormat(language);
@@ -243,7 +246,7 @@ export default function PlanFormScreen() {
 
   if (!loaded) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View flex={1} backgroundColor="$canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{title}</Stack.Title>
       </View>
@@ -264,19 +267,12 @@ export default function PlanFormScreen() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <View style={{ gap: Spacing.four }}>
+        <YStack gap="four">
           <Subtitle text={t("plan.formSubtitle")} />
 
           <FormSection title={t("plan.sectionPerson")}>
             {presetPerson ? (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: Spacing.rowGap,
-                  paddingVertical: Spacing.two,
-                }}
-              >
+              <XStack alignItems="center" gap="rowGap" paddingBlock="two">
                 <AvatarMark
                   color={presetPerson.avatarColor}
                   name={presetPerson.name}
@@ -285,11 +281,13 @@ export default function PlanFormScreen() {
                 />
                 <Text
                   numberOfLines={1}
-                  style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
+                  fontSize={17}
+                  fontWeight="700"
+                  color="$text"
                 >
                   {presetPerson.name}
                 </Text>
-              </View>
+              </XStack>
             ) : (
               <Field label={t("plan.person")}>
                 <RnPicker
@@ -322,13 +320,13 @@ export default function PlanFormScreen() {
             {medications.length === 0 ? (
               <HintText text={t("plan.noMedicationHint")} />
             ) : (
-              <View style={{ gap: Spacing.three }}>
+              <YStack gap="three">
                 <Field label={t("plan.medicationsLabel")}>
-                  <View style={{ gap: Spacing.three }}>
+                  <YStack gap="three">
                     {medications.map((m) => {
                       const checked = doses[m.id] !== undefined;
                       return (
-                        <View key={m.id} style={{ gap: Spacing.two }}>
+                        <YStack key={m.id} gap="two">
                           <CheckboxRow
                             testID={`plan-medication-${m.id}`}
                             label={m.name}
@@ -342,10 +340,10 @@ export default function PlanFormScreen() {
                               onChange={(text) => changeDose(m.id, text)}
                             />
                           ) : null}
-                        </View>
+                        </YStack>
                       );
                     })}
-                  </View>
+                  </YStack>
                 </Field>
                 {selected.length > 0 ? (
                   <HintText
@@ -359,7 +357,7 @@ export default function PlanFormScreen() {
                       : t("plan.medicationMultiHint")
                   }
                 />
-              </View>
+              </YStack>
             )}
           </FormSection>
 
@@ -379,22 +377,15 @@ export default function PlanFormScreen() {
               />
             </Field>
             <HintText text={t("plan.timesSharedHint")} />
-            <View style={{ gap: Spacing.two }}>
+            <YStack gap="two">
               {times.map((time, index) => (
                 <View key={index}>
                   {index > 0 ? <HairLine /> : null}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: Spacing.two,
-                      gap: Spacing.rowGap,
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, color: theme.text }}>
+                  <XStack alignItems="center" paddingBlock="two" gap="rowGap">
+                    <Text fontSize={15} color="$text">
                       {t("plan.ordinal", { index: index + 1 })}
                     </Text>
-                    <View style={{ flex: 1 }} />
+                    <View flex={1} />
                     <RnDateTimePicker
                       value={timeToDate(time)}
                       mode="time"
@@ -406,15 +397,15 @@ export default function PlanFormScreen() {
                         changeTime(index, date);
                       }}
                     />
-                  </View>
+                  </XStack>
                 </View>
               ))}
-            </View>
+            </YStack>
           </FormSection>
 
           <FormSection title={t("plan.sectionDateRange")}>
             <Field label={t("plan.startDate")}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <XStack alignItems="center">
                 <RnDateTimePicker
                   value={dateFromKey(startDate)}
                   mode="date"
@@ -423,16 +414,10 @@ export default function PlanFormScreen() {
                   testID="plan-start-date"
                   onValueChange={(date) => setStartDate(dateKey(date))}
                 />
-              </View>
+              </XStack>
             </Field>
             <Field label={t("plan.endDate")}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: Spacing.rowGap,
-                }}
-              >
+              <XStack alignItems="center" gap="rowGap">
                 {hasEndDate ? (
                   <RnDateTimePicker
                     value={dateFromKey(endDate)}
@@ -444,28 +429,23 @@ export default function PlanFormScreen() {
                     onValueChange={(date) => setEndDate(dateKey(date))}
                   />
                 ) : (
-                  <Text style={{ fontSize: 15, color: theme.textSecondary }}>
+                  <Text fontSize={15} color="$textSecondary">
                     {t("plan.endDateUnlimited")}
                   </Text>
                 )}
-                <View style={{ flex: 1 }} />
-                <Pressable
+                <View flex={1} />
+                <View
                   testID={
                     hasEndDate ? "plan-end-date-clear" : "plan-end-date-set"
                   }
                   onPress={toggleEndDate}
+                  accessibilityRole="button"
                 >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: theme.primary,
-                    }}
-                  >
+                  <Text fontSize={14} fontWeight="600" color="$primary">
                     {hasEndDate ? t("common.clear") : t("plan.endDateSet")}
                   </Text>
-                </Pressable>
-              </View>
+                </View>
+              </XStack>
             </Field>
           </FormSection>
 
@@ -487,109 +467,63 @@ export default function PlanFormScreen() {
 
           {error ? <ErrorText text={error} /> : null}
 
-          <View style={{ gap: Spacing.three, marginBottom: Spacing.three }}>
-            <Pressable
+          <YStack gap="three" marginBottom="three">
+            <Button
               testID="plan-save-button"
               onPress={() => {
                 void save();
               }}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? theme.primarySoft : theme.primary,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-              })}
+              alignSelf="stretch"
+              backgroundColor="$primary press:$primarySoft"
+              borderCurve="continuous"
+              color="$onPrimary"
             >
-              <Text
-                style={{
-                  color: theme.onPrimary,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
-                {t("plan.savePlan")}
-              </Text>
-            </Pressable>
-            <Pressable
+              {t("plan.savePlan")}
+            </Button>
+            <Button
               testID="plan-cancel-button"
               onPress={() => {
                 router.back();
               }}
-              style={({ pressed }) => ({
-                backgroundColor: pressed
-                  ? theme.backgroundSelected
-                  : theme.surface,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                borderWidth: 1,
-                borderColor: theme.border,
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-              })}
+              alignSelf="stretch"
+              borderWidth={1}
+              borderColor="$border"
+              backgroundColor="$surface press:$backgroundSelected"
+              borderCurve="continuous"
+              color="$text"
             >
-              <Text
-                style={{
-                  color: theme.text,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
-                {t("common.cancel")}
-              </Text>
-            </Pressable>
+              {t("common.cancel")}
+            </Button>
             {isEditing ? (
-              <Pressable
+              <Button
                 testID="plan-delete-button"
                 onPress={() => {
                   void remove();
                 }}
+                alignSelf="stretch"
+                backgroundColor="transparent"
+                color="$danger"
               >
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: "600",
-                    color: theme.danger,
-                    textAlign: "center",
-                  }}
-                >
-                  {confirmDelete
-                    ? t("common.confirmDelete")
-                    : t("plan.deleteButtonAlt")}
-                </Text>
-              </Pressable>
+                {confirmDelete
+                  ? t("common.confirmDelete")
+                  : t("plan.deleteButtonAlt")}
+              </Button>
             ) : null}
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: Spacing.three,
-              }}
-            >
-              <View style={{ flex: 1 }} />
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: theme.textSecondary,
-                  textAlign: "center",
-                }}
-              >
+            <XStack alignItems="center" gap="three">
+              <View flex={1} />
+              <Text fontSize={12} color="$textSecondary" textAlign="center">
                 {t("plan.saveHint")}
               </Text>
-              <View style={{ flex: 1 }} />
-            </View>
-          </View>
-        </View>
+              <View flex={1} />
+            </XStack>
+          </YStack>
+        </YStack>
       </ScreenScaffold>
     </>
   );
 }
 
-/** RN 勾选行：替代 Expo UI Checkbox（离开 Host 会丢 view config） */
+/** Tamagui 勾选行：替代 Expo UI Checkbox（离开 Host 会丢 view config） */
 function CheckboxRow({
   testID,
   label,
@@ -601,55 +535,46 @@ function CheckboxRow({
   checked: boolean;
   onToggle: () => void;
 }) {
-  const theme = useTheme();
   return (
-    <Pressable
+    <XStack
       testID={testID}
       onPress={onToggle}
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: Spacing.rowGap,
-        paddingVertical: Spacing.two,
-        backgroundColor: pressed ? theme.backgroundSelected : "transparent",
-      })}
+      accessibilityRole="button"
+      alignItems="center"
+      gap="rowGap"
+      paddingBlock="two"
+      backgroundColor="transparent press:$backgroundSelected"
     >
       <View
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: 6,
-          borderCurve: "continuous",
-          borderWidth: 1.5,
-          borderColor: checked ? theme.primary : theme.border,
-          backgroundColor: checked ? theme.primary : theme.surface,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        width={22}
+        height={22}
+        borderRadius={6}
+        borderCurve="continuous"
+        borderWidth={1.5}
+        borderColor={checked ? "$primary" : "$border"}
+        backgroundColor={checked ? "$primary" : "$surface"}
+        alignItems="center"
+        justifyContent="center"
       >
         {checked ? (
           <Text
-            style={{
-              color: theme.onPrimary,
-              fontSize: 14,
-              fontWeight: "700",
-              lineHeight: 16,
-            }}
+            color="$onPrimary"
+            fontSize={14}
+            fontWeight="700"
+            lineHeight={16}
           >
             ✓
           </Text>
         ) : null}
       </View>
       <Text
-        style={{
-          fontSize: 15,
-          color: checked ? theme.text : theme.textSecondary,
-          fontWeight: checked ? "600" : "400",
-        }}
+        fontSize={15}
+        color={checked ? "$text" : "$textSecondary"}
+        fontWeight={checked ? "600" : "400"}
       >
         {label}
       </Text>
-    </Pressable>
+    </XStack>
   );
 }
 
@@ -664,6 +589,7 @@ function DoseField({
   onChange: (text: string) => void;
 }) {
   const t = useTranslation();
+  // RN TextInput 的 style 不解析 Tamagui 的 $token，输入文字色取真实值
   const theme = useTheme();
   return (
     <Field

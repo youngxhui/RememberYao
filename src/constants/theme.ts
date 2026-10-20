@@ -22,6 +22,10 @@ export const Colors = {
     // 品牌主色：青绿（健康、平静），用于主按钮、激活 tab、强调链接
     primary: "#0F766E",
     onPrimary: "#FFFFFF",
+    // 反色实心按钮（*Strong 档填充）上的文字色，两档明暗共用白色：
+    // *Strong 是深色档、暗色模式也沿用同一深色值（见下方 successStrong 注释），
+    // 配深字会读不出来。onPrimary 不能复用 —— 暗色档它是深青绿
+    onFilled: "#FFFFFF",
     primarySoft: "#E6F4F1",
     // 液态玻璃 chip 的文字色。浅色 canvas 会把透明玻璃提亮成亮面，配黑字；
     // 暗色 canvas 上玻璃仍是暗面，文字翻面成亮色（见 dark 段注释）
@@ -101,6 +105,8 @@ export const Colors = {
     textSecondary: "#B0B4BA",
     primary: "#2DD4BF",
     onPrimary: "#062B27",
+    // 同 light：*Strong 填充上的白字，不随明暗翻面
+    onFilled: "#FFFFFF",
     primarySoft: "#14312D",
     // 暗色下玻璃采样的是暗色 canvas，并不会像浅色模式那样被提亮成亮玻璃
     // （2026-10-18 真机截图：黑字压在暗玻璃上完全不可读），文字必须翻面：

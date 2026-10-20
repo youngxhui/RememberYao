@@ -30,7 +30,7 @@
 | Expo SDK | 58（`^58.0.0-preview.4`，预览版，API 与稳定版有差异） |
 | React Native | `0.88.0-rc.1` / React `19.3.0` |
 | 路由 | `expo-router` ~58，文件式路由，根目录 `src/app` |
-| UI | 内容树纯 RN（`View`/`Text`/`Pressable`/`FlatList` + `useTheme()`）+ `ScreenScaffold`；内容玻璃走 `GlassChip` / `GlassHostButton`（`expo-glass-effect`）；图标走 `SymbolIcon`（`expo-symbols`；设置页例外走 Hugeicons SVG + `react-native-svg`，见 [ui-design.md](docs/conventions/ui-design.md) 图标小节）；sheet 用 `@lodev09/react-native-true-sheet`。**`@expo/ui` 已于 2026-10-16 从项目移除**（迁移计划 §6.9），见硬规则 1 |
+| UI | **Tamagui 3 是默认 UI 层**（2026-10-19 起全屏迁完）：屏里直接 `import { View, Text, XStack, YStack, Button } from "tamagui"`，颜色/间距/圆角走 token 名，配置在根目录 `tamagui.config.ts`（值全部来自 `constants/theme.ts`）。系统 chrome（`NativeTabs` / `Stack.Title` / `Toolbar` / `SearchBar`）不动；内容玻璃仍走 `expo-glass-effect` 的 `GlassChip` / `GlassHostButton`（Tamagui 没有液态玻璃能力，模式是「玻璃外壳 + Tamagui 内容」）；sheet 用 `@lodev09/react-native-true-sheet`；图标走 `SymbolIcon` / `HugeIcon`。**`@expo/ui` 已于 2026-10-16 从项目移除**，见硬规则 1 |
 | Lint / 格式 | **oxlint 1.85 + oxfmt 0.70**（Rust 实现，不用 ESLint/Prettier） |
 | 数据 | `expo-sqlite` + `drizzle-orm`（本地 SQLite），`src/lib/store.ts` 单点持久化 |
 | 头像照片 | `expo-image-picker` + `expo-image-manipulator` + `expo-file-system`（选图 → 裁方缩放 → 存沙盒） |
@@ -65,7 +65,7 @@ maestro test maestro/dashboard.yaml     # 首页（今日）冒烟：引导页 �
 
 ### UI
 
-1. **内容树默认纯 RN**（`View`/`Text`/`Pressable`/`ScrollView`/`FlatList` + `useTheme()` + `ScreenScaffold`），**不要再写整屏 `Host`+`Column`+`ScrollView`** —— 2026-10 迁移已完成，全部生产屏都是纯 RN（见 `docs/plans/迁移计划.md`）。系统 chrome（`NativeTabs` / `Stack.Title` / `Toolbar` / `SearchBar`）不动。内容玻璃走 `@/components/glass-chip`（`GlassChip` / `GlassChipRow`）与 `@/components/glass-host-button` 的 `GlassHostButton`（都基于 `expo-glass-effect`；`ContentGlass` 是同一个包的降级封装，目前只有 playground 在渲染），**屏幕禁止直接 import `expo-glass-effect`**。sheet 一律用 `@lodev09/react-native-true-sheet`（2026-10 决策：真原生 sheet —— iOS `UISheetPresentationController` / Android `ModalBottomSheet`，视觉=系统；`@expo/ui` 的 `BottomSheet` 已弃用，它必须做 `FieldGroup` 子节点，社区替代品 `@expo/ui/community/bottom-sheet` 的 default export 是挂载即打开的 `BottomSheet` 易踩坑，`@gorhom/bottom-sheet` 是 JS 渲染视觉对不齐系统）。**不要在 RN 树里手写 `Host`** —— `ExpoUiIsland`（RN 树挂 `@expo/ui` 原生控件的边界封装）已随菜单 `Picker` 清零而删除；真需要原生控件时优先想有没有 RN 替代，确实绕不过再新建最小 `Host` 岛并写清理由。`@expo/ui` 在生产屏只剩两处合法残留：`onboarding.tsx` 的整屏 `TabView` pager（第 4 批「可选」，默认不迁）、孪生铝箔岛的 `nativeGradientBackground`（Q2 冻结）。**菜单 `Picker` 也已清掉** —— 它的 `appearance` 默认就是 `menu`（iOS 原生 Menu 胶囊，不吃 RN `style` 还必须住 `Host`），twin / plan-form / settings 的 5 处已全部换成 `@/components/rn-picker` 的 `RnPicker`（灰底胶囊触发器 + TrueSheet 选项列表）。日期选择：全部走 `@/components/rn-datetime-picker`（Expo UI 版 `native-date-picker*` 三件套已删）。
+1. **内容树默认 Tamagui**（`View`/`Text`/`XStack`/`YStack`/`Button` + token 名 + `ScreenScaffold`），**不要再写整屏 `Host`+`Column`+`ScrollView`** —— 2026-10 先从 `@expo/ui` 迁到纯 RN，2026-10-19 再从 RN 原语迁到 Tamagui（历史见 `docs/plans/迁移计划.md`）。系统 chrome（`NativeTabs` / `Stack.Title` / `Toolbar` / `SearchBar`）不动。内容玻璃走 `@/components/glass-chip`（`GlassChip` / `GlassChipRow`）与 `@/components/glass-host-button` 的 `GlassHostButton`（都基于 `expo-glass-effect`；`ContentGlass` 是同一个包的降级封装，目前只有 playground 在渲染），**屏幕禁止直接 import `expo-glass-effect`**。sheet 一律用 `@lodev09/react-native-true-sheet`（2026-10 决策：真原生 sheet —— iOS `UISheetPresentationController` / Android `ModalBottomSheet`，视觉=系统；`@expo/ui` 的 `BottomSheet` 已弃用，它必须做 `FieldGroup` 子节点，社区替代品 `@expo/ui/community/bottom-sheet` 的 default export 是挂载即打开的 `BottomSheet` 易踩坑，`@gorhom/bottom-sheet` 是 JS 渲染视觉对不齐系统）。**不要在 RN 树里手写 `Host`** —— `ExpoUiIsland`（RN 树挂 `@expo/ui` 原生控件的边界封装）已随菜单 `Picker` 清零而删除；真需要原生控件时优先想有没有 RN 替代，确实绕不过再新建最小 `Host` 岛并写清理由。`@expo/ui` 在生产屏只剩两处合法残留：`onboarding.tsx` 的整屏 `TabView` pager（第 4 批「可选」，默认不迁）、孪生铝箔岛的 `nativeGradientBackground`（Q2 冻结）。**菜单 `Picker` 也已清掉** —— 它的 `appearance` 默认就是 `menu`（iOS 原生 Menu 胶囊，不吃 RN `style` 还必须住 `Host`），twin / plan-form / settings 的 5 处已全部换成 `@/components/rn-picker` 的 `RnPicker`（灰底胶囊触发器 + TrueSheet 选项列表）。日期选择：全部走 `@/components/rn-datetime-picker`（Expo UI 版 `native-date-picker*` 三件套已删）。
 2. **平台隔离**：需要平台专属实现时放进 `.ios.tsx` / `.android.tsx`（放 `src/components/`，**不能放 `app/`**），或用 `process.env.EXPO_OS` 守卫。剩下的平台差异集中在三处：`toolbar-icons.{ts,android.ts}`（`Stack.Toolbar` 只认 SF Symbol / 图片源）、`symbol-icon.tsx`（`SymbolView` 双平台名字典）、`rn-datetime-picker.tsx`（iOS compact / Android 点按才弹对话框）。
 
    > 历史：`@expo/ui`（SwiftUI / Jetpack Compose 原生组件）曾是主力 UI 层，2026-10-16 全部迁走后从 `package.json` 移除。它的坑记录在 [ui-design.md](docs/conventions/ui-design.md) 与迁移计划里，**不要再引回来**。
@@ -77,7 +77,7 @@ maestro test maestro/dashboard.yaml     # 首页（今日）冒烟：引导页 �
    ```
    非 UI 的 API（`Platform`、`AppState`、`Linking`、`useColorScheme`）不加前缀。
    **`@expo/ui` 移除后这条规则实际上已失效** —— 项目里不再有第二套 `Text`，所以两种写法都合法：既有屏混用（`screens/home` 直接 `View`/`Text`，`components/avatar.tsx` 仍是 `RNView` 前缀），新代码随便写，但**同一个文件内保持一致**。
-6. **不要硬编码颜色、字号、间距**。一律走 `useTheme()` → `src/constants/theme.ts`。语义色：`primary` / `success`（已服）/ `warning`（即将到期）/ `danger`（漏服）；间距用 `Spacing`；底部 tab 遮挡用 `BottomTabInset`。
+6. **不要硬编码颜色、字号、间距**。一律走 `useTheme()` → `src/constants/theme.ts`。语义色：`primary` / `success`（已服）/ `warning`（即将到期）/ `danger`（漏服）；间距用 `Spacing`；底部 tab 遮挡用 `BottomTabInset`。Tamagui 路线同样受这条约束：屏里只写 token 名（颜色 `"$primary"`、间距 `"three"`、圆角 `"card"`），**不许写裸 hex/rgba**；token 只在根目录 `tamagui.config.ts` 里从 theme.ts 映射。半透明色仍走 `withAlpha(theme.x, n)`（算出来的值，不是设计 token）。
 7. ~~**`useNativeState` 只能用 `.value`**~~ —— `@expo/ui` 移除后全仓零调用，此规则作废。表单状态一律 RN `useState`。
 8. 图标禁止用 emoji。内容树走 `SymbolIcon`（iOS SF Symbol / Android Material Symbols 字形名），工具栏走 `@/components/toolbar-icons.{ts,android.ts}`；**tab 栏图标走 `src` 位图且不要给 `md`** —— Android 上 expo-router 优先级 `drawable` > `md` > `src`，给了 `md` 就还是旧 Material 图标；Android 的「不染色」另走 `Trigger` 的 `unstable_nativeProps.android`（`tinting: "original"`）。详见 [ui-design.md](docs/conventions/ui-design.md) 图标小节。
 9. 圆角配 `borderCurve: "continuous"`；阴影用 `boxShadow`，禁止 legacy `shadow*` / `elevation`。
@@ -142,7 +142,7 @@ maestro test maestro/dashboard.yaml     # 首页（今日）冒烟：引导页 �
 ```
 src/
   app/                    # 只放路由
-    _layout.tsx           ThemeProvider + 根 Stack（index / (tabs) / onboarding / records）+ 通知初始化/同步 + RevenueCat 配置
+    _layout.tsx           TamaguiProvider + ThemeProvider + 根 Stack（index / (tabs) / onboarding / records）+ 通知初始化/同步 + RevenueCat 配置
     index.tsx             分流：未看过引导页 → onboarding，否则 → 首页
     onboarding.tsx        首次启动引导页：放在 tab 组之外，全屏无 tab 栏
     records.tsx           服药记录：按日期查历史与当日服药率（界面待完善）；不占 tab 位，路径仍是 /records
@@ -177,12 +177,14 @@ src/
                           use-subscription（CustomerInfo 查询 Hook：权益状态 + 监听 + 回前台刷新）
   components/             app-tabs、avatar、content-glass、glass-chip、glass-host-button、screen-scaffold、
                          rn-form / rn-input-shell / rn-section-card / rn-datetime-picker / rn-picker /
-                         rn-round-icon-button、progress-bar、dose-timeline、reminder-card-stack、mini-archive、
+                         rn-round-icon-button、
+                         progress-bar、dose-timeline、reminder-card-stack、mini-archive、
                          symbol-icon、setting-row / huge-icon（2026-10-19 从 screens/profile/settings 提升：
                          Pro 屏成为第二个使用方）、toolbar-icons(.android)、icons、observe-error-fallback、external-link
   screens/                每屏的实现（home / medica[含 twin-foil 铝箔药板] / profile）
   utils/color.ts          withAlpha / mixColor：半透明叠色与亮暗变体
   constants/theme.ts      颜色 / 字体 / 间距 / 圆角（唯一 token 来源）
+tamagui.config.ts         Tamagui 配置：token / theme / 字体 / 尺寸档全部从 constants/theme.ts 映射，不建第二套
 docs/conventions/         本表指向的七份专题规范
 design/                   HTML 设计稿（today、medications、add-medication、profile、settings）—— UI 的视觉基准
 maestro/                  端到端测试流
@@ -206,4 +208,5 @@ ios/                      prebuild 产物；改 app.json 后需重新 prebuild
 - **原生依赖已变更**：新增 `expo-sqlite` / `expo-localization`（app.json plugins 已自动登记）、`expo-haptics`（Mini Archive 开合 commit 触感，需 `pod install` 后重新 `npx expo run:ios` 才生效）。iOS 端必须重新 `npx expo run:ios` 才会生效，Expo Go 跑不起来。
 - **头像照片已实施**：`persons.avatar_uri` 存本地文件 URI（null = 没照片，界面退回「底色 + 姓名首字」），新增 `expo-image-picker` / `expo-image-manipulator` / `expo-file-system` 三个原生模块与 `src/lib/avatar-photo.ts`（相册选图 → 缩到 256² → 居中裁方 → 存 `document/avatars/`）。picker 返回的 URI 在相册 / 临时目录里、系统会回收，必须自己落一份；`allowsEditing` 在部分平台被忽略，所以裁方放在缩放之后兜底。`SCHEMA_VERSION` 3 → 4（删库重建，本地数据清空）。入口是添加 / 编辑成员表单（`persons.tsx`）的「头像」行：选照片 / 更换 / 移除；移除靠 `updatePerson` 补丁显式传 `null`（`definedValues` 只丢 `undefined`，这就是「不改」与「清空」的分界），换图或移除成功后旧文件才删，删成员时沙盒照片一并清掉。选中某人时，首页工具栏右上角菜单的图标就是他的照片（工具栏图标槽只收「SF Symbol 或图片源」，照片正好是图片源；没照片才退回 `memberFilterIcon`）。**真机未验证**：① 相册权限弹窗与拒绝后的提示；② 照片在纯 RN 树各处（「我的」成员卡、plan-form、quick-add、个人信息页大头像）上的尺寸与居中；③ **iOS 工具栏里的照片是方的** —— `UIBarButtonItem` 的 image 不加圆角，而各处头像都是圆的，要圆角得在像素上预 masks（纯 JS 编 PNG 或加原生模块），当前先接受方形；④ Android 端三个新模块与 `avatar_uri` 读写；⑤ 换图后旧文件是否真的删掉。
 - **RevenueCat 订阅已实施**（2026-10-19）：`react-native-purchases` + `react-native-purchases-ui` 10.14.0，封装层 `src/lib/revenuecat.ts`、查询 Hook `src/hooks/use-subscription.ts`、入口屏 `src/screens/profile/pro.tsx`（路由 `/profile/pro`，从设置根屏第四个分区入口进）。**购买入口只有 RevenueCat 远程付费墙**（`presentProPaywall` → `presentPaywallIfNeeded`，权益 `rememberyao_pro`），App 不渲染商品列表、不自调 `purchasePackage`；已开通时只留「管理订阅」（`presentCustomerCenter`）。权益更新三条路径：CustomerInfo 监听、回前台失效缓存重读、屏幕聚焦 reload。API Key 当前是 `test_`（Test Store），上线前换平台正式 key（EAS 环境变量，不进仓库）。**真机未验证**：① `pod install` 已带入 `RNPurchases 10.14.0` / `RevenueCat 5.95.0`（`ios/Podfile.lock`），但要一次完整 `npx expo run:ios` 才生效；② Test Store 下付费墙的加载与购买闭环；③ Customer Center 弹层；④ 「当前方案」按商品 id 包含判断（Google Play 的 `productId:basePlan`）在 Android 上的实际取值；⑤ 条款 / 隐私链接还是 `example.com` 占位，**上线前必须换真实地址**（App Store 3.1.1 / 5.1.1）。
+- **Tamagui 全屏迁移已完成（2026-10-19）**：`tamagui@3.0.18` + `@tamagui/config@3.0.18`，根目录 `tamagui.config.ts` 把 theme.ts 的颜色/间距/圆角/字阶映射成 token 与 light/dark 两套 theme，`src/app/_layout.tsx` 挂 `TamaguiProvider`（`defaultTheme` 跟系统明暗）。**屏里直接 import tamagui，不再有项目自己的按钮/卡片封装文件**（`src/components/tamagui-button.tsx` 已删）；`src/components/` 下剩下的是项目布局组件（scaffold / section-card / setting-row / form / glass-*），内部已全部 Tamagui 化、对外 API 不变。**运行时零 bundler 配置**（metro.config.js / babel 都没动）；`@tamagui/metro-plugin` 装过又卸了，别为了「顺手优化」加回来 —— 它换掉 Metro 的 babelTransformer，与 reactCompiler 实验叠在一起风险大于收益。**未真机验证**：① 三档按钮尺寸高度（36/54/56）与内边距；② 四档按钮配色在明暗两档下的观感；③ Tamagui 的按压透明度 0.7 是否够明显（原来手写按钮用 0.6/0.85，且 Android 上的涟漪没了）；④ `press:` 子句在普通 Tamagui `View` 上是否生效（源码推断可行：`createComponent` 会为带 `onPress` 的组件接 press 手势，未经真机确认）；⑤ `testID` 能否被 Maestro 定位（原生端透传给底层 View，web 端转 `data-testid`）。**已知观感变化**：plan-form 的删除按钮从 22px 的无内边距文字变成标准按钮高度（与 person-detail 的删除按钮拉齐了）；stock-panel 补货按钮的按压底从 `withAlpha(danger, 0.06)` 变成 `$dangerSoft`。
 - **i18n 漏翻检查**：新增界面文案后确认 `zh.ts` / `en.ts` 键名一致（`bun run check` 只能查出「用了不存在的键」，查不出「en 缺翻译」）。两侧键数应始终相等。

@@ -5,15 +5,14 @@ import {
   useRouter,
 } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Button, Text, View, XStack, YStack } from "tamagui";
 
 import { AvatarMark } from "@/components/avatar";
 import { GlassHostButton } from "@/components/glass-host-button";
 import { FormSection } from "@/components/rn-form";
 import { HairLine } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTranslation } from "@/i18n";
 import {
   deletePerson,
@@ -39,7 +38,6 @@ import {
  */
 export default function PersonDetailScreen() {
   const router = useRouter();
-  const theme = useTheme();
   const t = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   // 按需读取：这一屏只要这位用药人、他的配置，以及配置行里要显示的药名
@@ -79,7 +77,7 @@ export default function PersonDetailScreen() {
   // 首屏还在读 SQLite：直接渲染会闪一下「用药人不存在」
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View flex={1} backgroundColor="$canvas">
         <Stack.Screen.BackButton displayMode="minimal">
           {t("person.listTitle")}
         </Stack.Screen.BackButton>
@@ -90,22 +88,18 @@ export default function PersonDetailScreen() {
 
   if (!person) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View flex={1} backgroundColor="$canvas">
         <Stack.Screen.BackButton displayMode="minimal">
           {t("person.listTitle")}
         </Stack.Screen.BackButton>
         <Stack.Title large>{t("person.listTitle")}</Stack.Title>
         <View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            paddingTop: 120,
-          }}
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          paddingTop={120}
         >
-          <Text style={{ color: theme.textSecondary }}>
-            {t("person.notFound")}
-          </Text>
+          <Text color="$textSecondary">{t("person.notFound")}</Text>
         </View>
       </View>
     );
@@ -164,17 +158,17 @@ export default function PersonDetailScreen() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <View style={{ gap: Spacing.four }}>
+        <YStack gap="four">
           {/* 没照片时退回「底色 + 姓名首字」（AvatarMark 内部处理），
               有照片时直接渲染本地文件 URI */}
-          <View style={{ alignItems: "center", paddingVertical: Spacing.two }}>
+          <YStack alignItems="center" paddingBlock="two">
             <AvatarMark
               color={person.avatarColor}
               name={person.name}
               uri={person.avatarUri}
               size={64}
             />
-          </View>
+          </YStack>
 
           {basicRows.length > 0 ? (
             <FormSection title={t("person.basicInfo")}>
@@ -189,19 +183,11 @@ export default function PersonDetailScreen() {
 
           <FormSection title={t("person.plans")}>
             {personPlans.length === 0 ? (
-              <View
-                style={{ alignItems: "center", paddingVertical: Spacing.three }}
-              >
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: theme.textSecondary,
-                    textAlign: "center",
-                  }}
-                >
+              <YStack alignItems="center" paddingBlock="three">
+                <Text fontSize={13} color="$textSecondary" textAlign="center">
                   {t("plan.emptyAddHint")}
                 </Text>
-              </View>
+              </YStack>
             ) : (
               <View>
                 {personPlans.map((plan, index) => {
@@ -219,7 +205,7 @@ export default function PersonDetailScreen() {
             )}
           </FormSection>
 
-          <View style={{ gap: Spacing.three }}>
+          <YStack gap="three">
             <GlassHostButton
               testID="plan-add-button"
               label={t("plan.formTitle")}
@@ -232,7 +218,7 @@ export default function PersonDetailScreen() {
             />
             {/* 改名 / 补基本信息：编辑屏与添加成员同一个表单（persons.tsx，
                 id 参数区分新建与编辑）。默认用户「自己」也走这里 */}
-            <Pressable
+            <Button
               testID="person-edit-button"
               onPress={() => {
                 router.push({
@@ -240,72 +226,39 @@ export default function PersonDetailScreen() {
                   params: { id: person.id },
                 });
               }}
-              style={({ pressed }) => ({
-                backgroundColor: pressed
-                  ? theme.backgroundSelected
-                  : theme.surface,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                borderWidth: 1,
-                borderColor: theme.border,
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-              })}
+              alignSelf="stretch"
+              borderWidth={1}
+              borderColor="$border"
+              backgroundColor="$surface press:$backgroundSelected"
+              borderCurve="continuous"
+              color="$text"
             >
-              <Text
-                style={{
-                  color: theme.text,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
-                {t("person.editButton")}
-              </Text>
-            </Pressable>
+              {t("person.editButton")}
+            </Button>
             {/* 删除是危险操作：不用主题色填充/描边，改纯文字按钮 + 危险色文字。
                 「自己」是 App 的默认用户，不是家庭成员，不给删 */}
             {isSelf ? (
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: theme.textSecondary,
-                  textAlign: "center",
-                }}
-              >
+              <Text fontSize={13} color="$textSecondary" textAlign="center">
                 {t("person.selfLockedHint")}
               </Text>
             ) : (
-              <Pressable
+              <Button
                 testID="person-delete-button"
                 onPress={() => {
                   removePerson();
                 }}
-                style={({ pressed }) => ({
-                  paddingVertical: Spacing.three,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 44,
-                  opacity: pressed ? 0.6 : 1,
-                })}
+                alignSelf="stretch"
+                backgroundColor="transparent"
+                color="$danger"
+                opacity="1 press:0.6"
               >
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: "600",
-                    color: theme.danger,
-                    textAlign: "center",
-                  }}
-                >
-                  {confirmDeletePerson
-                    ? t("common.confirmDelete")
-                    : t("person.deleteButtonAlt")}
-                </Text>
-              </Pressable>
+                {confirmDeletePerson
+                  ? t("common.confirmDelete")
+                  : t("person.deleteButtonAlt")}
+              </Button>
             )}
-          </View>
-        </View>
+          </YStack>
+        </YStack>
       </ScreenScaffold>
     </>
   );
@@ -317,32 +270,28 @@ export default function PersonDetailScreen() {
  * 列表会把整行撑爆，让标签列先让位。
  */
 function BasicRow({ label, value }: { label: string; value: string }) {
-  const theme = useTheme();
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: Spacing.three,
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.rowGap,
-      }}
+    <XStack
+      alignItems="center"
+      gap="three"
+      paddingInline="three"
+      paddingBlock="rowGap"
     >
-      <Text style={{ fontSize: 15, color: theme.textSecondary }}>{label}</Text>
-      <View style={{ flex: 1 }} />
+      <Text fontSize={15} color="$textSecondary">
+        {label}
+      </Text>
+      <View flex={1} />
       <Text
         numberOfLines={2}
-        style={{
-          fontSize: 15,
-          fontWeight: "600",
-          color: theme.text,
-          textAlign: "right",
-          flexShrink: 1,
-        }}
+        fontSize={15}
+        fontWeight="600"
+        color="$text"
+        textAlign="right"
+        flexShrink={1}
       >
         {value}
       </Text>
-    </View>
+    </XStack>
   );
 }
 
@@ -360,14 +309,13 @@ function PlanEntry({
   plan: MedicationPlan;
   medication?: Medication;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
   const router = useRouter();
 
   const unit = medication ? medicationUnitLabel(medication.unit, t) : "";
 
   return (
-    <Pressable
+    <View
       testID={`plan-item-${plan.id}`}
       onPress={() => {
         router.push({
@@ -375,48 +323,36 @@ function PlanEntry({
           params: { id: plan.id },
         });
       }}
-      style={({ pressed }) => ({
-        gap: Spacing.one,
-        paddingVertical: Spacing.two,
-        backgroundColor: pressed ? theme.backgroundSelected : "transparent",
-      })}
+      accessibilityRole="button"
+      gap="one"
+      paddingBlock="two"
+      backgroundColor="transparent press:$backgroundSelected"
     >
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: Spacing.two,
-        }}
-      >
+      <XStack alignItems="center" gap="two">
         <Text
           numberOfLines={1}
-          style={{
-            fontSize: 15,
-            fontWeight: "600",
-            color: theme.text,
-            flexShrink: 1,
-          }}
+          fontSize={15}
+          fontWeight="600"
+          color="$text"
+          flexShrink={1}
         >
           {medication?.name ?? t("home.unknownMedication")}
         </Text>
-        <View style={{ flex: 1 }} />
-        <Text
-          numberOfLines={1}
-          style={{ fontSize: 13, color: theme.textSecondary }}
-        >
+        <View flex={1} />
+        <Text numberOfLines={1} fontSize={13} color="$textSecondary">
           {planStatusLabel(plan, t)}
         </Text>
-      </View>
-      <Text style={{ fontSize: 13, color: theme.textSecondary }}>
+      </XStack>
+      <Text fontSize={13} color="$textSecondary">
         {t("medication.doseLine", { amount: plan.doseAmount, unit })}
       </Text>
-      <Text style={{ fontSize: 13, color: theme.textSecondary }}>
+      <Text fontSize={13} color="$textSecondary">
         {t("person.timesLine", {
           count: plan.times.length,
           times: plan.times.join(" / "),
         })}
       </Text>
-      <Text style={{ fontSize: 13, color: theme.textSecondary }}>
+      <Text fontSize={13} color="$textSecondary">
         {[
           t("person.startFrom", { start: plan.startDate }),
           plan.endDate
@@ -424,6 +360,6 @@ function PlanEntry({
             : t("person.rangeOngoing"),
         ].join("")}
       </Text>
-    </Pressable>
+    </View>
   );
 }

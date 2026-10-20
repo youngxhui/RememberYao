@@ -1,13 +1,9 @@
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import {
-  Pressable as RNPressable,
-  Text as RNText,
-  View as RNView,
-} from "react-native";
-// oxlint-disable-next-line no-restricted-imports -- 本屏已是纯 RN（没有 Host）：Expo UI 的 Switch 离开 Host 会丢 view config，只能用 RN Switch
+// oxlint-disable-next-line no-restricted-imports -- 系统 Switch 自带设计语言，不套 Tamagui 外壳（原生控件不二次包装）
 import { Switch as RNSwitch } from "react-native";
+import { Text, View } from "tamagui";
 
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import { RnPicker } from "@/components/rn-picker";
@@ -19,7 +15,7 @@ import {
   SettingRow,
   ValueAndChevron,
 } from "@/components/setting-row";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n } from "@/i18n";
 import {
@@ -102,7 +98,7 @@ export function SettingsNotifications() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <RNView>
+        <View>
           <SectionTitle>{t("settings.sectionReminder")}</SectionTitle>
           <SectionCard tone="outline">
             <SettingRow
@@ -124,16 +120,14 @@ export function SettingsNotifications() {
               }
             />
             {!permissionGranted ? (
-              <RNText
-                style={{
-                  paddingHorizontal: ROW_PADDING,
-                  paddingBottom: ROW_PADDING,
-                  fontSize: 12,
-                  color: theme.danger,
-                }}
+              <Text
+                paddingInline={ROW_PADDING}
+                paddingBottom={ROW_PADDING}
+                fontSize={12}
+                color="$danger"
               >
                 {t("settings.permissionDenied")}
-              </RNText>
+              </Text>
             ) : null}
             <RowDivider />
             <SettingRow
@@ -222,11 +216,11 @@ export function SettingsNotifications() {
               }
             />
           </SectionCard>
-        </RNView>
+        </View>
       </ScreenScaffold>
 
       {/* 免打扰时段：时间选择器收在 sheet 里，主行因此不用跟着开关长出第二行。
-          TrueSheet 是真原生 sheet，放屏幕根；内容是纯 RN 子树 */}
+          TrueSheet 是真原生 sheet，放屏幕根；内容是 Tamagui 子树 */}
       <TrueSheet
         ref={quietSheetRef}
         detents={["auto", 0.6]}
@@ -236,27 +230,18 @@ export function SettingsNotifications() {
         }}
       >
         {showQuietHours ? (
-          <RNView
-            style={{
-              padding: 20,
-              gap: 16,
-            }}
-          >
-            <RNText
-              style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
-            >
+          <View padding={20} gap={16}>
+            <Text fontSize={17} fontWeight="700" color="$text">
               {t("settings.quietTitle")}
-            </RNText>
-            <RNView
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
+            </Text>
+            <View
+              flexDirection="row"
+              alignItems="center"
+              justifyContent="space-between"
             >
-              <RNText style={{ fontSize: 15, color: theme.text }}>
+              <Text fontSize={15} color="$text">
                 {t("settings.quietEnable")}
-              </RNText>
+              </Text>
               <RNSwitch
                 testID="settings-quiet-switch"
                 value={quietOn}
@@ -269,23 +254,17 @@ export function SettingsNotifications() {
                   );
                 }}
               />
-            </RNView>
+            </View>
             {quietOn ? (
               <>
-                <RNText style={{ fontSize: 13, color: theme.textSecondary }}>
+                <Text fontSize={13} color="$textSecondary">
                   {t("settings.quietSub")}
-                </RNText>
-                <RNView
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: Spacing.two,
-                  }}
-                >
-                  <RNText style={{ fontSize: 15, color: theme.text }}>
+                </Text>
+                <View flexDirection="row" alignItems="center" gap="two">
+                  <Text fontSize={15} color="$text">
                     {t("settings.quietRange")}
-                  </RNText>
-                  <RNView style={{ flex: 1 }} />
+                  </Text>
+                  <View flex={1} />
                   <RnDateTimePicker
                     testID="settings-quiet-start"
                     value={timeToDate(
@@ -302,7 +281,7 @@ export function SettingsNotifications() {
                       );
                     }}
                   />
-                  <RNText style={{ color: theme.textSecondary }}>–</RNText>
+                  <Text color="$textSecondary">–</Text>
                   <RnDateTimePicker
                     testID="settings-quiet-end"
                     value={timeToDate(settings.quietEnd ?? DEFAULT_QUIET_END)}
@@ -317,35 +296,28 @@ export function SettingsNotifications() {
                       );
                     }}
                   />
-                </RNView>
+                </View>
               </>
             ) : null}
-            <RNPressable
+            <View
               testID="settings-quiet-close-button"
               onPress={() => {
                 void quietSheetRef.current?.dismiss();
               }}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? theme.primarySoft : theme.primary,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-              })}
+              accessibilityRole="button"
+              backgroundColor="$primary press:$primarySoft"
+              borderRadius="card"
+              borderCurve="continuous"
+              paddingBlock="three"
+              alignItems="center"
+              justifyContent="center"
+              minHeight={44}
             >
-              <RNText
-                style={{
-                  color: theme.onPrimary,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
+              <Text color="$onPrimary" fontSize={15} fontWeight="600">
                 {t("common.done")}
-              </RNText>
-            </RNPressable>
-          </RNView>
+              </Text>
+            </View>
+          </View>
         ) : null}
       </TrueSheet>
     </>

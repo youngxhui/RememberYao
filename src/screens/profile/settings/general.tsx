@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { View as RNView } from "react-native";
+import { View } from "tamagui";
 
 import { RnPicker } from "@/components/rn-picker";
 import { SectionCard, SectionTitle } from "@/components/rn-section-card";
@@ -33,8 +33,8 @@ export function SettingsGeneral() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <RNView style={{ gap: Spacing.three }}>
-          <RNView>
+        <View gap="three">
+          <View>
             <SectionTitle>{t("settings.sectionGeneral")}</SectionTitle>
             <SectionCard tone="outline">
               <SettingRow
@@ -56,9 +56,9 @@ export function SettingsGeneral() {
                 }
               />
             </SectionCard>
-          </RNView>
+          </View>
 
-          <RNView>
+          <View>
             <SectionTitle>{t("settings.sectionData")}</SectionTitle>
             <SectionCard tone="outline">
               <SettingRow
@@ -71,8 +71,8 @@ export function SettingsGeneral() {
                 showChevron
               />
             </SectionCard>
-          </RNView>
-        </RNView>
+          </View>
+        </View>
       </ScreenScaffold>
     </>
   );

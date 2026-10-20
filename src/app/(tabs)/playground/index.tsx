@@ -4,13 +4,9 @@ import {
   isLiquidGlassAvailable,
 } from "expo-glass-effect";
 import { Stack, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
-import {
-  Pressable as RNPressable,
-  StyleSheet,
-  Text as RNText,
-  View as RNView,
-} from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, StyleSheet } from "react-native";
+import { Button, Text, View } from "tamagui";
 
 import { ContentGlass } from "@/components/content-glass";
 import { GlassChip } from "@/components/glass-chip";
@@ -21,11 +17,11 @@ import {
 import { ReminderCardStack } from "@/components/reminder-card-stack";
 import { RnRoundIconButton } from "@/components/rn-round-icon-button";
 import {
-  ScreenScaffold,
-  Padded,
   FullBleed,
+  Padded,
+  ScreenScaffold,
 } from "@/components/screen-scaffold";
-import { Spacing, Radius } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import { sendTestNotification } from "@/lib/notifications";
@@ -38,9 +34,26 @@ import {
 import { withAlpha } from "@/utils/color";
 
 /**
- * Playground：纯 RN 调试屏，骨架与生产屏同构（ScreenScaffold + Padded）。
- * 刻意不用 Host / SwiftUI 组件 —— MiniArchive 嵌在 SwiftUI ScrollView 下
- * 触摸链路存疑，这里全用 RN 视图做隔离对照，便于定位交互问题。
+ * 调试屏陈列用的四档按钮配色。屏里要用 Button 就照这张表抄一份，
+ * 或者直接用某一档 —— 不要在每个文件里各写一套颜色。
+ * token 名见根目录 tamagui.config.ts（值来自 src/constants/theme.ts）。
+ */
+const BUTTON_VARIANTS = {
+  primary: { backgroundColor: "$primary", color: "$onPrimary" },
+  secondary: {
+    backgroundColor: "$surface",
+    color: "$text",
+    borderWidth: 1,
+    borderColor: "$border",
+  },
+  ghost: { backgroundColor: "transparent", color: "$primary" },
+  destructive: { backgroundColor: "$danger", color: "$onDanger" },
+} as const;
+
+/**
+ * Playground：调试屏，骨架与生产屏同构（ScreenScaffold + Padded），UI 原语走 Tamagui。
+ * MiniArchive / ReminderCardStack 是 Reanimated 动画岛，内部仍是 RN 视图，
+ * 挂在这棵树里正好对照验证手势与外层滚动是否冲突。
  */
 export default function PlaygroundScreen() {
   const theme = useTheme();
@@ -84,6 +97,17 @@ export default function PlaygroundScreen() {
     "regular",
   );
   const [activeChip, setActiveChip] = useState<string>("all");
+  // Tamagui Button 陈列：回显按下了哪颗，以及 loading 那颗的演示状态
+  const [lastPressed, setLastPressed] = useState<string>("（还没有）");
+  const [saving, setSaving] = useState(false);
+
+  // loading 演示：假造一次 1.5 秒的保存。定时器跟着 saving 走，离开屏幕即取消，
+  // 不留在组件外回调里 setState
+  useEffect(() => {
+    if (!saving) return;
+    const timer = setTimeout(() => setSaving(false), 1500);
+    return () => clearTimeout(timer);
+  }, [saving]);
   const entries = medications.map((medication) =>
     archiveEntryFromMedication(medication, t),
   );
@@ -100,92 +124,185 @@ export default function PlaygroundScreen() {
         {/* 首屏加载没结束时不显示空态；组件自带「暂无药品档案」空态 */}
         {loading ? (
           <Padded>
-            <RNText style={{ color: theme.textSecondary }}>
-              {t("home.loading")}
-            </RNText>
+            <Text style={{ color: "$textSecondary" }}>{t("home.loading")}</Text>
           </Padded>
         ) : (
           <>
             <Padded>
-              <RNPressable
+              {/* 这两个是真动作：借调试屏把 Tamagui Button 的两档配色用起来 */}
+              <Button
                 testID="playground-test-notification-button"
-                accessibilityRole="button"
                 onPress={() => {
                   void sendTestNotification();
                 }}
-                // style 必须是函数形式才拿得到 pressed —— 写成静态对象按压时毫无反馈
-                style={({ pressed }) => ({
-                  paddingVertical: Spacing.two,
-                  borderRadius: 12,
-                  borderCurve: "continuous",
-                  alignItems: "center",
-                  backgroundColor: theme.primary,
-                  opacity: pressed ? 0.6 : 1,
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                })}
-                android_ripple={{ color: withAlpha(theme.primary, 0.25) }}
+                alignSelf="stretch"
+                {...BUTTON_VARIANTS.primary}
               >
-                <RNText
-                  style={{
-                    color: theme.onPrimary,
-                    fontSize: 15,
-                    fontWeight: "600",
-                  }}
-                >
-                  {t("common.playgroundTestNotification")}
-                </RNText>
-              </RNPressable>
+                {t("common.playgroundTestNotification")}
+              </Button>
 
-              <RNPressable
+              <Button
                 testID="playground-open-records"
-                accessibilityRole="button"
                 onPress={() => {
                   router.push("/records");
                 }}
-                style={({ pressed }) => ({
-                  marginTop: Spacing.two,
-                  paddingVertical: Spacing.two,
-                  borderRadius: 12,
-                  borderCurve: "continuous",
-                  alignItems: "center",
-                  backgroundColor: pressed
-                    ? theme.backgroundElement
-                    : theme.surface,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                })}
+                alignSelf="stretch"
+                marginBlockStart="two"
+                {...BUTTON_VARIANTS.secondary}
               >
-                <RNText
-                  style={{
-                    color: theme.text,
-                    fontSize: 15,
-                    fontWeight: "600",
-                  }}
+                {t("common.playgroundOpenRecords")}
+              </Button>
+            </Padded>
+
+            {/* ─── Tamagui Button 陈列 ─── */}
+            <Padded>
+              <View style={{ marginTop: Spacing.five, gap: Spacing.four }}>
+                <Text
+                  style={[styles.sectionLabelText, { color: "$textSecondary" }]}
                 >
-                  打开服药记录（临时入口）
-                </RNText>
-              </RNPressable>
+                  {t("common.playgroundTamaguiButton")}
+                </Text>
+
+                {/* variant：四档各一颗，按下后回显到底下的状态行 */}
+                <View style={{ gap: Spacing.two }}>
+                  <Text
+                    style={{
+                      color: "$text",
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    variant
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: Spacing.two,
+                      alignItems: "center",
+                    }}
+                  >
+                    {(
+                      ["primary", "secondary", "ghost", "destructive"] as const
+                    ).map((buttonVariant) => (
+                      <Button
+                        key={buttonVariant}
+                        testID={`playground-tamagui-button-${buttonVariant}`}
+                        size="sm"
+                        onPress={() =>
+                          setLastPressed(`variant:${buttonVariant}`)
+                        }
+                        {...BUTTON_VARIANTS[buttonVariant]}
+                      >
+                        {buttonVariant}
+                      </Button>
+                    ))}
+                  </View>
+                </View>
+
+                {/* size：三档，档位差在高度与内边距上 */}
+                <View style={{ gap: Spacing.two }}>
+                  <Text
+                    style={{
+                      color: "$text",
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    size
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: Spacing.two,
+                      alignItems: "center",
+                    }}
+                  >
+                    {(["sm", "md", "lg"] as const).map((size) => (
+                      <GlassView
+                        key={size}
+                        isInteractive={true}
+                        style={styles.glassButton3}
+                      >
+                        <Button
+                          testID={`playground-tamagui-button-size-${size}`}
+                          size={size}
+                          onPress={() => setLastPressed(`size:${size}`)}
+                          {...BUTTON_VARIANTS.primary}
+                        >
+                          {size}
+                        </Button>
+                      </GlassView>
+                    ))}
+                  </View>
+                </View>
+
+                {/* states：禁用与保存中。loading 那颗点一下真转 1.5 秒 */}
+                <View style={{ gap: Spacing.two }}>
+                  <Text
+                    style={{
+                      color: "$text",
+                      fontSize: 15,
+                      fontWeight: "600",
+                    }}
+                  >
+                    states
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: Spacing.two,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Button
+                      testID="playground-tamagui-button-disabled"
+                      disabled
+                      accessibilityLabel="disabled"
+                      onPress={() => {}}
+                      {...BUTTON_VARIANTS.primary}
+                    >
+                      disabled
+                    </Button>
+                    <Button
+                      testID="playground-tamagui-button-loading"
+                      disabled={saving}
+                      accessibilityLabel={saving ? "saving" : "loading"}
+                      onPress={() => setSaving(true)}
+                      {...BUTTON_VARIANTS.primary}
+                    >
+                      {saving ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={theme.onPrimary}
+                        />
+                      ) : null}
+                      {saving ? "saving" : "loading"}
+                    </Button>
+                  </View>
+                  <Text style={{ color: "$textSecondary", fontSize: 13 }}>
+                    {t("common.playgroundLastPressed", { target: lastPressed })}
+                  </Text>
+                </View>
+              </View>
             </Padded>
 
             {/* ─── 液态玻璃组件演示 ─── */}
             <Padded>
-              <RNView
+              <View
                 style={[styles.glassDemoContainer, { marginTop: Spacing.five }]}
               >
                 {/* 渲染后端提示 */}
-                <RNText
-                  style={[
-                    styles.sectionLabelText,
-                    { color: theme.textSecondary },
-                  ]}
+                <Text
+                  style={[styles.sectionLabelText, { color: "$textSecondary" }]}
                 >
                   {nativeSupported
                     ? "LiquidGlass: 原生 UIGlassEffect (iOS 26+)"
                     : "LiquidGlass: 不可用（需 iOS 26+，内容玻璃退化为实心底）"}
-                </RNText>
+                </Text>
 
                 {/* variant 切换 */}
-                <RNView
+                <View
                   style={{
                     flexDirection: "row",
                     gap: Spacing.two,
@@ -193,75 +310,74 @@ export default function PlaygroundScreen() {
                   }}
                 >
                   {(["regular", "clear"] as const).map((v) => (
-                    <RNPressable
+                    <View
                       key={v}
                       testID={`playground-glass-variant-${v}`}
                       onPress={() => setVariant(v)}
-                      style={({ pressed }) => ({
-                        paddingHorizontal: Spacing.three,
-                        paddingVertical: Spacing.two,
-                        borderRadius: 999,
-                        borderCurve: "continuous",
-                        backgroundColor:
-                          variant === v
-                            ? theme.primary
-                            : withAlpha(theme.primary, 0.12),
-                        opacity: pressed ? 0.7 : 1,
-                      })}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: variant === v }}
+                      paddingInline="three"
+                      paddingBlock="two"
+                      borderRadius="pill"
+                      borderCurve="continuous"
+                      // 实心底才能用透明度做按压反馈；这两颗是实色，不是玻璃
+                      opacity="1 press:0.7"
+                      backgroundColor={
+                        variant === v
+                          ? "$primary"
+                          : withAlpha(theme.primary, 0.12)
+                      }
                     >
-                      <RNText
-                        style={{
-                          color:
-                            variant === v ? theme.onPrimary : theme.primary,
-                          fontSize: 14,
-                          fontWeight: "600",
-                        }}
+                      <Text
+                        fontSize={14}
+                        fontWeight="600"
+                        color={variant === v ? "$onPrimary" : "$primary"}
                       >
                         {v === "regular" ? "Regular" : "Clear"}
-                      </RNText>
-                    </RNPressable>
+                      </Text>
+                    </View>
                   ))}
-                </RNView>
+                </View>
 
                 {/* glassView 版本 */}
-                <RNPressable
+                <View
                   testID="playground-glass-primary-button"
                   onPress={() => {
                     console.log("GlassView Button OnPress");
                   }}
                 >
                   <GlassView isInteractive={true} style={styles.glassButton2}>
-                    <RNText>确认服药 GlassView</RNText>
+                    <Text>确认服药 GlassView</Text>
                   </GlassView>
-                </RNPressable>
-              </RNView>
+                </View>
+              </View>
             </Padded>
 
             {/* ─── 迁移组件展示 ─── */}
             <Padded>
-              <RNView style={{ marginTop: Spacing.five, gap: Spacing.four }}>
-                <RNText
+              <View style={{ marginTop: Spacing.five, gap: Spacing.four }}>
+                <Text
                   style={{
-                    color: theme.textSecondary,
+                    color: "$textSecondary",
                     fontSize: 13,
                     fontWeight: "600",
                   }}
                 >
                   迁移组件展示（第 0 批）
-                </RNText>
+                </Text>
 
                 {/* ContentGlass */}
-                <RNView style={{ gap: Spacing.two }}>
-                  <RNText
+                <View style={{ gap: Spacing.two }}>
+                  <Text
                     style={{
-                      color: theme.text,
+                      color: "$text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
                   >
                     ContentGlass
-                  </RNText>
-                  <RNView
+                  </Text>
+                  <View
                     style={{
                       flexDirection: "row",
                       gap: Spacing.two,
@@ -269,81 +385,81 @@ export default function PlaygroundScreen() {
                     }}
                   >
                     {(["regular", "clear"] as const).map((v) => (
-                      <RNPressable
+                      <View
                         key={v}
                         testID={`playground-content-glass-${v}`}
                         onPress={() => setGlassCardVariant(v)}
-                        style={({ pressed }) => ({
-                          paddingHorizontal: Spacing.three,
-                          paddingVertical: Spacing.two,
-                          borderRadius: 999,
-                          borderCurve: "continuous",
-                          backgroundColor:
-                            glassCardVariant === v
-                              ? theme.primary
-                              : withAlpha(theme.primary, 0.12),
-                          opacity: pressed ? 0.7 : 1,
-                        })}
+                        accessibilityRole="button"
+                        accessibilityState={{
+                          selected: glassCardVariant === v,
+                        }}
+                        paddingInline="three"
+                        paddingBlock="two"
+                        borderRadius="pill"
+                        borderCurve="continuous"
+                        opacity="1 press:0.7"
+                        backgroundColor={
+                          glassCardVariant === v
+                            ? "$primary"
+                            : withAlpha(theme.primary, 0.12)
+                        }
                       >
-                        <RNText
-                          style={{
-                            color:
-                              glassCardVariant === v
-                                ? theme.onPrimary
-                                : theme.primary,
-                            fontSize: 14,
-                            fontWeight: "600",
-                          }}
+                        <Text
+                          fontSize={14}
+                          fontWeight="600"
+                          color={
+                            glassCardVariant === v ? "$onPrimary" : "$primary"
+                          }
                         >
                           {v === "regular" ? "Regular" : "Clear"}
-                        </RNText>
-                      </RNPressable>
+                        </Text>
+                      </View>
                     ))}
-                  </RNView>
+                  </View>
                   <ContentGlass
                     variant={glassCardVariant}
-                    tint={theme.primary}
+                    tint={"$primary"}
                     cornerRadius={Radius.card}
                     style={{ padding: Spacing.three }}
                     fallbackStyle={{
-                      backgroundColor: theme.surface,
+                      backgroundColor: "$surface",
                       borderWidth: 1,
-                      borderColor: theme.border,
+                      borderColor: "$border",
                     }}
                   >
-                    <RNText
+                    <Text
                       style={{
-                        color: theme.text,
+                        color: "$text",
                         fontSize: 15,
                         fontWeight: "600",
                       }}
                     >
                       这是 ContentGlass 卡片
-                    </RNText>
-                    <RNText
+                    </Text>
+                    <Text
                       style={{
-                        color: theme.textSecondary,
+                        color: "$textSecondary",
                         fontSize: 13,
                         marginTop: Spacing.one,
                       }}
                     >
                       原生玻璃 / 实心 fallback 自动切换
-                    </RNText>
+                    </Text>
                   </ContentGlass>
-                </RNView>
+                </View>
 
                 {/* GlassChip */}
-                <RNView style={{ gap: Spacing.two }}>
-                  <RNText
+                <View style={{ gap: Spacing.two }}>
+                  <Text
                     style={{
-                      color: theme.text,
+                      color: "$text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
                   >
                     GlassChip
-                  </RNText>
-                  <RNView
+                  </Text>
+                  <View
                     style={{
                       flexDirection: "row",
                       flexWrap: "wrap",
@@ -366,21 +482,21 @@ export default function PlaygroundScreen() {
                         />
                       ))}
                     </GlassContainer>
-                  </RNView>
-                </RNView>
+                  </View>
+                </View>
 
                 {/* RnRoundIconButton */}
-                <RNView style={{ gap: Spacing.two }}>
-                  <RNText
+                <View style={{ gap: Spacing.two }}>
+                  <Text
                     style={{
-                      color: theme.text,
+                      color: "$text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
                   >
                     RnRoundIconButton
-                  </RNText>
-                  <RNView
+                  </Text>
+                  <View
                     style={{
                       flexDirection: "row",
                       gap: Spacing.three,
@@ -403,50 +519,50 @@ export default function PlaygroundScreen() {
                       iconSize={20}
                       onPress={() => {}}
                     />
-                  </RNView>
-                </RNView>
+                  </View>
+                </View>
 
                 {/* ScreenScaffold 效果 */}
-                <RNView style={{ gap: Spacing.two }}>
-                  <RNText
+                <View style={{ gap: Spacing.two }}>
+                  <Text
                     style={{
-                      color: theme.text,
+                      color: "$text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
                   >
                     ScreenScaffold（scroll={false}）
-                  </RNText>
+                  </Text>
                   <ScreenScaffold scroll={false}>
                     <Padded>
-                      <RNView
+                      <View
                         style={{
-                          backgroundColor: theme.primarySoft,
+                          backgroundColor: "$primarySoft",
                           padding: Spacing.two,
                           borderRadius: Radius.card,
                         }}
                       >
-                        <RNText style={{ color: theme.primary, fontSize: 14 }}>
+                        <Text style={{ color: "$primary", fontSize: 14 }}>
                           Padded 区块（内缩 {Spacing.screen}pt）
-                        </RNText>
-                      </RNView>
+                        </Text>
+                      </View>
                     </Padded>
-                    <RNView style={{ height: Spacing.two }} />
+                    <View style={{ height: Spacing.two }} />
                     <FullBleed>
-                      <RNView
+                      <View
                         style={{
-                          backgroundColor: theme.warningSoft,
+                          backgroundColor: "$warningSoft",
                           padding: Spacing.two,
                         }}
                       >
-                        <RNText style={{ color: theme.warning, fontSize: 14 }}>
+                        <Text style={{ color: "$warning", fontSize: 14 }}>
                           FullBleed 区块（顶到左右缘）
-                        </RNText>
-                      </RNView>
+                        </Text>
+                      </View>
                     </FullBleed>
                   </ScreenScaffold>
-                </RNView>
-              </RNView>
+                </View>
+              </View>
             </Padded>
 
             <MiniArchive
@@ -461,16 +577,16 @@ export default function PlaygroundScreen() {
             {/* 纯 RN 屏直接挂载即可（无需 RNHostView），
                 在这里对照验证 Pan 手势与外层滚动是否冲突 */}
             <Padded>
-              <RNView style={{ marginTop: Spacing.five }}>
-                <RNText
+              <View style={{ marginTop: Spacing.five }}>
+                <Text
                   style={{
-                    color: theme.textSecondary,
+                    color: "$textSecondary",
                     fontSize: 13,
                     marginBottom: Spacing.two,
                   }}
                 >
                   {t("common.playgroundCardStack")}
-                </RNText>
+                </Text>
                 <ReminderCardStack
                   reminders={reminders}
                   medications={medications}
@@ -479,11 +595,11 @@ export default function PlaygroundScreen() {
                   onChanged={reload}
                 />
                 {pendingCount === 0 ? (
-                  <RNText style={{ color: theme.textSecondary, fontSize: 13 }}>
+                  <Text style={{ color: "$textSecondary", fontSize: 13 }}>
                     {t("common.playgroundEmpty")}
-                  </RNText>
+                  </Text>
                 ) : null}
-              </RNView>
+              </View>
             </Padded>
           </>
         )}
@@ -502,18 +618,23 @@ const styles = StyleSheet.create({
   },
   glassButton: {
     alignItems: "center",
-    paddingVertical: Spacing.two + 2,
-    // paddingHorizontal: Spacing.three,
+    paddingBlock: "two" + 2,
+    // paddingInline: "three",
   },
   glassButtonNarrow: {
     alignSelf: "flex-start",
-    paddingHorizontal: Spacing.three + 8,
+    paddingInline: "three" + 8,
   },
   glassButton2: {
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
     padding: Spacing.two + 2,
+  },
+  glassButton3: {
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
   },
   glassButtonLabel: {
     fontSize: 16,

@@ -2,12 +2,13 @@ import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
-  Pressable as RNPressable,
   ScrollView as RNScrollView,
-  Text as RNText,
   TextInput as RNTextInput,
+  // onLayout 是 RN View 专属 prop（Tamagui 的 View 类型不收），
+  // 孪生的格子等分要数字宽度，只能留给 RN 父级实测
   View as RNView,
 } from "react-native";
+import { Text, View } from "tamagui";
 
 import { GlassChip } from "@/components/glass-chip";
 import { GlassHostButton } from "@/components/glass-host-button";
@@ -17,7 +18,7 @@ import { RnPicker } from "@/components/rn-picker";
 import { SectionCard, SectionTitle } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
 import { SymbolIcon } from "@/components/symbol-icon";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, useTranslation, type Language } from "@/i18n";
 import {
@@ -64,6 +65,7 @@ import {
  */
 export function MedicationTwin() {
   const t = useTranslation();
+  // SymbolIcon 的 color 是原生 tintColor，收不到 Tamagui 的 token 名
   const theme = useTheme();
   const { language } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -145,19 +147,19 @@ export function MedicationTwin() {
   // 首屏还在读 SQLite：直接渲染会闪一下「药品不存在」
   if (loading) {
     return (
-      <RNView style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View style={{ flex: 1, backgroundColor: "$canvas" }}>
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{t("common.loading")}</Stack.Title>
-      </RNView>
+      </View>
     );
   }
 
   if (!medication) {
     return (
-      <RNView style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View style={{ flex: 1, backgroundColor: "$canvas" }}>
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{t("medication.notFound")}</Stack.Title>
-        <RNView
+        <View
           style={{
             flex: 1,
             alignItems: "center",
@@ -165,11 +167,11 @@ export function MedicationTwin() {
             paddingTop: 120,
           }}
         >
-          <RNText style={{ color: theme.textSecondary }}>
+          <Text style={{ color: "$textSecondary" }}>
             {t("medication.notFound")}
-          </RNText>
-        </RNView>
-      </RNView>
+          </Text>
+        </View>
+      </View>
     );
   }
 
@@ -261,7 +263,7 @@ export function MedicationTwin() {
           paddingBottom: BottomTabInset + Spacing.five,
         }}
       >
-        <RNView style={{ gap: Spacing.three }}>
+        <View style={{ gap: "three" }}>
           {summary.enabled ? (
             <>
               <TwinOverview
@@ -303,11 +305,11 @@ export function MedicationTwin() {
               ) : null}
 
               {persons.length > 1 ? (
-                <RNView
+                <View
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: Spacing.rowGap,
+                    gap: "rowGap",
                   }}
                 >
                   <SymbolIcon
@@ -325,11 +327,11 @@ export function MedicationTwin() {
                     onValueChange={setPersonId}
                     menuTitle={t("plan.person")}
                   />
-                  <RNView style={{ flex: 1 }} />
-                  <RNText style={{ fontSize: 12, color: theme.textSecondary }}>
+                  <View style={{ flex: 1 }} />
+                  <Text style={{ fontSize: 12, color: "$textSecondary" }}>
                     {t("twin.personHint")}
-                  </RNText>
-                </RNView>
+                  </Text>
+                </View>
               ) : null}
 
               <GlassHostButton
@@ -357,7 +359,7 @@ export function MedicationTwin() {
               }}
             />
           )}
-        </RNView>
+        </View>
       </ScreenScaffold>
 
       {/* @lodev09/react-native-true-sheet：真原生 sheet（iOS
@@ -423,51 +425,49 @@ function TwinOverview({
   daysLeft: number | null;
   low: boolean;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
   const percent = total > 0 ? full / total : 0;
-  const strong = low ? theme.dangerStrong : theme.successStrong;
+  const strong = low ? "$dangerStrong" : "$successStrong";
 
   return (
-    <RNView
+    <View
       style={{
-        backgroundColor: theme.surface,
+        backgroundColor: "$surface",
         borderWidth: 1,
-        borderColor: theme.border,
-        borderRadius: Radius.card,
+        borderColor: "$border",
+        borderRadius: "card",
         borderCurve: "continuous",
-        padding: Spacing.three,
-        gap: Spacing.three,
+        padding: "three",
+        gap: "three",
       }}
     >
-      <RNView
+      <View
         style={{
           flexDirection: "row",
           alignItems: "flex-end",
-          gap: Spacing.two,
+          gap: "two",
         }}
       >
-        <RNText
+        <Text
           style={{
             fontFamily: "system-ui",
             fontSize: 32,
             lineHeight: 34,
             fontWeight: "800",
             letterSpacing: -0.96,
-            color: theme.text,
+            color: "$text",
           }}
         >
           {String(full)}
-        </RNText>
-        <RNText style={{ fontSize: 15, color: theme.textSecondary }}>
+        </Text>
+        <Text style={{ fontSize: 15, color: "$textSecondary" }}>
           {`/ ${total}`}
-        </RNText>
-        <RNView style={{ flex: 1 }} />
-        <RNText
+        </Text>
+        <View style={{ flex: 1 }} />
+        <Text
           style={{
             fontSize: 13,
-            color:
-              low && daysLeft !== null ? theme.danger : theme.textSecondary,
+            color: low && daysLeft !== null ? "$danger" : "$textSecondary",
           }}
         >
           {daysLeft !== null
@@ -475,23 +475,23 @@ function TwinOverview({
               ? t("medication.daysLeftHintLow", { days: daysLeft })
               : t("medication.daysLeftHint", { days: daysLeft })
             : t("medication.noEstimate")}
-        </RNText>
-      </RNView>
+        </Text>
+      </View>
       <ProgressBarRn
         percent={percent}
         color={strong}
-        track={theme.backgroundSelected}
+        track="$backgroundSelected"
         height={8}
       />
-      <RNText
+      <Text
         style={{
           fontSize: 12,
-          color: low ? theme.danger : theme.textSecondary,
+          color: low ? "$danger" : "$textSecondary",
         }}
       >
         {t("twin.summaryLine", { full, total })}
-      </RNText>
-    </RNView>
+      </Text>
+    </View>
   );
 }
 
@@ -556,25 +556,26 @@ function EnableTwinCard({
   /** 三个输入框共用：field 区分改的是哪一个，顺带清掉错误态 */
   onInput: (field: "rows" | "cols" | "packs", value: string) => void;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
+  // 输入框是 RN TextInput，style 不解析 Tamagui 的 token 名
+  const theme = useTheme();
 
   return (
-    <RNView style={{ gap: Spacing.three }}>
+    <View style={{ gap: "three" }}>
       <SectionTitle>{t("twin.enableTitle")}</SectionTitle>
       <SectionCard>
-        <RNView style={{ gap: Spacing.three }}>
-          <RNText
+        <View style={{ gap: "three" }}>
+          <Text
             style={{
               fontSize: 13,
               lineHeight: 19,
-              color: theme.textSecondary,
+              color: "$textSecondary",
             }}
           >
             {t("twin.enableBody")}
-          </RNText>
+          </Text>
           {/* 三列等分：RN 有 flex，直接 flex: 1，不再由宿主算数字宽度 */}
-          <RNView style={{ flexDirection: "row", gap: Spacing.two }}>
+          <View style={{ flexDirection: "row", gap: "two" }}>
             {[
               {
                 field: "rows" as const,
@@ -595,7 +596,7 @@ function EnableTwinCard({
                 value: packCount,
               },
             ].map((item) => (
-              <RNView key={item.testID} style={{ flex: 1 }}>
+              <View key={item.testID} style={{ flex: 1 }}>
                 <InputShell>
                   <RNTextInput
                     testID={item.testID}
@@ -608,22 +609,22 @@ function EnableTwinCard({
                     style={{ fontSize: 15, color: theme.text, padding: 0 }}
                   />
                 </InputShell>
-              </RNView>
+              </View>
             ))}
-          </RNView>
+          </View>
           {specError ? (
-            <RNText style={{ fontSize: 13, color: theme.danger }}>
+            <Text style={{ fontSize: 13, color: "$danger" }}>
               {t("twin.specInvalid")}
-            </RNText>
+            </Text>
           ) : null}
           <GlassHostButton
             testID="twin-enable-submit"
             label={t("twin.specSubmit")}
             onPress={onSubmit}
           />
-        </RNView>
+        </View>
       </SectionCard>
-    </RNView>
+    </View>
   );
 }
 
@@ -659,42 +660,41 @@ function SlotSheet({
   onRestore: () => void;
   onUndo: () => void;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
 
   return (
-    <RNView
+    <View
       testID="twin-slot-sheet"
       style={{
-        paddingHorizontal: Spacing.four,
-        paddingTop: Spacing.two,
-        paddingBottom: Spacing.five,
-        gap: Spacing.three,
-        backgroundColor: theme.surface,
+        paddingHorizontal: "four",
+        paddingTop: "two",
+        paddingBottom: "five",
+        gap: "three",
+        backgroundColor: "$surface",
       }}
     >
-      <RNText style={{ fontSize: 17, fontWeight: "700", color: theme.text }}>
+      <Text style={{ fontSize: 17, fontWeight: "700", color: "$text" }}>
         {t("twin.slotTitle", { seq, slot: slotNumber })}
-      </RNText>
+      </Text>
 
       {slot.status === "full" ? (
         <>
-          <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
+          <Text style={{ fontSize: 14, color: "$textSecondary" }}>
             {hasPerson ? t("twin.slotFull") : t("twin.noPerson")}
-          </RNText>
+          </Text>
           <SheetButton
             testID="twin-consume-button"
             label={t("twin.actionConsume")}
-            color={theme.primary}
-            borderColor={theme.primary}
+            color={"$primary"}
+            borderColor={"$primary"}
             disabled={!hasPerson}
             onPress={onConsume}
           />
           <SheetButton
             testID="twin-void-button"
             label={t("twin.actionVoid")}
-            color={theme.danger}
-            borderColor={theme.border}
+            color={"$danger"}
+            borderColor={"$border"}
             onPress={onVoid}
           />
         </>
@@ -702,22 +702,22 @@ function SlotSheet({
 
       {slot.status === "empty" && personName && takenAt ? (
         <>
-          <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
+          <Text style={{ fontSize: 14, color: "$textSecondary" }}>
             {t("twin.slotTaken", {
               person: personName,
               datetime: formatTakenAt(takenAt, language),
             })}
-          </RNText>
+          </Text>
           {late ? (
-            <RNText style={{ fontSize: 12, color: theme.warningStrong }}>
+            <Text style={{ fontSize: 12, color: "$warningStrong" }}>
               {t("twin.slotTakenLate")}
-            </RNText>
+            </Text>
           ) : null}
           <SheetButton
             testID="twin-undo-button"
             label={t("twin.actionUndo")}
-            color={theme.danger}
-            borderColor={theme.border}
+            color={"$danger"}
+            borderColor={"$border"}
             onPress={onUndo}
           />
         </>
@@ -725,14 +725,14 @@ function SlotSheet({
 
       {slot.status === "empty" && !personName ? (
         <>
-          <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
+          <Text style={{ fontSize: 14, color: "$textSecondary" }}>
             {t("twin.slotHistory")}
-          </RNText>
+          </Text>
           <SheetButton
             testID="twin-restore-button"
             label={t("twin.actionRestore")}
-            color={theme.primary}
-            borderColor={theme.primary}
+            color={"$primary"}
+            borderColor={"$primary"}
             onPress={onRestore}
           />
         </>
@@ -740,19 +740,19 @@ function SlotSheet({
 
       {slot.status === "void" ? (
         <>
-          <RNText style={{ fontSize: 14, color: theme.textSecondary }}>
+          <Text style={{ fontSize: 14, color: "$textSecondary" }}>
             {t("twin.slotVoid")}
-          </RNText>
+          </Text>
           <SheetButton
             testID="twin-restore-button"
             label={t("twin.actionRestore")}
-            color={theme.primary}
-            borderColor={theme.primary}
+            color={"$primary"}
+            borderColor={"$primary"}
             onPress={onRestore}
           />
         </>
       ) : null}
-    </RNView>
+    </View>
   );
 }
 
@@ -772,32 +772,23 @@ function SheetButton({
   disabled?: boolean;
   onPress: () => void;
 }) {
-  const theme = useTheme();
   return (
-    <RNPressable
+    <View
       testID={testID}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        borderWidth: 1,
-        borderColor,
-        borderRadius: Radius.tile,
-        backgroundColor: pressed ? theme.backgroundSelected : "transparent",
-        opacity: disabled ? 0.4 : 1,
-        paddingVertical: Spacing.three,
-      })}
+      onPress={disabled ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
+      borderWidth={1}
+      borderColor={borderColor}
+      borderRadius="tile"
+      backgroundColor="transparent press:$backgroundSelected"
+      opacity={disabled ? 0.4 : 1}
+      paddingBlock="three"
     >
-      <RNText
-        style={{
-          fontSize: 16,
-          fontWeight: "600",
-          color,
-          textAlign: "center",
-        }}
-      >
+      <Text fontSize={16} fontWeight="600" color={color} textAlign="center">
         {label}
-      </RNText>
-    </RNPressable>
+      </Text>
+    </View>
   );
 }
 

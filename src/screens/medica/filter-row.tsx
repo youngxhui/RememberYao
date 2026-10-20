@@ -1,5 +1,5 @@
 import { FlashList } from "@shopify/flash-list";
-import { StyleSheet, View } from "react-native";
+import { View } from "tamagui";
 
 import { GlassChip, GlassChipRow } from "@/components/glass-chip";
 import { Spacing } from "@/constants/theme";
@@ -26,7 +26,7 @@ export function FilterRow({
   const t = useTranslation();
 
   return (
-    <GlassChipRow style={styles.containerStyle}>
+    <GlassChipRow style={{ paddingVertical: Spacing.one }}>
       <FlashList
         keyExtractor={(item) => item.key}
         showsHorizontalScrollIndicator={false}
@@ -34,7 +34,7 @@ export function FilterRow({
         horizontal
         data={MEDICA_FILTERS}
         renderItem={({ item }) => (
-          <View style={{ marginRight: Spacing.two }}>
+          <View marginRight="two">
             <GlassChip
               key={item.key}
               testID={`medica-filter-${item.key}`}
@@ -50,9 +50,3 @@ export function FilterRow({
     </GlassChipRow>
   );
 }
-
-const styles = StyleSheet.create({
-  containerStyle: {
-    paddingVertical: Spacing.one,
-  },
-});

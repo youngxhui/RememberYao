@@ -1,10 +1,6 @@
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import {
-  Pressable as RNPressable,
-  Text as RNText,
-  View as RNView,
-} from "react-native";
+import { Button, Text, View, XStack } from "tamagui";
 
 import { ExternalLink } from "@/components/external-link";
 import { SYMBOL_ICONS } from "@/components/icons";
@@ -12,7 +8,7 @@ import { SectionCard, SectionTitle } from "@/components/rn-section-card";
 import { ScreenScaffold } from "@/components/screen-scaffold";
 import { RowDivider, SettingRow } from "@/components/setting-row";
 import { SymbolIcon } from "@/components/symbol-icon";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useTheme } from "@/hooks/use-theme";
 import {
@@ -155,27 +151,25 @@ export function ProScreen() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <RNView style={{ gap: Spacing.three }}>
+        <View gap="three">
           {notice ? <NoticeBanner notice={notice} /> : null}
 
           {/* 页面说明：一句话讲清这屏是干什么的（跟随 Stack.Title 之下） */}
-          <RNText style={{ fontSize: 13, color: theme.textSecondary }}>
+          <Text fontSize={13} color="$textSecondary">
             {t("pro.subtitle")}
-          </RNText>
+          </Text>
 
           {/* 订阅状态 */}
-          <RNView>
+          <View>
             <SectionTitle>{t("pro.sectionStatus")}</SectionTitle>
             <SectionCard tone="outline">
               {loading ? (
                 <SettingRow
                   label={t("pro.status")}
                   trailing={
-                    <RNText
-                      style={{ fontSize: 15, color: theme.textSecondary }}
-                    >
+                    <Text fontSize={15} color="$textSecondary">
                       {t("common.loading")}
-                    </RNText>
+                    </Text>
                   }
                 />
               ) : error ? (
@@ -191,18 +185,16 @@ export function ProScreen() {
                   <SettingRow
                     label={t("pro.status")}
                     trailing={
-                      <RNText
-                        style={{
-                          fontSize: 15,
-                          color: isPro ? theme.success : theme.textSecondary,
-                        }}
+                      <Text
+                        fontSize={15}
+                        color={isPro ? "$success" : "$textSecondary"}
                       >
                         {!available
                           ? t("pro.statusUnavailable")
                           : isPro
                             ? t("pro.statusActive")
                             : t("pro.statusInactive")}
-                      </RNText>
+                      </Text>
                     }
                   />
                   {isPro && entitlement ? (
@@ -211,32 +203,22 @@ export function ProScreen() {
                       <SettingRow
                         label={t("pro.currentPlan")}
                         trailing={
-                          <RNText
-                            style={{
-                              fontSize: 15,
-                              color: theme.textSecondary,
-                            }}
-                          >
+                          <Text fontSize={15} color="$textSecondary">
                             {t(
                               planKeyFromProductId(
                                 entitlement.productIdentifier,
                               ),
                             )}
-                          </RNText>
+                          </Text>
                         }
                       />
                       <RowDivider />
                       <SettingRow
                         label={t("pro.expires")}
                         trailing={
-                          <RNText
-                            style={{
-                              fontSize: 15,
-                              color: theme.textSecondary,
-                            }}
-                          >
+                          <Text fontSize={15} color="$textSecondary">
                             {expiresText ?? t("pro.expiresNever")}
-                          </RNText>
+                          </Text>
                         }
                       />
                     </>
@@ -259,12 +241,12 @@ export function ProScreen() {
                 </>
               )}
             </SectionCard>
-          </RNView>
+          </View>
 
           {/* 未开通：权益说明 + 升级入口 */}
           {showUpgrade ? (
             <>
-              <RNView>
+              <View>
                 <SectionTitle>{t("pro.sectionBenefits")}</SectionTitle>
                 <SectionCard tone="outline">
                   <BenefitRow text={t("pro.benefit1")} />
@@ -273,41 +255,30 @@ export function ProScreen() {
                   <RowDivider />
                   <BenefitRow text={t("pro.benefit3")} />
                 </SectionCard>
-              </RNView>
+              </View>
 
-              <RNView style={{ gap: Spacing.two }}>
-                <RNPressable
+              <View gap="two">
+                <Button
                   testID="pro-upgrade-button"
-                  accessibilityRole="button"
                   disabled={busy !== null}
                   onPress={() => {
                     void handleUpgrade();
                   }}
-                  style={({ pressed }) => ({
-                    backgroundColor: pressed
-                      ? theme.primarySoft
-                      : theme.primary,
-                    borderRadius: Radius.card,
-                    borderCurve: "continuous",
-                    paddingVertical: Spacing.three,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: 50,
-                    opacity: busy !== null ? 0.6 : 1,
-                  })}
+                  backgroundColor="$primary press:$primarySoft"
+                  color="$onPrimary"
+                  borderRadius="card"
+                  borderCurve="continuous"
+                  paddingBlock="three"
+                  minHeight={50}
+                  opacity={busy !== null ? 0.6 : 1}
+                  alignSelf="stretch"
                 >
-                  <RNText
-                    style={{
-                      color: theme.onPrimary,
-                      fontSize: 17,
-                      fontWeight: "700",
-                    }}
-                  >
+                  <Text color="$onPrimary" fontSize={17} fontWeight="700">
                     {busy === "upgrade"
                       ? t("common.loading")
                       : t("pro.upgrade")}
-                  </RNText>
-                </RNPressable>
+                  </Text>
+                </Button>
 
                 <SettingRow
                   testID="pro-restore-row"
@@ -318,67 +289,51 @@ export function ProScreen() {
                   }}
                   trailing={
                     busy === "restore" ? (
-                      <RNText
-                        style={{ fontSize: 13, color: theme.textSecondary }}
-                      >
+                      <Text fontSize={13} color="$textSecondary">
                         {t("pro.restoring")}
-                      </RNText>
+                      </Text>
                     ) : undefined
                   }
                 />
-              </RNView>
+              </View>
             </>
           ) : null}
 
           {/* 条款 / 隐私：App Store 要求购买入口可触达 */}
           {available ? (
-            <RNView style={{ alignItems: "center", gap: Spacing.two }}>
-              <RNView
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: Spacing.two,
-                }}
-              >
+            <View alignItems="center" gap="two">
+              <XStack alignItems="center" gap="two">
                 <ExternalLink
                   href={PRO_TERMS_URL}
                   style={{ fontSize: 13, color: theme.textSecondary }}
                 >
                   {t("pro.terms")}
                 </ExternalLink>
-                <RNText style={{ fontSize: 13, color: theme.textSecondary }}>
+                <Text fontSize={13} color="$textSecondary">
                   ·
-                </RNText>
+                </Text>
                 <ExternalLink
                   href={PRO_PRIVACY_URL}
                   style={{ fontSize: 13, color: theme.textSecondary }}
                 >
                   {t("pro.privacy")}
                 </ExternalLink>
-              </RNView>
-              <RNText
-                style={{
-                  fontSize: 12,
-                  lineHeight: 18,
-                  color: theme.textSecondary,
-                  textAlign: "center",
-                }}
+              </XStack>
+              <Text
+                fontSize={12}
+                lineHeight={18}
+                color="$textSecondary"
+                textAlign="center"
               >
                 {t("pro.termsHint")}
-              </RNText>
-            </RNView>
+              </Text>
+            </View>
           ) : (
-            <RNText
-              style={{
-                fontSize: 13,
-                color: theme.textSecondary,
-                textAlign: "center",
-              }}
-            >
+            <Text fontSize={13} color="$textSecondary" textAlign="center">
               {t("pro.unavailableHint")}
-            </RNText>
+            </Text>
           )}
-        </RNView>
+        </View>
       </ScreenScaffold>
     </>
   );
@@ -386,43 +341,38 @@ export function ProScreen() {
 
 /** 权益说明里的一行：对勾 + 文案 */
 function BenefitRow({ text }: { text: string }) {
+  // SymbolIcon 的 color 走 expo-symbols 原生 tintColor，收不了 Tamagui token 名，
+  // 仍取真实色值
   const theme = useTheme();
   return (
-    <RNView
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: Spacing.three,
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.rowGap,
-      }}
+    <XStack
+      alignItems="center"
+      gap="three"
+      paddingInline="three"
+      paddingBlock="rowGap"
     >
       <SymbolIcon name={SYMBOL_ICONS.check} size={16} color={theme.primary} />
-      <RNText style={{ flex: 1, fontSize: 15, color: theme.text }}>
+      <Text flex={1} fontSize={15} color="$text">
         {text}
-      </RNText>
-    </RNView>
+      </Text>
+    </XStack>
   );
 }
 
 /** 顶部提示条：成功用 successSoft / 失败用 dangerSoft */
 function NoticeBanner({ notice }: { notice: Notice }) {
-  const theme = useTheme();
-  const tone =
-    notice.tone === "success"
-      ? { background: theme.successSoft, color: theme.success }
-      : { background: theme.dangerSoft, color: theme.danger };
+  const success = notice.tone === "success";
   return (
-    <RNView
-      style={{
-        backgroundColor: tone.background,
-        borderRadius: Radius.tile,
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.two,
-      }}
+    <View
+      backgroundColor={success ? "$successSoft" : "$dangerSoft"}
+      borderRadius="tile"
+      paddingInline="three"
+      paddingBlock="two"
     >
-      <RNText style={{ fontSize: 13, color: tone.color }}>{notice.text}</RNText>
-    </RNView>
+      <Text fontSize={13} color={success ? "$success" : "$danger"}>
+        {notice.text}
+      </Text>
+    </View>
   );
 }
 

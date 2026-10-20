@@ -1,7 +1,4 @@
-import { View, Text } from "react-native";
-
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
+import { Text, View, XStack, YStack } from "tamagui";
 
 /**
  * 分组卡片：替代嵌在 ScrollView 里的 FieldGroup / List —— 两者在 iOS 上分别是
@@ -25,22 +22,18 @@ export function SectionCard({
   children: React.ReactNode;
   tone?: "fill" | "outline";
 }) {
-  const theme = useTheme();
   return (
-    <View
-      style={{
-        backgroundColor:
-          tone === "outline" ? theme.surface : theme.backgroundElement,
-        borderRadius: Radius.card,
-        borderCurve: "continuous",
-        ...(tone === "outline"
-          ? { borderWidth: 1, borderColor: theme.border }
-          : null),
-        overflow: "hidden",
-      }}
+    <YStack
+      backgroundColor={tone === "outline" ? "$surface" : "$backgroundElement"}
+      borderRadius="card"
+      borderCurve="continuous"
+      overflow="hidden"
+      {...(tone === "outline"
+        ? { borderWidth: 1, borderColor: "$border" }
+        : null)}
     >
       {children}
-    </View>
+    </YStack>
   );
 }
 
@@ -53,17 +46,14 @@ export function SectionCard({
  * 标题距自己的卡 8，贴近 iOS 分组列表「header 贴组、离组有距」的观感）。
  */
 export function SectionTitle({ children }: { children: string }) {
-  const theme = useTheme();
   return (
     <Text
-      style={{
-        paddingTop: Spacing.two,
-        paddingBottom: Spacing.two,
-        paddingLeft: 4,
-        fontSize: 13,
-        color: theme.textSecondary,
-        fontWeight: "500",
-      }}
+      paddingTop="two"
+      paddingBottom="two"
+      paddingLeft={4}
+      fontSize={13}
+      color="$textSecondary"
+      fontWeight="500"
     >
       {children}
     </Text>
@@ -72,10 +62,7 @@ export function SectionTitle({ children }: { children: string }) {
 
 /** 分组行之间的发丝线 */
 export function HairLine() {
-  const theme = useTheme();
-  return (
-    <View style={{ height: 1, backgroundColor: theme.backgroundSelected }} />
-  );
+  return <View height={1} backgroundColor="$backgroundSelected" />;
 }
 
 /**
@@ -94,29 +81,25 @@ export function InfoRow({
   /** 值需要警示时传语义色（过期日期、处方药） */
   valueColor?: string;
 }) {
-  const theme = useTheme();
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.rowGap,
-        gap: Spacing.three,
-      }}
+    <XStack
+      alignItems="center"
+      paddingInline="three"
+      paddingBlock="rowGap"
+      gap="three"
     >
-      <Text style={{ fontSize: 15, color: theme.text, flex: 1 }}>{label}</Text>
+      <Text flex={1} fontSize={15} color="$text">
+        {label}
+      </Text>
       <Text
         numberOfLines={2}
-        style={{
-          fontSize: 15,
-          color: valueColor ?? theme.textSecondary,
-          textAlign: "right",
-          flex: 1,
-        }}
+        flex={1}
+        fontSize={15}
+        color={valueColor ?? "$textSecondary"}
+        textAlign="right"
       >
         {value}
       </Text>
-    </View>
+    </XStack>
   );
 }

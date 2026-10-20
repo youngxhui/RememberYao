@@ -3,19 +3,27 @@ import {
   GlassView,
   type GlassContainerProps,
 } from "expo-glass-effect";
-import { Pressable as RNPressable, Text as RNText } from "react-native";
+import { Text, View } from "tamagui";
 
-import { Spacing, Radius } from "@/constants/theme";
+import { Radius } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 import { useLiquidGlassEnabled } from "./content-glass";
 
 /**
- * RN 版玻璃 Chip：纯 RN `Pressable`，两端各自退化。
+ * 玻璃 Chip：Tamagui 视图 + `expo-glass-effect` 的原生液态玻璃。
  *
- * - iOS：`expo-glass-effect` 的 `GlassView` 铺原生液态玻璃，文字色不随暗色翻面。
+ * 玻璃这一层不可能用 Tamagui —— Tamagui 没有液态玻璃能力（iOS 26 的
+ * UIGlassEffect 是 Expo 的原生模块），所以模式固定为「玻璃外壳 + Tamagui 内容」：
+ * `GlassView` 绝对定位铺满，文字用 Tamagui `Text`。
+ *
+ * - iOS：`GlassView` 铺原生液态玻璃，文字色不随暗色翻面。
  * - Android / 降透明 / a11y 未 resolve：实心 token 选中态。
- * - Pressable 是最外层，padding 写在这里，热区 = 整颗胶囊。
+ * - 行壳是 Tamagui `View`，padding 写在这里，热区 = 整颗胶囊；按压反馈走
+ *   `press:` 子句，由 Tamagui 接线。
+ *
+ * ⚠️ 玻璃路径上**不能改 opacity**（含按压反馈）：opacity 过低玻璃会直接变淡，
+ * Metal 路径的采样会一起淡。所以 `press:` 只换底色，不动透明度。
  */
 export function GlassChip({
   testID,
@@ -44,52 +52,59 @@ export function GlassChip({
       : theme.textSecondary;
 
   return (
-    <RNPressable
+    <View
       testID={testID}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
-      style={({ pressed }) => ({
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.two,
-        minHeight: 32,
-        borderRadius: Radius.pill,
-        borderCurve: "continuous",
-        // 玻璃祖先禁止改 opacity：opacity 过低玻璃会直接变淡，
-        // Metal 路径的采样会一起淡。Android 实心分支可以。
-        ...(!nativeGlass && pressed ? { opacity: 0.85 } : null),
-        ...(nativeGlass
-          ? null
-          : {
-              backgroundColor: active ? theme.primary : theme.surface,
-              borderWidth: 1,
-              borderColor: active ? theme.primary : theme.border,
-            }),
-      })}
+      paddingInline="three"
+      paddingBlock="two"
+      minHeight={32}
+      borderRadius="pill"
+      borderCurve="continuous"
+      // 实心档才允许用透明度做按压反馈；玻璃档改了 opacity 会把玻璃一起淡掉
+      {...(nativeGlass
+        ? null
+        : {
+            opacity: "1 press:0.85",
+            borderWidth: 1,
+          })}
+      backgroundColor={
+        nativeGlass
+          ? "transparent"
+          : active
+            ? "$primary"
+            : "$surface press:$backgroundElement"
+      }
+      {...(nativeGlass
+        ? null
+        : { borderColor: active ? "$primary" : "$border" })}
     >
-      <GlassView
-        tintColor={active ? theme.primary : undefined}
-        isInteractive={true}
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          borderRadius: 999,
-        }}
-      />
+      {nativeGlass ? (
+        <GlassView
+          tintColor={active ? theme.primary : undefined}
+          isInteractive={true}
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            borderRadius: Radius.pill,
+          }}
+        />
+      ) : null}
 
-      <RNText style={{ fontSize: 14, fontWeight: "600", color: labelColor }}>
+      <Text fontSize={14} fontWeight="600" color={labelColor}>
         {label}
-      </RNText>
-    </RNPressable>
+      </Text>
+    </View>
   );
 }
 
 /**
  * 玻璃 chip 行的融合容器：屏幕要横滑一排 chip 时套这一层，
- * 不要自己 import `expo-glass-effect`（迁移计划 §3 的 allowlist 只允许共享组件层引玻璃包）。
+ * 不要自己 import `expo-glass-effect`（allowlist 只允许共享组件层引玻璃包）。
  *
  * `spacing={2}` 是**故意**的：chip 间距 8pt，2pt 阈值下谁也融不到谁，
  * 容器只是个分组边界，不会出现「两颗 chip 糊成一颗」。

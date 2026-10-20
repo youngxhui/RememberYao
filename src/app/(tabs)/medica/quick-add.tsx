@@ -1,13 +1,14 @@
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { TextInput } from "react-native";
+import { Button, Text, View, XStack, YStack } from "tamagui";
 
 import { AvatarMark } from "@/components/avatar";
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
 import { ChipField, Field, FormSection, Subtitle } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
 import { ScreenScaffold } from "@/components/screen-scaffold";
-import { BottomTabInset, Spacing, Radius } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n, useTranslation } from "@/i18n";
 import { requestNotificationPermission } from "@/lib/notifications";
@@ -49,6 +50,8 @@ const FREQ_OPTIONS = [1, 2, 3];
  */
 export default function QuickAddScreen() {
   const router = useRouter();
+  // 只剩两处要真实色值：RnDateTimePicker 的 accentColor（原生视图 prop），
+  // 以及 AvatarMark 的头像底色（传进来再交给原生视图裁圆）
   const theme = useTheme();
   const t = useTranslation();
   const { language } = useI18n();
@@ -143,7 +146,7 @@ export default function QuickAddScreen() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <View style={{ gap: Spacing.four }}>
+        <YStack gap="four">
           {step === 1 ? (
             <StepName
               name={nameText}
@@ -182,201 +185,108 @@ export default function QuickAddScreen() {
           ) : null}
 
           {step === 1 ? (
-            <Pressable
+            <Button
               testID="quick-add-next-button"
               onPress={() => {
                 setStep(2);
               }}
               disabled={!trimmedName}
-              style={({ pressed }) => ({
-                backgroundColor: pressed
-                  ? theme.primarySoft
-                  : !trimmedName
-                    ? theme.textSecondary
-                    : theme.primary,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-                opacity: !trimmedName ? 0.5 : 1,
-              })}
+              alignSelf="stretch"
+              backgroundColor={
+                trimmedName ? "$primary press:$primarySoft" : "$textSecondary"
+              }
+              borderCurve="continuous"
+              color="$onPrimary"
+              opacity={trimmedName ? 1 : 0.5}
             >
-              <Text
-                style={{
-                  color: theme.onPrimary,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
-                {t("quickAdd.next")}
-              </Text>
-            </Pressable>
+              {t("quickAdd.next")}
+            </Button>
           ) : null}
 
           {step === 2 ? (
-            <View style={{ gap: Spacing.three }}>
-              <Pressable
+            <YStack gap="three">
+              <Button
                 testID="quick-add-next-button"
                 onPress={() => {
                   setStep(3);
                 }}
-                style={({ pressed }) => ({
-                  backgroundColor: pressed ? theme.primarySoft : theme.primary,
-                  borderRadius: Radius.card,
-                  borderCurve: "continuous",
-                  paddingVertical: Spacing.three,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 44,
-                })}
+                alignSelf="stretch"
+                backgroundColor="$primary press:$primarySoft"
+                borderCurve="continuous"
+                color="$onPrimary"
               >
-                <Text
-                  style={{
-                    color: theme.onPrimary,
-                    fontSize: 15,
-                    fontWeight: "600",
-                  }}
-                >
-                  {t("quickAdd.next")}
-                </Text>
-              </Pressable>
-              <Pressable
+                {t("quickAdd.next")}
+              </Button>
+              <Button
                 testID="quick-add-back-button"
                 onPress={() => {
                   setStep(1);
                 }}
-                style={({ pressed }) => ({
-                  backgroundColor: pressed
-                    ? theme.backgroundSelected
-                    : theme.surface,
-                  borderRadius: Radius.card,
-                  borderCurve: "continuous",
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  paddingVertical: Spacing.three,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 44,
-                })}
+                alignSelf="stretch"
+                borderWidth={1}
+                borderColor="$border"
+                backgroundColor="$surface press:$backgroundSelected"
+                borderCurve="continuous"
+                color="$text"
               >
-                <Text
-                  style={{
-                    color: theme.text,
-                    fontSize: 15,
-                    fontWeight: "600",
-                  }}
-                >
-                  {t("quickAdd.back")}
-                </Text>
-              </Pressable>
-            </View>
+                {t("quickAdd.back")}
+              </Button>
+            </YStack>
           ) : null}
 
           {step === 3 ? (
-            <View style={{ gap: Spacing.three }}>
-              <Pressable
+            <YStack gap="three">
+              <Button
                 testID="quick-add-save-button"
                 onPress={() => {
                   void save(false);
                 }}
                 disabled={saving}
-                style={({ pressed }) => ({
-                  backgroundColor: pressed ? theme.primarySoft : theme.primary,
-                  borderRadius: Radius.card,
-                  borderCurve: "continuous",
-                  paddingVertical: Spacing.three,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 44,
-                  opacity: saving ? 0.6 : 1,
-                })}
+                alignSelf="stretch"
+                backgroundColor="$primary press:$primarySoft"
+                borderCurve="continuous"
+                color="$onPrimary"
+                opacity={saving ? 0.6 : 1}
               >
-                <Text
-                  style={{
-                    color: theme.onPrimary,
-                    fontSize: 15,
-                    fontWeight: "600",
-                  }}
-                >
-                  {t("quickAdd.saveAndEnable")}
-                </Text>
-              </Pressable>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: Spacing.three,
-                }}
-              >
-                <View style={{ flex: 1 }} />
-                <Pressable
+                {t("quickAdd.saveAndEnable")}
+              </Button>
+              <XStack alignItems="center" gap="three">
+                <View flex={1} />
+                <View
                   testID="quick-add-complete-button"
                   onPress={() => {
                     void save(true);
                   }}
+                  accessibilityRole="button"
                 >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: theme.primary,
-                    }}
-                  >
+                  <Text fontSize={14} fontWeight="600" color="$primary">
                     {t("quickAdd.completeLater")}
                   </Text>
-                </Pressable>
-                <View style={{ flex: 1 }} />
-              </View>
-              <Pressable
+                </View>
+                <View flex={1} />
+              </XStack>
+              <Button
                 testID="quick-add-back-button"
                 onPress={() => {
                   setStep(2);
                 }}
-                style={({ pressed }) => ({
-                  backgroundColor: pressed
-                    ? theme.backgroundSelected
-                    : theme.surface,
-                  borderRadius: Radius.card,
-                  borderCurve: "continuous",
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  paddingVertical: Spacing.three,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 44,
-                })}
+                alignSelf="stretch"
+                borderWidth={1}
+                borderColor="$border"
+                backgroundColor="$surface press:$backgroundSelected"
+                borderCurve="continuous"
+                color="$text"
               >
-                <Text
-                  style={{
-                    color: theme.text,
-                    fontSize: 15,
-                    fontWeight: "600",
-                  }}
-                >
-                  {t("quickAdd.back")}
-                </Text>
-              </Pressable>
-              <View
-                style={{
-                  alignItems: "center",
-                  paddingVertical: Spacing.two,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: theme.textSecondary,
-                    textAlign: "center",
-                  }}
-                >
+                {t("quickAdd.back")}
+              </Button>
+              <YStack alignItems="center" paddingBlock="two">
+                <Text fontSize={12} color="$textSecondary" textAlign="center">
                   {t("quickAdd.notifyHint")}
                 </Text>
-              </View>
-            </View>
+              </YStack>
+            </YStack>
           ) : null}
-        </View>
+        </YStack>
       </ScreenScaffold>
     </>
   );
@@ -396,6 +306,7 @@ function StepName({
   medications: Medication[];
   loading: boolean;
 }) {
+  // RN TextInput 的 style 不解析 Tamagui 的 $token，输入文字色取真实值
   const theme = useTheme();
   const t = useTranslation();
 
@@ -420,27 +331,22 @@ function StepName({
       {/* 从已有药品选择：省得重复建档；点选即视为复用该药，只再配一次时间 */}
       {loading ? null : medications.length > 0 ? (
         <FormSection title={t("quickAdd.sectionExisting")}>
-          <View style={{ gap: Spacing.two }}>
+          <YStack gap="two">
             {medications.map((medication) => (
-              <Pressable
+              <View
                 key={medication.id}
                 testID={`quick-add-existing-${medication.id}`}
                 onPress={() => {
                   onPickExisting(medication);
                 }}
+                accessibilityRole="button"
               >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    color: theme.text,
-                    paddingVertical: Spacing.rowGap,
-                  }}
-                >
+                <Text fontSize={16} color="$text" paddingBlock="rowGap">
                   {medication.name}
                 </Text>
-              </Pressable>
+              </View>
             ))}
-          </View>
+          </YStack>
         </FormSection>
       ) : null}
     </>
@@ -464,7 +370,6 @@ function StepSchedule({
   onChangeTime: (index: number, date: Date) => void;
 }) {
   const t = useTranslation();
-  const theme = useTheme();
 
   return (
     <>
@@ -482,21 +387,18 @@ function StepSchedule({
             label: t("quickAdd.freqCount", { count: n }),
           }))}
         />
-        <View style={{ gap: Spacing.two }}>
+        <YStack gap="two">
           {times.map((time, index) => (
-            <View
+            <XStack
               key={index}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                paddingVertical: Spacing.two,
-                gap: Spacing.rowGap,
-              }}
+              alignItems="center"
+              paddingBlock="two"
+              gap="rowGap"
             >
-              <Text style={{ fontSize: 15, color: theme.text }}>
+              <Text fontSize={15} color="$text">
                 {t("plan.ordinal", { index: index + 1 })}
               </Text>
-              <View style={{ flex: 1 }} />
+              <View flex={1} />
               <RnDateTimePicker
                 value={timeToDate(time)}
                 mode="time"
@@ -508,9 +410,9 @@ function StepSchedule({
                   onChangeTime(index, date);
                 }}
               />
-            </View>
+            </XStack>
           ))}
-        </View>
+        </YStack>
       </FormSection>
     </>
   );
@@ -536,91 +438,62 @@ function StepConfirm({
   personColor: string;
   personPhoto?: string;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
 
   return (
     <>
       <Subtitle text={t("quickAdd.subtitle3")} />
-      <View
-        style={{
-          backgroundColor: theme.surface,
-          borderWidth: 1,
-          borderColor: theme.border,
-          borderRadius: Radius.card,
-          borderCurve: "continuous",
-          padding: Spacing.three,
-          gap: Spacing.three,
-        }}
+      <YStack
+        backgroundColor="$surface"
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="card"
+        borderCurve="continuous"
+        padding="three"
+        gap="three"
       >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: Spacing.rowGap,
-          }}
-        >
+        <XStack alignItems="center" gap="rowGap">
           <AvatarMark
             color={personColor}
             name={personName}
             uri={personPhoto}
             size={40}
           />
-          <View style={{ flex: 1, minWidth: 0 }}>
+          <View flex={1} minWidth={0}>
             <Text
               numberOfLines={1}
-              style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
+              fontSize={17}
+              fontWeight="700"
+              color="$text"
             >
               {name}
             </Text>
-            <Text
-              numberOfLines={1}
-              style={{ fontSize: 13, color: theme.textSecondary }}
-            >
+            <Text numberOfLines={1} fontSize={13} color="$textSecondary">
               {t("quickAdd.forSelf", { name: personName })}
             </Text>
           </View>
-        </View>
+        </XStack>
 
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: Spacing.two,
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: "system-ui",
-              fontSize: 15,
-              color: theme.textSecondary,
-            }}
-          >
+        <XStack alignItems="center" gap="two">
+          <Text fontSize={15} color="$textSecondary">
             {t("quickAdd.freqCount", { count: freq })}
           </Text>
-          <View style={{ flex: 1 }} />
-          <Text
-            style={{
-              fontFamily: "monospace",
-              fontSize: 15,
-              fontWeight: "600",
-              color: theme.text,
-            }}
-          >
+          <View flex={1} />
+          <Text fontFamily="mono" fontSize={15} fontWeight="600" color="$text">
             {times.join("  ")}
           </Text>
-        </View>
+        </XStack>
 
-        <Text style={{ fontSize: 13, color: theme.textSecondary }}>
+        <Text fontSize={13} color="$textSecondary">
           {t("quickAdd.doseHint", { amount: 1, unit })}
         </Text>
 
         {matched ? (
-          <Text style={{ fontSize: 12, color: theme.primary }}>
+          <Text fontSize={12} color="$primary">
             {t("quickAdd.existingHint", { name })}
           </Text>
         ) : null}
-      </View>
+      </YStack>
     </>
   );
 }

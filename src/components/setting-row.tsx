@@ -1,16 +1,12 @@
 import type { ReactNode } from "react";
-import {
-  Pressable as RNPressable,
-  Text as RNText,
-  View as RNView,
-} from "react-native";
+import { Text, View, XStack, YStack } from "tamagui";
 
 import {
   HUGI_ICONS,
   HugeIcon,
   type HugeIconName,
 } from "@/components/huge-icon";
-import { Fonts, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 /** 分组行内边距（design/settings.html 的 .setting-item padding 16px） */
@@ -32,6 +28,10 @@ export const ICON_SIZE = 18;
  *
  * `icon` 可省略：2026-10-17 开发者要求二级屏不要行首图标（一级的三个分区入口仍带），
  * 所以图标是选修件而不是必填。
+ *
+ * 行壳用 Tamagui `View` 而不是 `Button`：设置行不是按钮，套 Button 会带一圈
+ * 按钮基类样式（内边距、圆角、按压透明度）。按压底色走 `press:` 子句，
+ * 由 Tamagui 自己接线，不需要 RN `Pressable` 的 style 函数。
  */
 export function SettingRow({
   icon,
@@ -54,8 +54,10 @@ export function SettingRow({
   showChevron?: boolean;
   testID?: string;
 }) {
+  // HugeIcon 的 color 直接喂给 SVG 的 stroke，收不了 Tamagui 的 token 名，
+  // 仍走 useTheme() 取真实色值
   const theme = useTheme();
-  const labelColor = disabled ? theme.textSecondary : theme.text;
+  const labelColor = disabled ? "$textSecondary" : "$text";
 
   const body = (
     <>
@@ -63,19 +65,21 @@ export function SettingRow({
         <HugeIcon name={icon} size={ICON_SIZE} color={theme.primary} />
       ) : null}
       {/* 文本列让位（flex + minWidth 0）：长文案截断而不是把右端控件挤出屏幕 */}
-      <RNView style={{ flex: 1, minWidth: 0, gap: Spacing.half }}>
-        <RNText
+      <YStack flex={1} minWidth={0} gap="half">
+        <Text
           numberOfLines={1}
-          style={{ fontSize: 17, fontWeight: "600", color: labelColor }}
+          fontSize={17}
+          fontWeight="600"
+          color={labelColor}
         >
           {label}
-        </RNText>
+        </Text>
         {sub ? (
-          <RNText style={{ fontSize: 13, color: theme.textSecondary }}>
+          <Text fontSize={13} color="$textSecondary">
             {sub}
-          </RNText>
+          </Text>
         ) : null}
-      </RNView>
+      </YStack>
       {trailing}
       {showChevron ? (
         <HugeIcon
@@ -91,30 +95,28 @@ export function SettingRow({
     flexDirection: "row" as const,
     alignItems: "center" as const,
     gap: Spacing.rowGap,
-    paddingHorizontal: ROW_PADDING,
-    paddingVertical: ROW_PADDING,
+    paddingInline: ROW_PADDING,
+    paddingBlock: ROW_PADDING,
     minHeight: 44,
   };
 
-  if (!onPress) {
+  if (!onPress || disabled) {
     return (
-      <RNView testID={testID} style={rowStyle}>
+      <View testID={testID} style={rowStyle}>
         {body}
-      </RNView>
+      </View>
     );
   }
   return (
-    <RNPressable
+    <View
       testID={testID}
-      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        rowStyle,
-        pressed ? { backgroundColor: theme.backgroundSelected } : null,
-      ]}
+      accessibilityRole="button"
+      style={rowStyle}
+      backgroundColor="$background press:$backgroundSelected"
     >
       {body}
-    </RNPressable>
+    </View>
   );
 }
 
@@ -125,43 +127,22 @@ export function SettingRow({
  * 所以发丝线从文本起点开始，和 iOS 的无图标分组列表一致。
  */
 export function RowDivider() {
-  const theme = useTheme();
-  return (
-    <RNView
-      style={{
-        height: 1,
-        marginLeft: ROW_PADDING,
-        backgroundColor: theme.border,
-      }}
-    />
-  );
+  return <View height={1} marginLeft={ROW_PADDING} backgroundColor="$border" />;
 }
 
 /** 行尾的等宽数值 + 展开箭头（design/settings.html 的 .setting-action） */
 export function ValueAndChevron({ text }: { text: string }) {
   const theme = useTheme();
   return (
-    <RNView
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: Spacing.two,
-      }}
-    >
-      <RNText
-        style={{
-          fontSize: 13,
-          fontFamily: Fonts.mono,
-          color: theme.textSecondary,
-        }}
-      >
+    <XStack alignItems="center" gap="two">
+      <Text fontSize={13} fontFamily="mono" color="$textSecondary">
         {text}
-      </RNText>
+      </Text>
       <HugeIcon
         name={HUGI_ICONS.chevronRight}
         size={14}
         color={theme.textSecondary}
       />
-    </RNView>
+    </XStack>
   );
 }

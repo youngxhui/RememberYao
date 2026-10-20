@@ -2,9 +2,9 @@
 
 硬规则清单见 [`AGENTS.md`](../../AGENTS.md)。视觉基准是 `design/` 下的 HTML 设计稿。
 
-## 选型阶梯：内容树默认纯 RN
+## 选型阶梯：内容树默认 Tamagui
 
-> **2026-10 起 `@expo/ui` 不再是默认画布。** 生产内容树已全部迁到 RN Yoga + `useTheme()`，
+> **2026-10 起 `@expo/ui` 不再是默认画布。** 生产内容树先迁到 RN Yoga + `useTheme()`，2026-10-19 再迁到 Tamagui，
 > 见 `docs/plans/迁移计划.md`。`@expo/ui` 在生产屏只剩两处合法残留：`onboarding.tsx` 的整屏
 > `TabView` pager、孪生铝箔岛的 `nativeGradientBackground`（菜单 `Picker` 已于 2026-10-16
 > 换成 `RnPicker`，`ExpoUiIsland` 生产零调用）。
@@ -13,7 +13,7 @@
 选型阶梯，从上往下，第一个满足需求就停：
 
 1. **系统 chrome** —— `NativeTabs` / `Stack.Title` / `Toolbar` / `SearchBar`。系统自带 iOS 26 液态玻璃，不拆。
-2. **内容树** —— RN 的 `View`/`Text`/`Pressable`/`ScrollView`/`FlatList` + `useTheme()`；骨架用 `ScreenScaffold`（+ `Padded` / `FullBleed`），分组用 `SectionCard` / `SectionTitle` / `HairLine`。
+2. **内容树** —— Tamagui 的 `View`/`Text`/`XStack`/`YStack`/`Button` + token 名；骨架用 `ScreenScaffold`（+ `Padded` / `FullBleed`），分组用 `SectionCard` / `SectionTitle` / `HairLine`。写法见下面 [Tamagui 用法](#tamagui-是默认-ui-层)。
 3. **内容玻璃** —— `@/components/glass-chip` 的 `GlassChip` / `GlassChipRow`，`@/components/glass-host-button` 的 `GlassHostButton`。**屏幕禁止直接 import `expo-glass-effect`**。
 4. **原生控件小岛** —— 菜单 `Picker` 已清零：`@expo/ui` 的 universal `Picker` 的 `appearance` 默认就是 `'menu'`（iOS 落成 SwiftUI `.pickerStyle(.menu)` 原生 Menu 胶囊，**不吃 RN `style`** 还必须住在 `Host` 里），twin / plan-form / settings 的 5 处已全部换成 `@/components/rn-picker` 的 `RnPicker`。`ExpoUiIsland`（RN 父树挂 `@expo/ui` 原生控件的边界封装）已随之删除 —— 它生产零调用，留着只会诱使新屏往 RN 树里塞 `Host`。真绕不过时再新建最小 `Host matchContents` 岛，并写清为什么 RN 做不到。
 5. **sheet** —— `@lodev09/react-native-true-sheet`（真原生 sheet：iOS `UISheetPresentationController` / Android `ModalBottomSheet`）。**不要**用 `@expo/ui` 的 `BottomSheet`（已弃用）、`@expo/ui/community/bottom-sheet`（default export 挂载即打开）、`@gorhom/bottom-sheet`（JS 渲染，视觉对不齐系统）。
@@ -32,6 +32,7 @@
 | 日期时间选择 | `@/components/rn-datetime-picker` |
 | 菜单（选项 ≤ 6） | `@/components/rn-picker` 的 `RnPicker`（胶囊触发器 + **原生菜单**：`@react-native-menu/menu`，iOS `UIMenu` / Android `PopupMenu`） |
 | 玻璃按钮 | `@/components/glass-host-button` 的 `GlassHostButton` |
+| 普通按钮 | Tamagui `Button`（直接 import，没有项目封装），配色抄 [Tamagui 用法](#tamagui-是默认-ui-层) 里的四档表 |
 | 真原生菜单 | `@react-native-menu/menu` —— 已装，但**只经 `RnPicker` 用**，不要在别处直接 import |
 | 表单输入 | `InputShell`（只有文字输入套盒，原生自绘控件裸放） |
 | 长列表 | `FlatList` / `FlashList` |
@@ -130,7 +131,7 @@ return (
 
 - 标题一律走 `Stack.Title`（`large` 尺寸），**不要在页面里自己写大标题 Text**。导航栈标题是屏幕的顶层 chrome。
 - 骨架用 `ScreenScaffold`：需要通栏（顶到屏幕左右缘）的内容包 `FullBleed`，其余包 `Padded`（`ScreenScaffold` 默认无水平 padding）。
-- **不要再写整屏 `Host` + `Column` + `ScrollView`** —— 2026-10 迁移后生产屏全是纯 RN，`Host` 只剩孪生铝箔岛 / `onboarding.tsx` 两处合法残留（见硬规则 1）。
+- **不要再写整屏 `Host` + `Column` + `ScrollView`** —— 生产屏已全部迁到 Tamagui，`Host` 再无合法残留（见硬规则 1）。
 
 ## 内容玻璃：GlassChip / GlassHostButton
 
@@ -184,6 +185,57 @@ const theme = useTheme();
 ### 组合优于配置
 
 当组件的 props 开始描述**内容**（`leftIcon`、`subtitle`、`footerText`、`badgeCount`），停止加 prop，改用 `children`。一个渲染 `children` + token padding 的 `Card` 比带 12 个内容 prop 的 `Card` 活得久。props 只留给上面那四件事。
+
+## Tamagui 是默认 UI 层
+
+2026-10-19 起内容树全面迁到 Tamagui 3（`tamagui` + `@tamagui/config`）。它**不是原生控件** —— 底层是 RN 自带的 `View`/`Text`/`Pressable`（Yoga/Fabric 宿主视图），样式由 JS 算好后塞成 RN style。所以它和项目的内容树同一层：不需要 `Host` 岛、不需要拆平台文件、两端行为天然一致，也不需要 prebuild（纯 JS，装完重启 Metro 即可）。
+
+### 写法速查
+
+```tsx
+import { Button, Text, View, XStack, YStack } from "tamagui";
+
+// 颜色：token 名带 $
+<View backgroundColor="$surface" borderColor="$border" borderRadius="card" />
+<Text color="$textSecondary" fontSize={13} />
+
+// 间距 / 圆角：token 名不带 $
+<YStack gap="three" paddingInline="screen" paddingBlock="two" />
+<View borderRadius="pill" />          // 999
+<View borderRadius="tile" />          // 10
+
+// 按压反馈：press: 子句（Tamagui 自己接线，不要 RN Pressable 的 style 函数）
+<View onPress={...} accessibilityRole="button"
+      backgroundColor="$surface press:$backgroundSelected" />
+<View onPress={...} opacity="1 press:0.85" />   // 压暗，仅实心路径可用
+
+// 按钮四档配色（屏里照抄，别另写一套）
+primary     backgroundColor="$primary"    color="$onPrimary"
+secondary   backgroundColor="$surface"    color="$text"   borderWidth={1} borderColor="$border"
+ghost       backgroundColor="transparent" color="$primary"
+destructive backgroundColor="$danger"     color="$onDanger"
+```
+
+可用 token：颜色 `text` `textSecondary` `canvas` `surface` `border` `primary` `onPrimary` `primarySoft` `onFilled` `backgroundElement` `backgroundSelected` `success` `successSoft` `successStrong` `warning` `warningSoft` `warningStrong` `danger` `dangerSoft` `dangerStrong`；间距 `half` `one` `two` `three` `four` `five` `screen` `cardGap` `rowGap`；圆角 `tile` `card` `promo` `pill`。全部定义在根目录 `tamagui.config.ts`，值来自 `constants/theme.ts`。
+
+### 五条硬边界
+
+1. **token 只有一份**。颜色/间距/圆角只从 `tamagui.config.ts` 出，屏里不许写裸 hex/rgba。半透明色（`withAlpha(theme.danger, 0.06)` 那类）是算出来的值，继续走 `@/utils/color` + `useTheme()`，不进配置。
+2. **RN 专有 prop 要换名**：`paddingHorizontal` → `paddingInline`、`paddingVertical` → `paddingBlock`（`paddingTop`/`marginLeft` 这类单边的合法）。`px`/`py`/`p`/`m` 这些简写没进类型，用长拼。
+3. **这些原生组件只吃真实色值，传 `$token` 会静默失效**：`SymbolIcon` 的 `color`（SymbolView 的 tintColor）、`HugeIcon` 的 `color`（SVG stroke）、`GlassView` 的 `tintColor`、`RnDateTimePicker` 的 `accentColor`、`LinearGradient` 的 `colors`、RN `TextInput` 的 `style.color`、`ProgressBarRn` 之外的任何 RN `style`。这些地方保留 `useTheme()`。
+4. **玻璃外壳留 RN，玻璃内容用 Tamagui**。Tamagui 没有液态玻璃能力（iOS 26 的 UIGlassEffect 是 Expo 原生模块），模式固定为 `GlassView` 铺原生玻璃 + Tamagui 内容。⚠️ 玻璃祖先链上**不能改 opacity**（含按压反馈）—— opacity 过低玻璃会整层变淡，所以玻璃按钮不用 Tamagui `Button`（它的基类自带 `opacity: press:0.7`），用 Tamagui `View` + GlassView。
+5. **运行时零 bundler 配置**。`metro.config.js` / `babel.config.js` 都不需要动。要上 Tamagui 编译器（抽样式、更小的包）是另一个决定，别顺手加 `@tamagui/metro-plugin` —— 它换掉 Metro 的 babelTransformer，与项目的 reactCompiler 实验叠在一起风险大于收益。
+
+### 不迁的清单（及原因）
+
+| 东西 | 为什么留着 |
+| --- | --- |
+| `ScrollView` / `FlatList` / `FlashList` | 要 `contentInsetAdjustmentBehavior`、`keyboardShouldPersistTaps`、虚拟化，Tamagui 那套不透传 |
+| `TextInput` / `Switch` / `Checkbox` | 系统自绘控件，原生样式就是设计系统，不套第二层盒 |
+| `RnPicker` / `RnDateTimePicker` / `SymbolIcon` / `HugeIcon` / `toolbar-icons` / `app-tabs` | 原生菜单、原生选择器、图标、系统 chrome |
+| `ReminderCardStack` / `MiniArchive` | Reanimated 手势/动画岛，`Animated.View` 替不了 |
+| `ObserveErrorFallback` | 错误边界兜底：崩溃可能就发生在 Tamagui 层，兜底必须还能画出来 |
+| `dose-timeline.tsx` | 死代码（零调用），没动 |
 
 ## 原生自绘控件不要套外盒
 

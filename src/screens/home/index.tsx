@@ -1,13 +1,13 @@
 import { useObserve } from "expo-observe";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import { Linking } from "react-native";
+import { Button, Text, View, XStack, YStack } from "tamagui";
 
 import { ReminderCardStack } from "@/components/reminder-card-stack";
 import { ScreenScaffold, Padded } from "@/components/screen-scaffold";
 import { SymbolIcon } from "@/components/symbol-icon";
 import { memberFilterIcon } from "@/components/toolbar-icons";
-import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useOnboardingGate } from "@/hooks/use-onboarding-gate";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, useTranslation } from "@/i18n";
@@ -36,6 +36,10 @@ function weekdayName(date: Date, locale: string): string {
 
 /**
  * 首页（今天）：巨型日期 + 工具栏右上角的家庭成员筛选 + 提醒卡堆叠 + 药品库存。
+ *
+ * 内容树走 Tamagui 原语（XStack / YStack / Text / Button）+ token 名，
+ * 滚动容器与系统 chrome 不动；只有 `SymbolIcon` 这类原生视图仍要
+ * `useTheme()` 取真实色值（见 tamagui.config.ts 顶部说明）。
  */
 export function Home() {
   const t = useTranslation();
@@ -133,12 +137,12 @@ export function Home() {
                 <NoScheduleToday />
               )}
 
-              <View style={{ marginTop: Spacing.four }}>
+              <YStack marginTop="four">
                 <SectionTitle title={t("home.stockListTitle")} />
                 {loading ? null : (
                   <StockPanel medications={medications} plans={plans} />
                 )}
-              </View>
+              </YStack>
             </>
           )}
         </Padded>
@@ -149,7 +153,6 @@ export function Home() {
 
 /** 巨型日期头部 */
 function HeroHeader() {
-  const theme = useTheme();
   const t = useTranslation();
   const { language } = useI18n();
   const [year, month, day] = todayKey().split("-").map(Number);
@@ -157,57 +160,32 @@ function HeroHeader() {
   const weekday = weekdayName(date, language === "zh" ? "zh-CN" : "en-US");
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "flex-end",
-        gap: Spacing.three,
-      }}
-    >
-      <View style={{ flex: 1 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "flex-end",
-            gap: Spacing.two,
-          }}
-        >
+    <XStack alignItems="flex-end" gap="three">
+      <YStack flex={1} gap="half">
+        <XStack alignItems="flex-end" gap="two">
           <Text
-            style={{
-              fontFamily: Fonts.sans,
-              fontSize: 56,
-              lineHeight: 58,
-              fontWeight: "800",
-              letterSpacing: -2,
-              color: theme.text,
-            }}
+            fontSize={56}
+            lineHeight={58}
+            fontWeight="800"
+            letterSpacing={-2}
+            color="$text"
           >
             {String(day)}
           </Text>
           <Text
-            style={{
-              fontFamily: Fonts.sans,
-              fontSize: 20,
-              fontWeight: "600",
-              color: theme.textSecondary,
-              marginBottom: 2,
-            }}
+            fontSize={20}
+            fontWeight="600"
+            color="$textSecondary"
+            marginBottom={2}
           >
             {t("home.monthDay", { month })}
           </Text>
-        </View>
-        <Text
-          style={{
-            fontSize: 15,
-            fontWeight: "500",
-            color: theme.textSecondary,
-            marginTop: 2,
-          }}
-        >
+        </XStack>
+        <Text fontSize={15} fontWeight="500" color="$textSecondary">
           {t("home.weekdayToday", { weekday })}
         </Text>
-      </View>
-    </View>
+      </YStack>
+    </XStack>
   );
 }
 
@@ -302,53 +280,48 @@ function NotificationBanner() {
   };
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: Spacing.rowGap,
-        backgroundColor: theme.dangerSoft,
-        padding: Spacing.three,
-        borderRadius: Radius.card,
-      }}
+    <XStack
+      alignItems="center"
+      gap="rowGap"
+      backgroundColor="$dangerSoft"
+      padding="three"
+      borderRadius="card"
     >
       <SymbolIcon
         name={{ ios: "bell.slash.fill", android: "notifications_off" }}
         size={18}
         color={theme.danger}
       />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: "600", color: theme.text }}>
+      <YStack flex={1}>
+        <Text fontSize={14} fontWeight="600" color="$text">
           {t("home.notificationOff")}
         </Text>
-        <Text style={{ fontSize: 12, color: theme.textSecondary }}>
+        <Text fontSize={12} color="$textSecondary">
           {t("home.notificationOffBody")}
         </Text>
-      </View>
-      <Pressable
+      </YStack>
+      <Button
         testID="home-notification-enable"
         onPress={() => {
           void enable();
         }}
+        size={false}
+        padding={0}
+        borderWidth={0}
+        backgroundColor="transparent"
+        color="$danger"
+        fontSize={13}
+        fontWeight="600"
       >
-        <Text
-          style={{
-            fontSize: 13,
-            fontWeight: "600",
-            color: theme.danger,
-          }}
-        >
-          {denied ? t("home.goSettings") : t("home.enable")}
-        </Text>
-      </Pressable>
-    </View>
+        {denied ? t("home.goSettings") : t("home.enable")}
+      </Button>
+    </XStack>
   );
 }
 
 function SectionTitle({ title }: { title: string }) {
-  const theme = useTheme();
   return (
-    <Text style={{ fontSize: 17, fontWeight: "600", color: theme.text }}>
+    <Text fontSize={17} fontWeight="600" color="$text">
       {title}
     </Text>
   );
@@ -361,22 +334,18 @@ function FirstRunEmpty({ onAdd }: { onAdd: () => void }) {
   const theme = useTheme();
   const t = useTranslation();
   return (
-    <View
-      style={{
-        alignItems: "center",
-        justifyContent: "center",
-        gap: Spacing.three,
-        paddingTop: Spacing.five,
-      }}
+    <YStack
+      alignItems="center"
+      justifyContent="center"
+      gap="three"
+      paddingTop="five"
     >
       <View
-        style={{
-          width: 120,
-          height: 120,
-          borderRadius: 32,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        width={120}
+        height={120}
+        borderRadius={32}
+        alignItems="center"
+        justifyContent="center"
       >
         <SymbolIcon
           name={{ ios: "cross.case.fill", android: "medical_information" }}
@@ -384,56 +353,38 @@ function FirstRunEmpty({ onAdd }: { onAdd: () => void }) {
           color={theme.primary}
         />
       </View>
-      <Text
-        style={{
-          fontSize: 22,
-          fontWeight: "800",
-          color: theme.text,
-          textAlign: "center",
-        }}
-      >
+      <Text fontSize={22} fontWeight="800" color="$text" textAlign="center">
         {t("home.emptyTitle")}
       </Text>
       <Text
-        style={{
-          fontSize: 14,
-          lineHeight: 20,
-          color: theme.textSecondary,
-          textAlign: "center",
-        }}
+        fontSize={14}
+        lineHeight={20}
+        color="$textSecondary"
+        textAlign="center"
       >
         {t("home.emptyBody")}
       </Text>
-      <Pressable
+      <Button
         testID="home-empty-add-button"
         onPress={onAdd}
-        style={({ pressed }) => ({
-          paddingHorizontal: Spacing.three,
-          paddingVertical: Spacing.two,
-          borderRadius: Radius.card,
-          borderCurve: "continuous",
-          backgroundColor: pressed ? theme.primarySoft : theme.primary,
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: 44,
-        })}
+        size={false}
+        borderWidth={0}
+        backgroundColor="$primary press:$primarySoft"
+        color="$onPrimary"
+        borderRadius="card"
+        borderCurve="continuous"
+        paddingInline="three"
+        paddingBlock="two"
+        minHeight={44}
+        fontSize={15}
+        fontWeight="600"
       >
-        <Text
-          style={{ color: theme.onPrimary, fontSize: 15, fontWeight: "600" }}
-        >
-          {t("home.emptyAction")}
-        </Text>
-      </Pressable>
-      <Text
-        style={{
-          fontSize: 12,
-          color: theme.textSecondary,
-          textAlign: "center",
-        }}
-      >
+        {t("home.emptyAction")}
+      </Button>
+      <Text fontSize={12} color="$textSecondary" textAlign="center">
         {t("home.privacyNote")}
       </Text>
-    </View>
+    </YStack>
   );
 }
 
@@ -442,13 +393,11 @@ function NoScheduleToday() {
   const theme = useTheme();
   const t = useTranslation();
   return (
-    <View
-      style={{
-        alignItems: "center",
-        justifyContent: "center",
-        gap: Spacing.two,
-        paddingVertical: Spacing.five,
-      }}
+    <YStack
+      alignItems="center"
+      justifyContent="center"
+      gap="two"
+      paddingBlock="five"
     >
       <SymbolIcon
         name={{ ios: "calendar", android: "calendar_month" }}
@@ -456,24 +405,16 @@ function NoScheduleToday() {
         color={theme.textSecondary}
       />
       <Text
-        style={{
-          fontSize: 15,
-          fontWeight: "600",
-          color: theme.textSecondary,
-          textAlign: "center",
-        }}
+        fontSize={15}
+        fontWeight="600"
+        color="$textSecondary"
+        textAlign="center"
       >
         {t("home.noSchedule")}
       </Text>
-      <Text
-        style={{
-          fontSize: 13,
-          color: theme.textSecondary,
-          textAlign: "center",
-        }}
-      >
+      <Text fontSize={13} color="$textSecondary" textAlign="center">
         {t("home.noScheduleHint")}
       </Text>
-    </View>
+    </YStack>
   );
 }

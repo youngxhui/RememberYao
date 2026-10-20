@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { TextInput } from "react-native";
+import { Button, Text, View, XStack, YStack } from "tamagui";
 
 import { GlassChip } from "@/components/glass-chip";
 import { RnDateTimePicker } from "@/components/rn-datetime-picker";
@@ -15,7 +16,7 @@ import {
 } from "@/components/rn-form";
 import { InputShell } from "@/components/rn-input-shell";
 import { ScreenScaffold } from "@/components/screen-scaffold";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { pickerFormat, useI18n } from "@/i18n";
 import {
@@ -55,6 +56,8 @@ export default function MedicationFormScreen() {
   const router = useRouter();
   const { t, language } = useI18n();
   const picker = pickerFormat(language);
+  // 只剩两处要真实色值：RN TextInput 的 style 不解析 $token（输入文字色），
+  // RnDateTimePicker 的 accentColor 是原生视图 prop
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditing = Boolean(id);
@@ -214,7 +217,7 @@ export default function MedicationFormScreen() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <View style={{ gap: Spacing.four }}>
+        <YStack gap="four">
           <Subtitle text={t("medication.formSubtitle")} />
 
           <FormSection title={t("medication.sectionBasic")}>
@@ -295,7 +298,7 @@ export default function MedicationFormScreen() {
 
           <FormSection title={t("medication.sectionStockManage")}>
             {isBlister ? (
-              <View style={{ gap: Spacing.three }}>
+              <YStack gap="three">
                 <FieldRow>
                   <Field label={t("medication.blisterRows")}>
                     <InputShell>
@@ -353,13 +356,7 @@ export default function MedicationFormScreen() {
                 {specError ? (
                   <ErrorText text={t("medication.blisterSpecInvalid")} />
                 ) : null}
-                <Text
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 18,
-                    color: theme.textSecondary,
-                  }}
-                >
+                <Text fontSize={13} lineHeight={18} color="$textSecondary">
                   {isEditing
                     ? hasTwin
                       ? t("medication.blisterSpecHintExisting")
@@ -369,9 +366,9 @@ export default function MedicationFormScreen() {
                         total: perPackPreview * packCountPreview,
                       })}
                 </Text>
-              </View>
+              </YStack>
             ) : (
-              <View style={{ gap: Spacing.three }}>
+              <YStack gap="three">
                 <FieldRow>
                   <Field label={t("medication.currentStock")}>
                     <InputShell>
@@ -404,17 +401,11 @@ export default function MedicationFormScreen() {
                 {quantityError ? (
                   <ErrorText text={t("medication.quantityInvalid")} />
                 ) : null}
-              </View>
+              </YStack>
             )}
 
             <Field label={t("medication.expiryDate")}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: Spacing.rowGap,
-                }}
-              >
+              <XStack alignItems="center" gap="rowGap">
                 {expiryDate ? (
                   <RnDateTimePicker
                     testID="medication-expiry-picker"
@@ -427,12 +418,12 @@ export default function MedicationFormScreen() {
                     }}
                   />
                 ) : (
-                  <Text style={{ fontSize: 15, color: theme.textSecondary }}>
+                  <Text fontSize={15} color="$textSecondary">
                     {t("medication.expiryUnset")}
                   </Text>
                 )}
-                <View style={{ flex: 1 }} />
-                <Pressable
+                <View flex={1} />
+                <View
                   testID={
                     expiryDate
                       ? "medication-expiry-clear"
@@ -441,18 +432,13 @@ export default function MedicationFormScreen() {
                   onPress={() => {
                     setExpiryDate(expiryDate ? null : dateKey(new Date()));
                   }}
+                  accessibilityRole="button"
                 >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "600",
-                      color: theme.primary,
-                    }}
-                  >
+                  <Text fontSize={14} fontWeight="600" color="$primary">
                     {expiryDate ? t("common.clear") : t("medication.expirySet")}
                   </Text>
-                </Pressable>
-              </View>
+                </View>
+              </XStack>
             </Field>
           </FormSection>
 
@@ -472,13 +458,7 @@ export default function MedicationFormScreen() {
             </Field>
 
             <Field label={t("medication.takers")}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  lineHeight: 18,
-                  color: theme.textSecondary,
-                }}
-              >
+              <Text fontSize={13} lineHeight={18} color="$textSecondary">
                 {persons.length === 0
                   ? t("medication.takersNone")
                   : t("medication.takersHint")}
@@ -486,7 +466,7 @@ export default function MedicationFormScreen() {
             </Field>
 
             <Field label={t("medication.prescription")}>
-              <View style={{ flexDirection: "row", gap: Spacing.two }}>
+              <XStack gap="two">
                 <GlassChip
                   testID="medication-prescription-yes"
                   label={t("medication.prescriptionYes")}
@@ -503,83 +483,44 @@ export default function MedicationFormScreen() {
                     setPrescription(false);
                   }}
                 />
-              </View>
+              </XStack>
             </Field>
           </FormSection>
 
-          <View style={{ gap: Spacing.three, marginBottom: Spacing.three }}>
-            <Pressable
+          <YStack gap="three" marginBottom="three">
+            <Button
               testID="medication-save-button"
               onPress={() => {
                 void save();
               }}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? theme.primarySoft : theme.primary,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-              })}
+              alignSelf="stretch"
+              backgroundColor="$primary press:$primarySoft"
+              borderCurve="continuous"
+              color="$onPrimary"
             >
-              <Text
-                style={{
-                  color: theme.onPrimary,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
-                {t("medication.saveMedication")}
-              </Text>
-            </Pressable>
-            <Pressable
+              {t("medication.saveMedication")}
+            </Button>
+            <Button
               testID="medication-cancel-button"
               onPress={() => {
                 router.back();
               }}
-              style={({ pressed }) => ({
-                backgroundColor: pressed
-                  ? theme.backgroundSelected
-                  : theme.surface,
-                borderRadius: Radius.card,
-                borderCurve: "continuous",
-                borderWidth: 1,
-                borderColor: theme.border,
-                paddingVertical: Spacing.three,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 44,
-              })}
+              alignSelf="stretch"
+              borderWidth={1}
+              borderColor="$border"
+              backgroundColor="$surface press:$backgroundSelected"
+              borderCurve="continuous"
+              color="$text"
             >
-              <Text
-                style={{
-                  color: theme.text,
-                  fontSize: 15,
-                  fontWeight: "600",
-                }}
-              >
-                {t("common.cancel")}
-              </Text>
-            </Pressable>
-            <View
-              style={{
-                alignItems: "center",
-                paddingVertical: Spacing.two,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: theme.textSecondary,
-                  textAlign: "center",
-                }}
-              >
+              {t("common.cancel")}
+            </Button>
+            <YStack alignItems="center" paddingBlock="two">
+              <Text fontSize={12} color="$textSecondary" textAlign="center">
                 {t("medication.saveHint")}
               </Text>
-            </View>
-          </View>
-        </View>
+            </YStack>
+          </YStack>
+        </YStack>
       </ScreenScaffold>
     </>
   );

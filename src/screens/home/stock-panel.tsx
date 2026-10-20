@@ -1,9 +1,8 @@
 import { useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Button, Text, View, XStack, YStack } from "tamagui";
 
 import { SYMBOL_ICONS } from "@/components/icons";
 import { SymbolIcon } from "@/components/symbol-icon";
-import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, useTranslation, type Language } from "@/i18n";
 import {
@@ -58,6 +57,13 @@ export type StockPanelProps = {
   plans: MedicationPlan[];
 };
 
+/**
+ * 库存速览面板：Tamagui 树 + token 名。
+ *
+ * 半透明色（`withAlpha(theme.danger, …)`）仍是算出来的值而不是设计 token，
+ * 所以继续走 `useTheme()` 取真实色值喂给样式 prop；`SymbolIcon` 的 color
+ * 同理 —— 它把值交给原生 SymbolView，收不了 token 名。
+ */
 export function StockPanel({ medications, plans }: StockPanelProps) {
   const theme = useTheme();
   const t = useTranslation();
@@ -67,25 +73,15 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
   const low = rows.filter((row) => row.low);
 
   return (
-    <View style={{ gap: Spacing.two }}>
+    <YStack gap="two">
       {rows.length === 0 ? (
-        <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+        <Text color="$textSecondary" fontSize={13}>
           {t("home.stockListEmpty")}
         </Text>
       ) : (
         rows.map((row) => (
-          <View
-            key={row.medication.id}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: Spacing.two,
-            }}
-          >
-            <Text
-              numberOfLines={1}
-              style={{ flex: 1, color: theme.text, fontSize: 14 }}
-            >
+          <XStack key={row.medication.id} alignItems="center" gap="two">
+            <Text numberOfLines={1} flex={1} color="$text" fontSize={14}>
               {`${row.medication.name} ${row.medication.remainingQuantity}${medicationUnitLabel(
                 row.medication.unit,
                 t,
@@ -93,46 +89,39 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
             </Text>
             <StockBar percent={row.percent} low={row.low} />
             <Text
-              style={{
-                width: 72,
-                textAlign: "right",
-                color: row.low ? theme.warningStrong : theme.textSecondary,
-                fontFamily: Fonts.mono,
-                fontVariant: ["tabular-nums"],
-                fontSize: 12,
-                fontWeight: row.low ? "600" : "400",
-              }}
+              width={72}
+              textAlign="right"
+              color={row.low ? "$warningStrong" : "$textSecondary"}
+              fontFamily="mono"
+              style={{ fontVariant: ["tabular-nums"] }}
+              fontSize={12}
+              fontWeight={row.low ? "600" : "400"}
             >
               {t("home.daysLeft", { days: row.daysLeft })}
             </Text>
-          </View>
+          </XStack>
         ))
       )}
 
       {low.length > 0 ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: Spacing.three,
-            paddingHorizontal: Spacing.three,
-            paddingVertical: 14,
-            backgroundColor: withAlpha(theme.danger, 0.05),
-            borderWidth: 1,
-            borderColor: withAlpha(theme.danger, 0.28),
-            borderRadius: Radius.card,
-            borderCurve: "continuous",
-          }}
+        <XStack
+          alignItems="center"
+          gap="three"
+          paddingInline="three"
+          paddingBlock={14}
+          backgroundColor={withAlpha(theme.danger, 0.05)}
+          borderWidth={1}
+          borderColor={withAlpha(theme.danger, 0.28)}
+          borderRadius="card"
+          borderCurve="continuous"
         >
           <View
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: Radius.pill,
-              backgroundColor: withAlpha(theme.danger, 0.12),
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            width={32}
+            height={32}
+            borderRadius="pill"
+            backgroundColor={withAlpha(theme.danger, 0.12)}
+            alignItems="center"
+            justifyContent="center"
           >
             <SymbolIcon
               name={SYMBOL_ICONS.stockWarning}
@@ -140,14 +129,12 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
               color={theme.dangerStrong}
             />
           </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
+          <YStack flex={1} minWidth={0}>
             <Text
               numberOfLines={1}
-              style={{
-                color: theme.dangerStrong,
-                fontSize: 14,
-                fontWeight: "600",
-              }}
+              color="$dangerStrong"
+              fontSize={14}
+              fontWeight="600"
             >
               {low.length > 1
                 ? t("home.lowMany", {
@@ -158,19 +145,17 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
             </Text>
             <Text
               numberOfLines={2}
-              style={{
-                marginTop: 2,
-                color: theme.textSecondary,
-                fontFamily: Fonts.mono,
-                fontSize: 12,
-              }}
+              marginTop={2}
+              color="$textSecondary"
+              fontFamily="mono"
+              fontSize={12}
             >
               {t("home.lowRunsOut", {
                 date: monthDay(addDays(todayKey(), low[0].daysLeft), language),
               })}
             </Text>
-          </View>
-          <Pressable
+          </YStack>
+          <Button
             testID="home-refill-button"
             accessibilityRole="button"
             accessibilityLabel={t("home.restock")}
@@ -180,55 +165,40 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
                 params: { id: low[0].medication.id },
               });
             }}
-            style={({ pressed }) => ({
-              minHeight: 44,
-              paddingHorizontal: Spacing.three,
-              borderRadius: Radius.pill,
-              borderWidth: 1,
-              borderColor: withAlpha(theme.dangerStrong, 0.3),
-              backgroundColor: pressed
-                ? withAlpha(theme.danger, 0.06)
-                : theme.surface,
-              alignItems: "center",
-              justifyContent: "center",
-            })}
+            size={false}
+            minHeight={44}
+            paddingInline="three"
+            borderRadius="pill"
+            borderWidth={1}
+            borderColor={withAlpha(theme.dangerStrong, 0.3)}
+            backgroundColor="$surface press:$dangerSoft"
+            color="$dangerStrong"
+            fontSize={13}
+            fontWeight="600"
           >
-            <Text
-              style={{
-                color: theme.dangerStrong,
-                fontSize: 13,
-                fontWeight: "600",
-              }}
-            >
-              {t("home.restock")}
-            </Text>
-          </Pressable>
-        </View>
+            {t("home.restock")}
+          </Button>
+        </XStack>
       ) : null}
-    </View>
+    </YStack>
   );
 }
 
 function StockBar({ percent, low }: { percent: number; low: boolean }) {
-  const theme = useTheme();
   const clamped = Math.max(0, Math.min(1, percent));
   return (
     <View
-      style={{
-        width: 72,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: theme.border,
-        overflow: "hidden",
-      }}
+      width={72}
+      height={4}
+      borderRadius={2}
+      backgroundColor="$border"
+      overflow="hidden"
     >
       <View
-        style={{
-          width: `${clamped * 100}%`,
-          height: 4,
-          borderRadius: 2,
-          backgroundColor: low ? theme.danger : theme.success,
-        }}
+        width={`${clamped * 100}%`}
+        height={4}
+        borderRadius={2}
+        backgroundColor={low ? "$danger" : "$success"}
       />
     </View>
   );

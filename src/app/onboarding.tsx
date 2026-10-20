@@ -1,13 +1,16 @@
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
+// ScrollView 是原生滚动控件（迁移规范第 7 条保留原包）；RNView / RNPressable 是因为
+// onLayout 与 hitSlop 是 RN 专属 prop，Tamagui 的 View 类型不收（规范第 8 条），
+// 这两处按最小改动保留 RN 原族，里面仍放 Tamagui 内容
 import {
-  Pressable,
+  Pressable as RNPressable,
   ScrollView,
-  Text,
-  View,
+  View as RNView,
   type ScrollViewInstance,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text, View } from "tamagui";
 
 import { GlassHostButton } from "@/components/glass-host-button";
 import { SYMBOL_ICONS } from "@/components/icons";
@@ -48,7 +51,7 @@ const HERO_RADIUS = 32;
  *
  * 早先整屏是 `@expo/ui`（`Host` + SwiftUI `ScrollView` / `Column` / `Row` +
  * `TabView(.pageStyle)` pager + `.buttonStyle(.glassProminent)` 按钮）。2026-10-16
- * 迁纯 RN：
+ * 迁 RN 树（2026-10-19 起 UI 原语改走 Tamagui，滚动容器仍是 RN）：
  *
  * - **pager** 用 RN `ScrollView` + `pagingEnabled`：容器实测宽度后每页等宽，
  *   跟手滑动用 `onMomentumScrollEnd` 回读页码，「下一步」用 `scrollTo` 程序化翻页。
@@ -58,10 +61,11 @@ const HERO_RADIUS = 32;
    与详情页补货、孪生加板同一颗。
  * - **「跳过」** 现在能落 `testID` 了 —— `@expo/ui` 的 `Text` 在 iOS 上不转发
  *   accessibilityIdentifier（`TextView.swift` 漏调 `applyAccessibilityIdentifier`），
- *   Maestro 只能按中文文案定位；RN `Text` 没这个问题。yaml 里既有的
- *   `tapOn: "跳过"` 仍然有效（文案没动），此处只是多给一个稳定入口。
+ *   Maestro 只能按中文文案定位；（Tamagui 的）`Text` 底层就是 RN `Text`，没这个问题。
+ *   yaml 里既有的 `tapOn: "跳过"` 仍然有效（文案没动），此处只是多给一个稳定入口。
  */
 export default function OnboardingScreen() {
+  // SymbolIcon 的 color 喂给原生的 SymbolView，只收真实色值
   const theme = useTheme();
   const t = useTranslation();
   const router = useRouter();
@@ -97,7 +101,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+    <View flex={1} backgroundColor="$canvas">
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -105,15 +109,13 @@ export default function OnboardingScreen() {
           flexGrow: 1,
         }}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            padding: Spacing.three,
-          }}
-        >
-          <View style={{ flex: 1 }} />
+        <View flexDirection="row" padding="three">
+          <View flex={1} />
           {!isFirst ? (
-            <Pressable
+            // hitSlop 是 RN Pressable 专属 prop（Tamagui 的 View 类型不收，见
+            // 文件头注释），为保住这块 16px 热区外扩，跳过按钮保留 RN 外壳，
+            // 文字仍是 Tamagui Text
+            <RNPressable
               testID="onboarding-skip-button"
               accessibilityRole="button"
               onPress={() => {
@@ -122,14 +124,16 @@ export default function OnboardingScreen() {
               hitSlop={Spacing.three}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
             >
-              <Text style={{ fontSize: 14, color: theme.textSecondary }}>
+              <Text fontSize={14} color="$textSecondary">
                 {t("onboarding.skip")}
               </Text>
-            </Pressable>
+            </RNPressable>
           ) : null}
         </View>
 
-        <View
+        {/* onLayout 同样是 RN 专属 prop：这一层量 pager 宽度，用 RN View 外壳，
+            Tamagui 的 View 类型不收它（见文件头注释） */}
+        <RNView
           style={{ flex: 1, justifyContent: "center" }}
           onLayout={(event) => {
             setPagerWidth(event.nativeEvent.layout.width);
@@ -148,25 +152,21 @@ export default function OnboardingScreen() {
             {PAGES.map((item) => (
               <View
                 key={item.value}
-                style={{
-                  width: pagerWidth > 0 ? pagerWidth : undefined,
-                  flex: pagerWidth > 0 ? undefined : 1,
-                  alignItems: "center",
-                  gap: Spacing.five,
-                  paddingVertical: Spacing.six,
-                  paddingHorizontal: Spacing.five,
-                }}
+                width={pagerWidth > 0 ? pagerWidth : undefined}
+                flex={pagerWidth > 0 ? undefined : 1}
+                alignItems="center"
+                gap="five"
+                paddingBlock={Spacing.six}
+                paddingInline="five"
               >
                 <View
-                  style={{
-                    width: HERO_SIZE,
-                    height: HERO_SIZE,
-                    borderRadius: HERO_RADIUS,
-                    borderCurve: "continuous",
-                    backgroundColor: theme.primarySoft,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  width={HERO_SIZE}
+                  height={HERO_SIZE}
+                  borderRadius={HERO_RADIUS}
+                  borderCurve="continuous"
+                  backgroundColor="$primarySoft"
+                  alignItems="center"
+                  justifyContent="center"
                 >
                   <SymbolIcon
                     name={item.icon}
@@ -175,30 +175,22 @@ export default function OnboardingScreen() {
                   />
                 </View>
                 <Text
-                  style={{
-                    fontSize: 26,
-                    fontWeight: "700",
-                    color: theme.text,
-                    textAlign: "center",
-                  }}
+                  fontSize={26}
+                  fontWeight="700"
+                  color="$text"
+                  textAlign="center"
                 >
                   {t(item.titleKey)}
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    color: theme.textSecondary,
-                    textAlign: "center",
-                  }}
-                >
+                <Text fontSize={14} color="$textSecondary" textAlign="center">
                   {t(item.subtitleKey)}
                 </Text>
               </View>
             ))}
           </ScrollView>
-        </View>
+        </RNView>
 
-        <View style={{ padding: Spacing.four }}>
+        <View padding="four">
           <GlassHostButton
             testID="onboarding-next-button"
             label={isLast ? t("onboarding.start") : t("onboarding.next")}

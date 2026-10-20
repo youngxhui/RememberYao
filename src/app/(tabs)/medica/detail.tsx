@@ -5,7 +5,8 @@ import {
   useRouter,
 } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { TextInput } from "react-native";
+import { Text, View, XStack, YStack } from "tamagui";
 
 import { AvatarMark } from "@/components/avatar";
 import { GlassHostButton } from "@/components/glass-host-button";
@@ -19,7 +20,7 @@ import {
 import { ScreenScaffold } from "@/components/screen-scaffold";
 import { SymbolIcon, type SymbolIconName } from "@/components/symbol-icon";
 import { editIcon } from "@/components/toolbar-icons";
-import { BottomTabInset, Radius, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, useTranslation } from "@/i18n";
 import {
@@ -52,7 +53,8 @@ import {
  * 标签 / 值，与药品库列表、设置页同构。库存档位只由值的颜色承担，不做
  * 大数字、进度条、状态胶囊那套 dashboard 装饰（ui-design.md 反模式表）。
  *
- * 补货按钮保留系统玻璃（iOS `.glass`，Android 实心），其余主按钮改 RN Pressable。
+ * 补货 / 添加配置 / 删除按钮保留系统玻璃（`GlassHostButton`：iOS `.glass`，
+ * Android 实心），内容树与按压反馈走 Tamagui 原语 + token。
  */
 export default function MedicationDetailScreen() {
   const router = useRouter();
@@ -112,7 +114,7 @@ export default function MedicationDetailScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View flex={1} backgroundColor="$canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{t("common.loading")}</Stack.Title>
       </View>
@@ -121,18 +123,16 @@ export default function MedicationDetailScreen() {
 
   if (!medication) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <View flex={1} backgroundColor="$canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{t("medication.notFound")}</Stack.Title>
         <View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            paddingTop: 120,
-          }}
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          paddingTop={120}
         >
-          <Text style={{ color: theme.textSecondary, fontSize: 15 }}>
+          <Text color="$textSecondary" fontSize={15}>
             {t("medication.notFound")}
           </Text>
         </View>
@@ -201,7 +201,7 @@ export default function MedicationDetailScreen() {
       >
         {/* 区块之间 16（gap）+ 标题 paddingTop 8 = 标题距上一区块 24，
         标题距自己的卡 8 —— iOS 分组列表的「header 贴组」节奏 */}
-        <View style={{ gap: Spacing.three }}>
+        <View gap="three">
           <StockSummaryCard medication={medication} summary={summary} />
 
           {/* 标题与各自的卡包成一层：外层 gap 只作用于区块之间，
@@ -237,15 +237,9 @@ export default function MedicationDetailScreen() {
             <SectionTitle>{t("medication.restock")}</SectionTitle>
             {twin.enabled ? (
               <SectionCard tone="outline">
-                <View style={{ gap: Spacing.three, padding: Spacing.three }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: Spacing.rowGap,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
+                <View gap="three" padding="three">
+                  <XStack alignItems="center" gap="rowGap">
+                    <View flex={1}>
                       <InputShell>
                         <TextInput
                           testID="restock-packs-input"
@@ -271,19 +265,13 @@ export default function MedicationDetailScreen() {
                         void restockPacks();
                       }}
                     />
-                  </View>
+                  </XStack>
                   {restockError ? (
-                    <Text style={{ fontSize: 13, color: theme.danger }}>
+                    <Text fontSize={13} color="$danger">
                       {t("medication.restockInvalid")}
                     </Text>
                   ) : null}
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: theme.textSecondary,
-                      lineHeight: 18,
-                    }}
-                  >
+                  <Text fontSize={12} color="$textSecondary" lineHeight={18}>
                     {t("medication.restockPacksHint", {
                       perPack: twin.slotsPerPack,
                       unit: medicationUnitLabel(medication.unit, t),
@@ -293,15 +281,9 @@ export default function MedicationDetailScreen() {
               </SectionCard>
             ) : (
               <SectionCard tone="outline">
-                <View style={{ gap: Spacing.three, padding: Spacing.three }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: Spacing.rowGap,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
+                <View gap="three" padding="three">
+                  <XStack alignItems="center" gap="rowGap">
+                    <View flex={1}>
                       <InputShell>
                         <TextInput
                           testID="restock-amount-input"
@@ -328,19 +310,13 @@ export default function MedicationDetailScreen() {
                       }}
                       tintColor={theme.primary}
                     />
-                  </View>
+                  </XStack>
                   {restockError ? (
-                    <Text style={{ fontSize: 13, color: theme.danger }}>
+                    <Text fontSize={13} color="$danger">
                       {t("medication.restockInvalid")}
                     </Text>
                   ) : null}
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: theme.textSecondary,
-                      lineHeight: 18,
-                    }}
-                  >
+                  <Text fontSize={12} color="$textSecondary" lineHeight={18}>
                     {t("medication.restockHint")}
                   </Text>
                 </View>
@@ -348,7 +324,7 @@ export default function MedicationDetailScreen() {
             )}
           </View>
 
-          <View style={{ gap: Spacing.three, marginTop: Spacing.three }}>
+          <View gap="three" marginTop="three">
             <GlassHostButton
               testID="medication-add-plan-button"
               label={t("plan.formTitle")}
@@ -370,20 +346,10 @@ export default function MedicationDetailScreen() {
               onPress={() => {
                 void remove();
               }}
-              labelColor={theme.danger}
+              labelColor="$danger"
             />
-            <View
-              style={{
-                alignItems: "center",
-                paddingVertical: Spacing.two,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  textAlign: "center",
-                }}
-              >
+            <View alignItems="center" paddingBlock="two">
+              <Text fontSize={12} textAlign="center">
                 {t("medication.deleteHint")}
               </Text>
             </View>
@@ -416,7 +382,7 @@ function TwinEntry({
   const router = useRouter();
 
   return (
-    <Pressable
+    <View
       testID="medication-twin-entry"
       onPress={() => {
         router.push({
@@ -424,38 +390,25 @@ function TwinEntry({
           params: { id: medication.id },
         });
       }}
-      style={({ pressed }) => ({
-        backgroundColor: pressed ? theme.backgroundSelected : theme.surface,
-        borderWidth: 1,
-        borderColor: theme.border,
-        borderRadius: Radius.card,
-        borderCurve: "continuous",
-        padding: Spacing.three,
-      })}
+      accessibilityRole="button"
+      backgroundColor="$surface press:$backgroundSelected"
+      borderWidth={1}
+      borderColor="$border"
+      borderRadius="card"
+      borderCurve="continuous"
+      padding="three"
     >
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: Spacing.rowGap,
-        }}
-      >
+      <XStack alignItems="center" gap="rowGap">
         <SymbolIcon
           name={{ ios: "square.grid.2x2", android: "grid_view" }}
           size={22}
           color={theme.primary}
         />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: 16, fontWeight: "600", color: theme.text }}
-          >
+        <YStack flex={1} minWidth={0}>
+          <Text numberOfLines={1} fontSize={16} fontWeight="600" color="$text">
             {enabled ? t("medication.twinEntry") : t("medication.twinEnable")}
           </Text>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: 13, color: theme.textSecondary }}
-          >
+          <Text numberOfLines={1} fontSize={13} color="$textSecondary">
             {enabled
               ? openSeq !== null
                 ? t("medication.twinProgressOpen", {
@@ -466,14 +419,14 @@ function TwinEntry({
                 : t("medication.twinProgressDone")
               : t("medication.twinEnableHint")}
           </Text>
-        </View>
+        </YStack>
         <SymbolIcon
           name="chevron.right"
           size={14}
           color={theme.textSecondary}
         />
-      </View>
-    </Pressable>
+      </XStack>
+    </View>
   );
 }
 
@@ -490,7 +443,6 @@ function StockSummaryCard({
   medication: Medication;
   summary: ReturnType<typeof stockSummary>;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
   const level = stockLevel(medication);
   const unit = medicationUnitLabel(medication.unit, t);
@@ -499,8 +451,8 @@ function StockSummaryCard({
   if (level === "unset") {
     return (
       <SectionCard tone="outline">
-        <View style={{ padding: Spacing.three }}>
-          <Text style={{ fontSize: 14, color: theme.textSecondary }}>
+        <View padding="three">
+          <Text fontSize={14} color="$textSecondary">
             {t("medication.stockUnsetHint")}
           </Text>
         </View>
@@ -531,7 +483,7 @@ function StockSummaryCard({
             ? t("medication.daysValue", { days: summary.daysLeft })
             : t("medication.estimateUnknown")
         }
-        valueColor={summary.low ? theme.dangerStrong : undefined}
+        valueColor={summary.low ? "$dangerStrong" : undefined}
       />
     </SectionCard>
   );
@@ -558,33 +510,30 @@ function FieldRow({
   const theme = useTheme();
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: Spacing.rowGap,
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.rowGap,
-      }}
+    <XStack
+      alignItems="center"
+      gap="rowGap"
+      paddingInline="three"
+      paddingBlock="rowGap"
     >
       {icon ? (
         <SymbolIcon size={18} color={theme.textSecondary} name={icon} />
       ) : null}
-      <Text style={{ fontSize: 15, color: theme.text, flex: 1 }}>{label}</Text>
+      <Text flex={1} fontSize={15} color="$text">
+        {label}
+      </Text>
       <Text
         numberOfLines={2}
-        style={{
-          fontSize: 15,
-          fontWeight: emphasis ? "600" : "400",
-          color: valueColor ?? (emphasis ? theme.text : theme.textSecondary),
-          textAlign: "right",
-          flex: 1,
-          fontVariant: ["tabular-nums"],
-        }}
+        flex={1}
+        fontSize={15}
+        fontWeight={emphasis ? "600" : "400"}
+        color={valueColor ?? (emphasis ? "$text" : "$textSecondary")}
+        textAlign="right"
+        style={{ fontVariant: ["tabular-nums"] }}
       >
         {value}
       </Text>
-    </View>
+    </XStack>
   );
 }
 
@@ -601,7 +550,6 @@ function BasicInfo({
   language: string;
 }) {
   const t = useTranslation();
-  const theme = useTheme();
   const expired =
     medication.expiryDate !== null && medication.expiryDate < todayKey();
 
@@ -635,7 +583,7 @@ function BasicInfo({
     value: medication.prescription
       ? t("medication.prescriptionYes")
       : t("medication.prescriptionNo"),
-    valueColor: medication.prescription ? theme.warningStrong : undefined,
+    valueColor: medication.prescription ? "$warningStrong" : undefined,
   });
   rows.push({
     icon: SYMBOL_ICONS.calendar,
@@ -645,7 +593,7 @@ function BasicInfo({
         ? `${formatDateKey(medication.expiryDate, language)} · ${t("medication.expired")}`
         : formatDateKey(medication.expiryDate, language)
       : t("medication.expiryUnset"),
-    valueColor: expired ? theme.dangerStrong : undefined,
+    valueColor: expired ? "$dangerStrong" : undefined,
   });
 
   return (
@@ -664,29 +612,11 @@ function BasicInfo({
       {medication.notes ? (
         <>
           <HairLine />
-          <View
-            style={{
-              paddingHorizontal: Spacing.three,
-              paddingVertical: Spacing.rowGap,
-              gap: Spacing.two,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "600",
-                color: theme.textSecondary,
-              }}
-            >
+          <View paddingInline="three" paddingBlock="rowGap" gap="two">
+            <Text fontSize={13} fontWeight="600" color="$textSecondary">
               {t("medication.notes")}
             </Text>
-            <Text
-              style={{
-                fontSize: 15,
-                lineHeight: 21,
-                color: theme.text,
-              }}
-            >
+            <Text fontSize={15} lineHeight={21} color="$text">
               {medication.notes}
             </Text>
           </View>
@@ -707,36 +637,17 @@ function PlanSection({
   medication: Medication;
 }) {
   const t = useTranslation();
-  const theme = useTheme();
   const router = useRouter();
   const unit = medicationUnitLabel(medication.unit, t);
 
   if (plans.length === 0) {
     return (
       <SectionCard tone="outline">
-        <View
-          style={{
-            alignItems: "center",
-            padding: Spacing.three,
-            gap: Spacing.two,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 13,
-              color: theme.textSecondary,
-              textAlign: "center",
-            }}
-          >
+        <View alignItems="center" padding="three" gap="two">
+          <Text fontSize={13} color="$textSecondary" textAlign="center">
             {t("medication.noTakers")}
           </Text>
-          <Text
-            style={{
-              fontSize: 12,
-              color: theme.textSecondary,
-              textAlign: "center",
-            }}
-          >
+          <Text fontSize={12} color="$textSecondary" textAlign="center">
             {t("medication.noTakersHint")}
           </Text>
         </View>
@@ -751,7 +662,7 @@ function PlanSection({
         return (
           <View key={plan.id}>
             {index > 0 ? <HairLine /> : null}
-            <Pressable
+            <XStack
               testID={`medication-plan-${plan.id}`}
               onPress={() => {
                 router.push({
@@ -759,44 +670,40 @@ function PlanSection({
                   params: { id: plan.personId },
                 });
               }}
-              style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
-                gap: Spacing.rowGap,
-                paddingHorizontal: Spacing.three,
-                paddingVertical: Spacing.rowGap,
-                backgroundColor: pressed
-                  ? theme.backgroundSelected
-                  : "transparent",
-              })}
+              accessibilityRole="button"
+              alignItems="center"
+              gap="rowGap"
+              paddingInline="three"
+              paddingBlock="rowGap"
+              backgroundColor="transparent press:$backgroundSelected"
             >
               <AvatarMark
-                color={person?.avatarColor ?? theme.primary}
+                color={person?.avatarColor ?? "$primary"}
                 name={person?.name ?? t("common.unknown")}
                 uri={person?.avatarUri}
                 size={36}
               />
-              <View style={{ flex: 1, minWidth: 0 }}>
+              <YStack flex={1} minWidth={0}>
                 <Text
                   numberOfLines={1}
-                  style={{ fontSize: 16, fontWeight: "600", color: theme.text }}
+                  fontSize={16}
+                  fontWeight="600"
+                  color="$text"
                 >
                   {person?.name ?? t("common.unknown")}
                 </Text>
                 <Text
                   numberOfLines={2}
-                  style={{
-                    fontSize: 13,
-                    color: theme.textSecondary,
-                    lineHeight: 18,
-                  }}
+                  fontSize={13}
+                  color="$textSecondary"
+                  lineHeight={18}
                 >
                   {t("medication.doseLine", { amount: plan.doseAmount, unit })}
                   {`\n${t("plan.perDay", { count: plan.times.length })} · ${plan.times.join(" / ")}`}
                 </Text>
-              </View>
+              </YStack>
               <PlanStatusText plan={plan} />
-            </Pressable>
+            </XStack>
           </View>
         );
       })}
@@ -807,16 +714,10 @@ function PlanSection({
 /** 用药配置状态：服用中 / 已停用 / 已结束。只用文字色区分，不做胶囊 */
 function PlanStatusText({ plan }: { plan: MedicationPlan }) {
   const t = useTranslation();
-  const theme = useTheme();
   const active = planActiveOnDate(plan, todayKey());
 
   return (
-    <Text
-      style={{
-        fontSize: 13,
-        color: active ? theme.successStrong : theme.textSecondary,
-      }}
-    >
+    <Text fontSize={13} color={active ? "$successStrong" : "$textSecondary"}>
       {planStatusLabel(plan, t)}
     </Text>
   );

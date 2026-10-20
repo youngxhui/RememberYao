@@ -1,5 +1,5 @@
 import { Stack, useRouter } from "expo-router";
-import { View as RNView } from "react-native";
+import { View } from "tamagui";
 
 import { HUGI_ICONS } from "@/components/huge-icon";
 import { SectionCard } from "@/components/rn-section-card";
@@ -45,7 +45,7 @@ export function SettingsIndex() {
           paddingBottom: BottomTabInset + Spacing.four,
         }}
       >
-        <RNView style={{ gap: Spacing.four }}>
+        <View gap="four">
           <SectionCard tone="outline">
             <SettingRow
               testID="settings-general-row"
@@ -95,7 +95,7 @@ export function SettingsIndex() {
               showChevron
             />
           </SectionCard>
-        </RNView>
+        </View>
       </ScreenScaffold>
     </>
   );

@@ -4,12 +4,8 @@ import {
   type GlassStyle,
 } from "expo-glass-effect";
 import { useEffect, useState } from "react";
-import {
-  AccessibilityInfo,
-  View as RNView,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { AccessibilityInfo } from "react-native";
+import { View, type ViewProps } from "tamagui";
 
 /**
  * 编译期组件 + 运行时 API 都在。降透明是另一条状态，不进这个函数。
@@ -71,13 +67,15 @@ export function ContentGlass({
   cornerRadius?: number;
   interactive?: boolean;
   /** API 不可用 / 降透明 / Android / a11y 未 resolve：普通 View 的底 */
-  fallbackStyle?: StyleProp<ViewStyle>;
-  style?: StyleProp<ViewStyle>;
+  fallbackStyle?: ViewProps["style"];
+  style?: ViewProps["style"];
 }) {
   const native = useLiquidGlassEnabled();
 
   if (!native) {
-    return <RNView style={[fallbackStyle, style]}>{children}</RNView>;
+    // fallback 分支的 style 是调用方给的 RN 样式对象（可能是数组），
+    // Tamagui 的 View 收这种 style，但里面的色值必须是真实色而不是 token 名
+    return <View style={[fallbackStyle, style]}>{children}</View>;
   }
   return (
     <GlassView

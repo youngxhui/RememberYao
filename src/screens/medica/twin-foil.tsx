@@ -1,10 +1,11 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { type ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { View as RNView } from "react-native";
+import { Text, View } from "tamagui";
 
 import { SYMBOL_ICONS } from "@/components/icons";
 import { SymbolIcon } from "@/components/symbol-icon";
-import { Radius, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import type { BlisterPack, BlisterSlot, Medication } from "@/lib/store";
@@ -71,7 +72,7 @@ export function TwinFoilCard({
   width: number;
   children: ReactNode;
 }) {
-  return <View style={{ width, gap: Spacing.three }}>{children}</View>;
+  return <View style={{ width, gap: "three" }}>{children}</View>;
 }
 
 /** 泡罩网格：rows × cols 个格子，尺寸按实测内容宽等分 */
@@ -114,13 +115,13 @@ export function BlisterGrid({
     ) : null;
 
   return (
-    <View style={{ gap: Spacing.three }}>
+    <View style={{ gap: "three" }}>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <Text style={{ fontSize: 15, fontWeight: "700", color: theme.text }}>
+        <Text style={{ fontSize: 15, fontWeight: "700", color: "$text" }}>
           {t("twin.packChip", { seq: pack.seq })}
         </Text>
         <View style={{ flex: 1 }} />
-        <Text style={{ fontSize: 13, color: theme.textSecondary }}>
+        <Text style={{ fontSize: 13, color: "$textSecondary" }}>
           {t("twin.packProgress", { used, total: slots.length })}
         </Text>
       </View>
@@ -128,12 +129,12 @@ export function BlisterGrid({
       {/* 整块是一张药板：铝箔纸（金属渐变）+ 热压封边，泡罩排在箔上 */}
       <View
         style={{
-          borderRadius: Radius.card,
+          borderRadius: "card",
           borderCurve: "continuous",
           borderWidth: 1,
           borderColor: theme.foil.ring,
           backgroundColor: theme.foil.base,
-          padding: Spacing.two,
+          padding: "two",
           gap: CELL_GAP,
           overflow: "hidden",
         }}
@@ -160,7 +161,7 @@ export function BlisterGrid({
             fontFamily: "monospace",
             fontSize: 9,
             letterSpacing: 0.6,
-            color: theme.textSecondary,
+            color: "$textSecondary",
           }}
         >
           {medication.specification
@@ -218,11 +219,13 @@ function SlotCell({
 }) {
   const inset = sealInset(size);
   return (
-    <Pressable
+    <View
       testID={`twin-slot-${seq}-${slot.index}`}
       onPress={onPress}
       accessibilityRole="button"
-      style={{ width: size, height: size, alignItems: "center" }}
+      width={size}
+      height={size}
+      alignItems="center"
     >
       {slot.status === "full" ? (
         <SealDisc size={size} tone="bubble">
@@ -233,7 +236,7 @@ function SlotCell({
           <SlotMark size={size - inset * 2} slot={slot} />
         </SealDisc>
       )}
-    </Pressable>
+    </View>
   );
 }
 
@@ -349,7 +352,7 @@ function RadialStack({
   const maxR = size / 2;
 
   return (
-    <View style={{ width: size, height: size }} pointerEvents="none">
+    <RNView style={{ width: size, height: size }} pointerEvents="none">
       {/* endRadius 之外一律用边缘色，先把整个盒子铺满 */}
       <View
         style={{
@@ -381,7 +384,7 @@ function RadialStack({
         );
       })}
       {children}
-    </View>
+    </RNView>
   );
 }
 
@@ -415,7 +418,8 @@ function SlotMark({ size, slot }: { size: number; slot: BlisterSlot }) {
 /** 坑里标记的语义档：已服 / 历史消耗 / 损坏。颜色走语义色，同库存胶囊 */
 type MarkTone = "success" | "neutral" | "danger";
 
-/** 语义档 → 颜色。hook 而不是常量表：要读 theme，且暗色下语义色会翻面 */
+/** 语义档 → 颜色。hook 而不是常量表：要读 theme，且暗色下语义色会翻面。
+ *  返回值喂给 SymbolIcon 的 color（原生 tintColor，不收 Tamagui token 名） */
 function useMarkTint(tone: MarkTone): string {
   const theme = useTheme();
   if (tone === "success") return theme.successStrong;
@@ -523,7 +527,6 @@ function PillMark({ look, size }: { look: PillLook; size: number }) {
 
 /** 图例：四种格子态的小样，直接复用格子视觉（缩到 14pt 的迷你药板） */
 export function SlotLegend({ pill }: { pill: PillLook }) {
-  const theme = useTheme();
   const t = useTranslation();
   // 图例就是缩小版的真格子：封边 + 泡罩 / 封边 + 坑，不是色块示意
   const swatch = 16;
@@ -580,18 +583,18 @@ export function SlotLegend({ pill }: { pill: PillLook }) {
   ];
 
   return (
-    <View style={{ flexDirection: "row", gap: Spacing.three }}>
+    <View style={{ flexDirection: "row", gap: "three" }}>
       {items.map((item) => (
         <View
           key={item.key}
           style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: Spacing.half,
+            gap: "half",
           }}
         >
           {item.node}
-          <Text style={{ fontSize: 11, color: theme.textSecondary }}>
+          <Text style={{ fontSize: 11, color: "$textSecondary" }}>
             {item.label}
           </Text>
         </View>

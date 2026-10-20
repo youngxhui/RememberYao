@@ -1,16 +1,18 @@
-import { View, Text } from "react-native";
+import { Text, View, XStack, YStack } from "tamagui";
 
 import { GlassChip } from "@/components/glass-chip";
-import { Radius, Spacing } from "@/constants/theme";
-import { useTheme } from "@/hooks/use-theme";
+import { Spacing } from "@/constants/theme";
 
 /**
- * RN 表单排版基元：视觉基准 = design/add-medication.html 的
+ * 表单排版基元：视觉基准 = design/add-medication.html 的
  * `.form-section` / `.form-field` —— label 在控件**上方**、控件收在圆角描边盒子里、
  * 分区标题带左侧强调竖条。
  *
  * 与 iOS 原生 `FieldGroup`（SwiftUI Form：label 在左、整行分隔）是两套东西，
  * 不要混用 —— 原生 Form 那套只适合设置页。
+ *
+ * 间距/圆角写 Tamagui 的 token 名（`gap="three"`、`borderRadius="card"`），
+ * 取值见根目录 tamagui.config.ts —— 它把 Spacing / Radius 映射成了 token。
  */
 
 /** 卡片内边距，与 design/add-medication.html 的 .form-card padding 16px 一致 */
@@ -22,9 +24,10 @@ const TITLE_BAR_HEIGHT = 16;
 
 /** 标题下方的副标题（design 的 .hero-subtitle） */
 export function Subtitle({ text }: { text: string }) {
-  const theme = useTheme();
   return (
-    <Text style={{ fontSize: 13, color: theme.textSecondary }}>{text}</Text>
+    <Text fontSize={13} color="$textSecondary">
+      {text}
+    </Text>
   );
 }
 
@@ -36,52 +39,37 @@ export function FormSection({
   title: string;
   children: React.ReactNode;
 }) {
-  const theme = useTheme();
   return (
-    <View style={{ gap: Spacing.three }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: Spacing.three,
-        }}
-      >
+    <YStack gap="three">
+      <XStack alignItems="center" gap="three">
         <View
-          style={{
-            width: TITLE_BAR_WIDTH,
-            height: TITLE_BAR_HEIGHT,
-            backgroundColor: theme.primary,
-            borderRadius: 2,
-          }}
+          width={TITLE_BAR_WIDTH}
+          height={TITLE_BAR_HEIGHT}
+          backgroundColor="$primary"
+          borderRadius={2}
         />
-        <Text style={{ fontSize: 15, fontWeight: "700", color: theme.text }}>
+        <Text fontSize={15} fontWeight="700" color="$text">
           {title}
         </Text>
-      </View>
-      <View
-        style={{
-          backgroundColor: theme.surface,
-          borderWidth: 1,
-          borderColor: theme.border,
-          borderRadius: Radius.card,
-          borderCurve: "continuous",
-          padding: CARD_PADDING,
-          gap: Spacing.three,
-        }}
+      </XStack>
+      <YStack
+        backgroundColor="$surface"
+        borderWidth={1}
+        borderColor="$border"
+        borderRadius="card"
+        borderCurve="continuous"
+        padding={CARD_PADDING}
+        gap="three"
       >
         {children}
-      </View>
-    </View>
+      </YStack>
+    </YStack>
   );
 }
 
 /** 两列字段行（design 的 .form-row：grid 1fr 1fr）。 */
 export function FieldRow({ children }: { children: React.ReactNode }) {
-  return (
-    <View style={{ flexDirection: "row", gap: Spacing.cardGap }}>
-      {children}
-    </View>
-  );
+  return <XStack gap="cardGap">{children}</XStack>;
 }
 
 /**
@@ -99,20 +87,13 @@ export function Field({
   style?: object;
   children: React.ReactNode;
 }) {
-  const theme = useTheme();
   return (
-    <View style={[{ gap: Spacing.one }, style]}>
-      <Text
-        style={{
-          fontSize: 13,
-          fontWeight: "600",
-          color: theme.textSecondary,
-        }}
-      >
+    <YStack style={[{ gap: Spacing.one }, style]} gap="one">
+      <Text fontSize={13} fontWeight="600" color="$textSecondary">
         {label}
       </Text>
       {children}
-    </View>
+    </YStack>
   );
 }
 
@@ -122,7 +103,7 @@ export function Field({
  * 不用 universal `Picker`（详见 medica/form.tsx 文件头说明）：iOS 上它是原生
  * `Menu` 胶囊，不吃 `style`，套进输入框盒子就是「盒子里再嵌一颗绿胶囊」，窄列里
  * 中文选项还会被折行。2~4 个取值用 chip 一次点选即选即得，也和药品库的分类筛选
- * 共用同一套控件。
+ * 共用同一控件。
  */
 export function ChipField({
   label,
@@ -140,9 +121,7 @@ export function ChipField({
 }) {
   return (
     <Field label={label}>
-      <View
-        style={{ flexDirection: "row", flexWrap: "wrap", gap: Spacing.two }}
-      >
+      <XStack flexWrap="wrap" gap="two">
         {options.map((option) => (
           <GlassChip
             key={option.value}
@@ -154,15 +133,14 @@ export function ChipField({
             }}
           />
         ))}
-      </View>
+      </XStack>
     </Field>
   );
 }
 
 export function ErrorText({ text }: { text: string }) {
-  const theme = useTheme();
   return (
-    <Text style={{ fontSize: 13, fontWeight: "500", color: theme.danger }}>
+    <Text fontSize={13} fontWeight="500" color="$danger">
       {text}
     </Text>
   );
@@ -170,8 +148,9 @@ export function ErrorText({ text }: { text: string }) {
 
 /** 提示文案：与 ErrorText 同排版，但不染危险色 —— 说明性信息用 */
 export function HintText({ text }: { text: string }) {
-  const theme = useTheme();
   return (
-    <Text style={{ fontSize: 13, color: theme.textSecondary }}>{text}</Text>
+    <Text fontSize={13} color="$textSecondary">
+      {text}
+    </Text>
   );
 }

@@ -1,11 +1,10 @@
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "tamagui";
 
 import { DoseTimeline } from "@/components/dose-timeline";
 import { ProgressBarRn } from "@/components/progress-bar";
-import { ScreenScaffold, Padded } from "@/components/screen-scaffold";
-import { Spacing, Radius } from "@/constants/theme";
+import { Padded, ScreenScaffold } from "@/components/screen-scaffold";
 import { useTheme } from "@/hooks/use-theme";
 import { useI18n, type Language } from "@/i18n";
 import {
@@ -17,6 +16,8 @@ import {
 } from "@/lib/store";
 
 export default function RecordsScreen() {
+  // ProgressBarRn 的 color / track 直接喂给底层 View 的 backgroundColor，
+  // 只收真实色值，不走 Tamagui 的 token 名
   const theme = useTheme();
   const { language, t } = useI18n();
   const [date, setDate] = useState(todayKey());
@@ -67,23 +68,19 @@ export default function RecordsScreen() {
         <Padded>
           {/* 日期栏 */}
           <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: theme.backgroundElement,
-              borderRadius: Radius.card,
-              padding: Spacing.two,
-            }}
+            flexDirection="row"
+            alignItems="center"
+            backgroundColor="$backgroundElement"
+            borderRadius="card"
+            padding="two"
           >
             <NavButton
               testID="records-prev-day"
               label="‹"
               onPress={() => setDate((d) => addDays(d, -1))}
             />
-            <View style={{ flex: 1, alignItems: "center" }}>
-              <Text
-                style={{ fontSize: 15, fontWeight: "600", color: theme.text }}
-              >
+            <View flex={1} alignItems="center">
+              <Text fontSize={15} fontWeight="600" color="$text">
                 {formatDateLabel(date, language)}
               </Text>
             </View>
@@ -98,36 +95,20 @@ export default function RecordsScreen() {
           {/* 统计卡 */}
           {!loading && total > 0 ? (
             <View
-              style={{
-                marginTop: Spacing.three,
-                backgroundColor: theme.primarySoft,
-                borderRadius: Radius.card,
-                padding: Spacing.three,
-              }}
+              marginTop="three"
+              backgroundColor="$primarySoft"
+              borderRadius="card"
+              padding="three"
             >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "flex-end",
-                  gap: Spacing.one,
-                }}
-              >
-                <Text
-                  style={{ fontSize: 28, fontWeight: "700", color: theme.text }}
-                >
+              <View flexDirection="row" alignItems="flex-end" gap="one">
+                <Text fontSize={28} fontWeight="700" color="$text">
                   {`${rate}%`}
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: theme.textSecondary,
-                    marginBottom: 2,
-                  }}
-                >
+                <Text fontSize={13} color="$textSecondary" marginBottom={2}>
                   {t("records.adherence")}
                 </Text>
               </View>
-              <View style={{ marginTop: Spacing.two }}>
+              <View marginTop="two">
                 <ProgressBarRn
                   percent={rate / 100}
                   color={theme.primary}
@@ -135,13 +116,7 @@ export default function RecordsScreen() {
                   height={8}
                 />
               </View>
-              <Text
-                style={{
-                  marginTop: Spacing.two,
-                  fontSize: 12,
-                  color: theme.textSecondary,
-                }}
-              >
+              <Text marginTop="two" fontSize={12} color="$textSecondary">
                 {t("records.summary", { total, taken, missed, skipped })}
               </Text>
             </View>
@@ -149,7 +124,7 @@ export default function RecordsScreen() {
 
           {/* 时间线 */}
           {!loading ? (
-            <View style={{ marginTop: Spacing.three }}>
+            <View marginTop="three">
               <DoseTimeline
                 reminders={dayReminders}
                 medications={medications}
@@ -177,31 +152,24 @@ function NavButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
-  const theme = useTheme();
   return (
-    <Pressable
+    <View
       testID={testID}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled }}
-      style={({ pressed }) => ({
-        paddingHorizontal: Spacing.three,
-        paddingVertical: Spacing.two,
-        borderRadius: Radius.card,
-        opacity: disabled ? 0.3 : pressed ? 0.7 : 1,
-      })}
+      paddingInline="three"
+      paddingBlock="two"
+      borderRadius="card"
+      // 不可用时压暗到 0.3 且禁用按压（Tamagui 的 disabled 会一并吃掉手势），
+      // 可用时按压压到 0.7 —— 与迁移前 Pressable 的 style 函数等价
+      opacity={disabled ? 0.3 : "1 press:0.7"}
     >
-      <Text
-        style={{
-          fontSize: 20,
-          color: theme.primary,
-          fontWeight: "700",
-        }}
-      >
+      <Text fontSize={20} color="$primary" fontWeight="700">
         {label}
       </Text>
-    </Pressable>
+    </View>
   );
 }
 

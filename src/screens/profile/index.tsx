@@ -1,7 +1,7 @@
 import { useObserve } from "expo-observe";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View, XStack, YStack } from "tamagui";
 
 import { AvatarMark } from "@/components/avatar";
 import { MiniArchive } from "@/components/mini-archive";
@@ -12,7 +12,6 @@ import {
   FullBleed,
 } from "@/components/screen-scaffold";
 import { settingsIcon } from "@/components/toolbar-icons";
-import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import {
@@ -157,31 +156,18 @@ function enabledPlanCounts(plans: MedicationPlan[]): Map<string, number> {
 
 /** 本周概览：服药率 + 按时 + 漏服，数字全部来自 store 的纯函数统计 */
 function WeekOverview({ stats }: { stats: WeekStats }) {
-  const theme = useTheme();
   const t = useTranslation();
 
   return (
-    <View style={{ marginTop: Spacing.three, gap: Spacing.two }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: Spacing.two,
-        }}
-      >
+    <YStack marginTop="three" gap="two">
+      <XStack alignItems="center" gap="two">
         <SectionTitle title={t("profile.weekOverview")} />
-        <View style={{ flex: 1 }} />
-        <Text
-          style={{
-            fontSize: 12,
-            fontFamily: Fonts.mono,
-            color: theme.textSecondary,
-          }}
-        >
+        <View flex={1} />
+        <Text fontSize={12} fontFamily="mono" color="$textSecondary">
           {t("profile.plannedCount", { count: stats.planned })}
         </Text>
-      </View>
-      <View style={{ flexDirection: "row", gap: Spacing.cardGap }}>
+      </XStack>
+      <XStack gap="cardGap">
         <StatCard
           value={`${stats.adherence}%`}
           label={t("profile.adherence")}
@@ -190,10 +176,10 @@ function WeekOverview({ stats }: { stats: WeekStats }) {
         <StatCard
           value={String(stats.missed)}
           label={t("profile.missed")}
-          valueColor={stats.missed > 0 ? theme.danger : undefined}
+          valueColor={stats.missed > 0 ? "$danger" : undefined}
         />
-      </View>
-    </View>
+      </XStack>
+    </YStack>
   );
 }
 
@@ -206,44 +192,37 @@ function StatCard({
   label: string;
   valueColor?: string;
 }) {
-  const theme = useTheme();
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: theme.surface,
-        borderWidth: 1,
-        borderColor: theme.border,
-        borderRadius: Radius.card,
-        borderCurve: "continuous",
-        paddingVertical: Spacing.three,
-        alignItems: "center",
-        gap: Spacing.one,
-      }}
+    <YStack
+      flex={1}
+      backgroundColor="$surface"
+      borderWidth={1}
+      borderColor="$border"
+      borderRadius="card"
+      borderCurve="continuous"
+      paddingBlock="three"
+      alignItems="center"
+      gap="one"
     >
       <Text
-        style={{
-          fontSize: 28,
-          lineHeight: 30,
-          fontWeight: "800",
-          letterSpacing: -0.84,
-          color: valueColor ?? theme.text,
-          textAlign: "center",
-        }}
+        fontSize={28}
+        lineHeight={30}
+        fontWeight="800"
+        letterSpacing={-0.84}
+        color={valueColor ?? "$text"}
+        textAlign="center"
       >
         {value}
       </Text>
       <Text
-        style={{
-          fontSize: 13,
-          fontWeight: "500",
-          color: theme.textSecondary,
-          textAlign: "center",
-        }}
+        fontSize={13}
+        fontWeight="500"
+        color="$textSecondary"
+        textAlign="center"
       >
         {label}
       </Text>
-    </View>
+    </YStack>
   );
 }
 
@@ -263,7 +242,7 @@ function SelfSection({
   const t = useTranslation();
 
   return (
-    <View style={{ marginTop: Spacing.four, gap: Spacing.two }}>
+    <YStack marginTop="four" gap="two">
       <SectionTitle title={t("profile.selfTitle")} />
       <MemberCard
         person={person}
@@ -276,7 +255,7 @@ function SelfSection({
           });
         }}
       />
-    </View>
+    </YStack>
   );
 }
 
@@ -295,16 +274,10 @@ function FamilySection({
   const t = useTranslation();
 
   return (
-    <View style={{ marginTop: Spacing.four, gap: Spacing.two }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: Spacing.two,
-        }}
-      >
+    <YStack marginTop="four" gap="two">
+      <XStack alignItems="center" gap="two">
         <SectionTitle title={t("profile.familyTitle")} />
-        <View style={{ flex: 1 }} />
+        <View flex={1} />
         <RnRoundIconButton
           testID="profile-add-member-button"
           label={t("profile.addMember")}
@@ -315,12 +288,12 @@ function FamilySection({
             router.push("/(tabs)/profile/persons");
           }}
         />
-      </View>
+      </XStack>
 
       {loading ? null : persons.length === 0 ? (
         <Hint text={t("profile.emptyFamily")} />
       ) : (
-        <View style={{ gap: Spacing.cardGap }}>
+        <YStack gap="cardGap">
           {persons.map((person) => (
             <MemberCard
               key={person.id}
@@ -335,9 +308,9 @@ function FamilySection({
               }}
             />
           ))}
-        </View>
+        </YStack>
       )}
-    </View>
+    </YStack>
   );
 }
 
@@ -362,26 +335,22 @@ function MemberCard({
   tone: MemberTone;
   onPress: () => void;
 }) {
-  const theme = useTheme();
   const t = useTranslation();
 
   return (
-    <Pressable
+    <XStack
       testID={`profile-member-${person.id}`}
       onPress={onPress}
       accessibilityRole="button"
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: Spacing.three,
-        paddingVertical: Spacing.three,
-        paddingHorizontal: Spacing.screen,
-        backgroundColor: pressed ? theme.backgroundSelected : theme.surface,
-        borderWidth: 1,
-        borderColor: theme.border,
-        borderRadius: Radius.card,
-        borderCurve: "continuous",
-      })}
+      backgroundColor="$surface press:$backgroundSelected"
+      borderWidth={1}
+      borderColor="$border"
+      borderRadius="card"
+      borderCurve="continuous"
+      paddingInline="screen"
+      paddingBlock="three"
+      alignItems="center"
+      gap="three"
     >
       <AvatarMark
         color={person.avatarColor}
@@ -389,22 +358,21 @@ function MemberCard({
         uri={person.avatarUri}
         size={44}
       />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text
-          numberOfLines={1}
-          style={{ fontSize: 17, fontWeight: "700", color: theme.text }}
-        >
+      <YStack flex={1} minWidth={0}>
+        <Text numberOfLines={1} fontSize={17} fontWeight="700" color="$text">
           {person.name}
         </Text>
         <Text
           numberOfLines={1}
-          style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}
+          fontSize={13}
+          color="$textSecondary"
+          marginTop={2}
         >
           {t("person.planCount", { count: planCount })}
         </Text>
-      </View>
+      </YStack>
       <MemberBadge tone={tone} />
-    </Pressable>
+    </XStack>
   );
 }
 
@@ -412,6 +380,7 @@ function MemberBadge({ tone }: { tone: MemberTone }) {
   const theme = useTheme();
   const t = useTranslation();
 
+  // 徽章底色是主题色掺白（算出来的值，不是 token），前景取对应的 *Strong 深色档
   const toneStyle = {
     ok: { background: theme.success, foreground: theme.successStrong },
     watch: { background: theme.warning, foreground: theme.warningStrong },
@@ -428,24 +397,20 @@ function MemberBadge({ tone }: { tone: MemberTone }) {
 
   return (
     <View
-      style={{
-        height: 24,
-        paddingHorizontal: Spacing.rowGap,
-        borderRadius: Radius.pill,
-        backgroundColor: withAlpha(toneStyle.background, 0.12),
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+      height={24}
+      paddingInline="rowGap"
+      borderRadius="pill"
+      backgroundColor={withAlpha(toneStyle.background, 0.12)}
+      alignItems="center"
+      justifyContent="center"
     >
       <Text
-        style={{
-          fontFamily: Fonts.mono,
-          fontSize: 11,
-          fontWeight: "700",
-          letterSpacing: 0.44,
-          color: toneStyle.foreground,
-          textAlign: "center",
-        }}
+        fontFamily="mono"
+        fontSize={11}
+        fontWeight="700"
+        letterSpacing={0.44}
+        color={toneStyle.foreground}
+        textAlign="center"
       >
         {label}
       </Text>
@@ -454,9 +419,8 @@ function MemberBadge({ tone }: { tone: MemberTone }) {
 }
 
 function SectionTitle({ title }: { title: string }) {
-  const theme = useTheme();
   return (
-    <Text style={{ fontSize: 17, fontWeight: "700", color: theme.text }}>
+    <Text fontSize={17} fontWeight="700" color="$text">
       {title}
     </Text>
   );
@@ -464,23 +428,11 @@ function SectionTitle({ title }: { title: string }) {
 
 /** 区块下的居中说明文字（档案为空 / 还没有成员） */
 function Hint({ text }: { text: string }) {
-  const theme = useTheme();
   return (
-    <View
-      style={{
-        alignItems: "center",
-        paddingVertical: Spacing.three,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 13,
-          color: theme.textSecondary,
-          textAlign: "center",
-        }}
-      >
+    <YStack alignItems="center" paddingBlock="three">
+      <Text fontSize={13} color="$textSecondary" textAlign="center">
         {text}
       </Text>
-    </View>
+    </YStack>
   );
 }

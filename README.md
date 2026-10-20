@@ -1,106 +1,92 @@
 # RememberYao
 
-家庭用药提醒 App：记录家里每个人的用药配置，到点自动推送通知，服用后自动扣减库存。
+家庭用药提醒 App：记录家里每个人的用药配置，到点本地通知提醒，服用后自动扣减库存。
+
+**交付物是根目录的两端原生工程**（iOS / Android）。Expo 原型已归档在 `expo/`（只读参照），
+业务规则以 [docs/domain-spec.md](docs/domain-spec.md) 为唯一契约，代理约定见 [AGENTS.md](AGENTS.md)。
 
 ## 功能
 
-- **今日**：当天的全部用药提醒，支持“已服用 / 跳过 / 补服”；漏服超过 1 小时宽限期才标记漏服，漏服可补记
-- **药箱**：药品库存管理（剩余/总量、库存进度条、按计划估算可服用天数、低库存提醒、补货）
-- **用药人**：家庭成员管理，每人可配置多种用药方案（药品、每次剂量、每日次数与具体时间、起止日期）。首次启动自动创建 App 的默认用户「自己」（独立于家庭成员、不可删除，对应将来的账号本体），配药开箱即用；家庭成员可随时添加、删除，详情页里可改姓名与基本信息
-- **通知**：到点本地通知推送，通知栏直接“已服用 / 跳过”；修改或停用配置会立即同步未来的提醒
+- **今日**：当天的全部用药提醒，卡片堆叠上下滑换卡，支持「已服用 / 跳过 / 补服」；漏服超过 1 小时宽限期才标记漏服，漏服可补记
+- **药箱**：药品库存管理（剩余/总量、库存进度条、按计划估算可服用天数、低库存提醒、按数量 / 按板补货）；板装药的数字孪生逐格镜像实体泡罩
+- **用药人**：家庭成员管理（头像照片），每人可配置多种用药方案（药品多选、每种单独剂量、每日次数与具体时间、起止日期）。首次启动自动创建默认用户「自己」（不可删除），配药开箱即用
+- **通知**：到点本地通知推送，通知栏直接「已服用 / 跳过」；免打扰只压声音不压通知；连续漏服额外提醒
+- **订阅**：RememberYao Pro（RevenueCat 远程付费墙 + Customer Center）
+- **多语言**：中文 / 英文，跟随 App 内偏好（不跟系统 locale）
+
+## 技术栈
+
+| | iOS | Android |
+| --- | --- | --- |
+| 路径 | `ios/` | `android/` |
+| 语言 / UI | Swift 6 + SwiftUI（iOS 26 液态玻璃） | Kotlin 2.4+ + Jetpack Compose |
+| 最低版本 | iOS 26 | Android 14（API 34） |
+| 持久化 | SwiftData | Room |
+| 通知 | UserNotifications | NotificationManager + AlarmManager |
+| 订阅 | RevenueCat（SPM） | RevenueCat |
 
 ## 快速开始
 
 ```bash
-bun install
-npx expo start
-```
+# iOS：用 Xcode 打开 ios/rememberyao.xcodepj，或命令行：
+xcodebuild -project ios/rememberyao.xcodeproj -scheme rememberyao \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+xcodebuild -project ios/rememberyao.xcodeproj -scheme rememberyao test   # 领域层单测
 
-> ⚠️ 本项目使用 `expo-notifications` 等原生模块，**必须使用 development build**（`npx expo run:ios` / `npx expo run:android`），Expo Go 中无法运行。新增原生依赖后需要重新构建。
+# 词条：改 expo/src/i18n/dictionaries/ 后重新生成 iOS String Catalog（不手抄）
+bun scripts/gen-localizable-catalog.ts
+```
 
 ## 目录结构
 
 ```
-src/
-  app/
-    _layout.tsx            根布局：ThemeProvider + 根 Stack（index / (tabs) / onboarding / records）+ 通知初始化
-    index.tsx              入口：未看过引导页 → 引导页，否则 → 首页
-    onboarding.tsx         首次启动引导页：tab 组之外，全屏无 tab 栏
-    records.tsx            服药记录：按日期查历史与当日服药率（tab 组之外）
-    (tabs)/
-      _layout.tsx          tab 组：AppTabs（NativeTabs）
-      home/                今日：路由，实现见 screens/home
-      medica/              药品：列表 / 详情 / 表单 / 孪生
-      playground/          调试页：tab 组之外，从代码 push /playground
-      profile/             我的：档案、家庭成员、用药配置、设置
-  screens/
-    home/                  首页实现：巨型日期、成员筛选、库存速览、提醒卡堆叠
-    medica/                药品库实现：列表 / 筛选 / 详情 / 数字孪生
-    profile/               我的实现：档案、成员管理、用药配置、设置
-  components/              通用组件（头像、玻璃卡片、选择器、日期时间选择、图标等）
-  lib/
-    store.ts               数据层：写操作编排、提醒同步、按屏幕的查询 Hook
-    entities.ts            领域层：实体类型、常量与纯函数
-    notifications.ts       通知层：权限、调度、操作按钮、响应处理
-    avatar-photo.ts        头像照片：选图 → 裁方 → 缩放 → 存进沙盒
-    onboarding.ts          引导页“已看过”标记
-  db/
-    schema.ts              SQLite 表定义（Drizzle）
-    client.ts              开库 + 版本不符即整库重建
-    repo.ts                仓储层：按实体 / 按查询的读写 + 事务
-  i18n/
-    provider.tsx           运行时多语言 + useTranslation / useI18n
-    dictionaries/          zh.ts / en.ts
-  hooks/
-    use-theme.ts
-    use-color-scheme.ts
-    use-onboarding-gate.ts
-    use-medication-export.ts
-  constants/theme.ts       主题色 / 字体 / 间距 / 圆角
-  utils/color.ts           withAlpha / mixColor
-
-docs/                       领域约定与迁移计划
-design/                     HTML 设计稿
-maestro/                    端到端测试流
-patches/                    patch-package 补丁
-scripts/                    项目脚本
+ios/rememberyao/
+  App/        @main、AppEnvironment（SwiftData 容器 + Store）、AppState、
+              NavigationRouter（三个 tab 的导航 path）、AvatarPhotoStore
+  Core/       Model（实体 + 工具）/ Domain（常量 + 纯函数 + Decisions）/
+              Data（SwiftData 实体 + Repository + Store）/
+              Notification / Localization / Subscription
+  Features/   Onboarding / Home / Medica / Profile（每屏一个 SwiftUI 文件）
+  UI/         Theme（设计令牌）+ Components（SectionCard / Chip / FormKit / SettingRow / …）
+android/      Gradle KTS 工程（模板已就位，业务代码待落地）
+docs/         domain-spec.md（两端领域契约）
+expo/         Expo 原型（归档参照，不再交付）
+scripts/      gen-localizable-catalog.ts（词典 → String Catalog）
 ```
 
 ## 数据模型
 
-- `Medication` 药品：名称、包装类型、单位、总/剩余数量
-- `Person` 用药人
-- `MedicationPlan` 用药配置：药品 × 用药人 × 剂量 × 每日时间 × 起止日期 × 启用开关
-- `Reminder` 提醒：由配置按天生成（提前 7 天），状态 `pending → taken / skipped / missed`；`snoozedUntil` 记录「稍后提醒」的推迟时刻
-- `MedicationUsage` 服用记录：永久保留（含名称快照），删除药品或用药人不清除历史
+`Medication` 药品 · `Person` 用药人 · `MedicationPlan` 用药配置（药品 × 人 × 剂量 ×
+每日时间 × 起止日期 × 启用）· `Reminder` 提醒（提前 7 天生成，状态
+`pending → taken / skipped / missed`）· `MedicationUsage` 服用记录（永久保留、名称快照）·
+`BlisterPack` / `BlisterSlot` 板装孪生 · `Settings` 全局设置单行。
 
 ## 数据层
 
-本地 SQLite（`expo-sqlite` + Drizzle），**按实体、按需读写**：屏幕经 `store.ts` 的
-查询 Hook 只读自己那份数据（`useMedications` / `useRemindersForDate` / `useMedication(id)` …），
-写操作是一个事务只改改动到的行（`repo.ts` 的 granular 函数 + `withTransaction`）。
-提醒生成 / 库存扣减 / 孪生建板是纯函数（`entities.ts` 与 `store.ts`）。详见
-[docs/conventions/database.md](docs/conventions/database.md)。
+SwiftData / Room + **纯函数决策 + Store 增量落库**：`Decisions` 只算不改，
+`Store` 一个事务只动涉及的行，写完重排通知。界面读用 `@Query` 订阅，写走
+`AppEnvironment.shared.store`。提醒生成 / 库存扣减 / 孪生建板是纯函数，
+由 `ios/rememberyaoTests/DomainTests.swift` 用固定向量锁死两端一致。
 
 ## 提醒生命周期
 
-1. 配置保存后按“今天起 7 天”生成提醒，并调度对应的本地通知
-2. 到点推送通知；**超过 1 小时宽限期**未处理才标记“漏服”
-3. 已服用/跳过/漏服均可再次操作（漏服可补服，记录标记为补记）
-4. 修改配置的时间/剂量/停用：废弃该配置未处理的提醒并按新配置重新生成，已处理的记录保留
-5. App 回前台或数据变更时自动重排通知
+1. 配置保存后按「今天起 7 天」生成提醒，并调度本地通知（iOS 64 条上限，只排最近的 60 条）
+2. 到点推送；**超过 1 小时宽限期**未处理才标记「漏服」
+3. 已服用 / 跳过 / 漏服均可再次操作（漏服可补服，记录标记 `late`）
+4. 修改配置：废弃未处理的提醒并按新配置重新生成，已处理的记录保留
+5. 回前台或数据变更时重排通知
 
 ## 测试
 
 ```bash
-bun run check               # typecheck + lint + format:check
-maestro test maestro/dashboard.yaml   # 首页（今日）冒烟：引导页 → 空态 → tab 往返
+xcodebuild -project ios/rememberyao.xcodeproj -scheme rememberyao test   # 领域层固定向量
 ```
 
-测试约定见 [docs/conventions/data-state.md](docs/conventions/data-state.md#maestro-测试)。
+界面验证由开发者在真机 / 模拟器上确认（代理不主动跑 UI 自动化）。
 
 ## 待办
 
-- “记录”页：按日期查看历史与依从率统计（服用记录已采集，缺展示界面）
-- 桌面 Widget（`expo-widgets` 已配置，未实现）
-- 单元测试（`store.ts` 的提醒生成 / 库存扣减为纯函数，适合覆盖）
+- Android 端全部业务代码（当前仅模板）：Kotlin 2.4+、minSdk 34、Decisions / Store / Room / 通知 / Compose 屏
+- RevenueCat 测试 key 换平台正式 key（上线前）
+- 条款 / 隐私链接替换 `example.com` 占位（上线前）
+- 桌面 Widget（原型用 `expo-widgets` 配过，未实现）

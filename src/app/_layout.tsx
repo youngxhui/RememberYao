@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import { AppState, StatusBar, useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { TamaguiProvider } from "tamagui";
 
 import { ObserveErrorFallback } from "@/components/observe-error-fallback";
 import { useTheme } from "@/hooks/use-theme";
@@ -17,6 +18,8 @@ import {
 } from "@/lib/notifications";
 import { configureRevenueCat } from "@/lib/revenuecat";
 import { ensureDefaultPerson, setPostMutationHook } from "@/lib/store";
+
+import { tamaguiConfig } from "../../tamagui.config";
 
 // 按路由分别上报渲染 / 交互耗时。集成开关运行期不能改（挂载后再调 configure 会抛），
 // 必须放在模块作用域，且早于任何屏幕挂载
@@ -123,16 +126,21 @@ function AppShell() {
   }, []);
 
   return (
-    <ThemeProvider value={navigationTheme}>
-      {/* 根 Stack 只负责分流：引导页必须待在 tab 组之外，否则底部 tab 栏会压在它上面 */}
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="onboarding" />
-        {/* 服药记录按日期查历史与依从率，tab 组里放不下（要占第 4 个 tab），
-            改成从「我的」push 的普通栈页面，路径仍是 /records */}
-        <Stack.Screen name="records" options={{ headerShown: true }} />
-      </Stack>
-    </ThemeProvider>
+    <TamaguiProvider
+      config={tamaguiConfig}
+      defaultTheme={colorScheme === "dark" ? "dark" : "light"}
+    >
+      <ThemeProvider value={navigationTheme}>
+        {/* 根 Stack 只负责分流：引导页必须待在 tab 组之外，否则底部 tab 栏会压在它上面 */}
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="onboarding" />
+          {/* 服药记录按日期查历史与依从率，tab 组里放不下（要占第 4 个 tab），
+              改成从「我的」push 的普通栈页面，路径仍是 /records */}
+          <Stack.Screen name="records" options={{ headerShown: true }} />
+        </Stack>
+      </ThemeProvider>
+    </TamaguiProvider>
   );
 }
