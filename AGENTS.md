@@ -77,7 +77,7 @@ maestro test maestro/dashboard.yaml     # 首页（今日）冒烟：引导页 �
    ```
    非 UI 的 API（`Platform`、`AppState`、`Linking`、`useColorScheme`）不加前缀。
    **`@expo/ui` 移除后这条规则实际上已失效** —— 项目里不再有第二套 `Text`，所以两种写法都合法：既有屏混用（`screens/home` 直接 `View`/`Text`，`components/avatar.tsx` 仍是 `RNView` 前缀），新代码随便写，但**同一个文件内保持一致**。
-6. **不要硬编码颜色、字号、间距**。一律走 `useTheme()` → `src/constants/theme.ts`。语义色：`primary` / `success`（已服）/ `warning`（即将到期）/ `danger`（漏服）；间距用 `Spacing`；底部 tab 遮挡用 `BottomTabInset`。Tamagui 路线同样受这条约束：屏里只写 token 名（颜色 `"$primary"`、间距 `"three"`、圆角 `"card"`），**不许写裸 hex/rgba**；token 只在根目录 `tamagui.config.ts` 里从 theme.ts 映射。半透明色仍走 `withAlpha(theme.x, n)`（算出来的值，不是设计 token）。
+6. **不要硬编码颜色、字号、间距**。一律走 `useTheme()` → `src/constants/theme.ts`。语义色：`primary` / `success`（已服）/ `warning`（即将到期）/ `danger`（漏服）；间距用 `Spacing`；底部 tab 遮挡用 `BottomTabInset`。Tamagui 路线同样受这条约束：屏里只写 token 名（颜色 `"primary"`、间距 `"three"`、圆角 `"card"`，**一律不带 `$`** —— v3 起 `$` 前缀已移除，写了会 warn 且颜色解析失败），**不许写裸 hex/rgba**；token 只在根目录 `tamagui.config.ts` 里从 theme.ts 映射。半透明色仍走 `withAlpha(theme.x, n)`（算出来的值，不是设计 token）。
 7. ~~**`useNativeState` 只能用 `.value`**~~ —— `@expo/ui` 移除后全仓零调用，此规则作废。表单状态一律 RN `useState`。
 8. 图标禁止用 emoji。内容树走 `SymbolIcon`（iOS SF Symbol / Android Material Symbols 字形名），工具栏走 `@/components/toolbar-icons.{ts,android.ts}`；**tab 栏图标走 `src` 位图且不要给 `md`** —— Android 上 expo-router 优先级 `drawable` > `md` > `src`，给了 `md` 就还是旧 Material 图标；Android 的「不染色」另走 `Trigger` 的 `unstable_nativeProps.android`（`tinting: "original"`）。详见 [ui-design.md](docs/conventions/ui-design.md) 图标小节。
 9. 圆角配 `borderCurve: "continuous"`；阴影用 `boxShadow`，禁止 legacy `shadow*` / `elevation`。

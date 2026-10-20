@@ -147,7 +147,7 @@ export function MedicationTwin() {
   // 首屏还在读 SQLite：直接渲染会闪一下「药品不存在」
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: "$canvas" }}>
+      <View style={{ flex: 1, backgroundColor: "canvas" }}>
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{t("common.loading")}</Stack.Title>
       </View>
@@ -156,7 +156,7 @@ export function MedicationTwin() {
 
   if (!medication) {
     return (
-      <View style={{ flex: 1, backgroundColor: "$canvas" }}>
+      <View style={{ flex: 1, backgroundColor: "canvas" }}>
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{t("medication.notFound")}</Stack.Title>
         <View
@@ -167,7 +167,7 @@ export function MedicationTwin() {
             paddingTop: 120,
           }}
         >
-          <Text style={{ color: "$textSecondary" }}>
+          <Text style={{ color: "textSecondary" }}>
             {t("medication.notFound")}
           </Text>
         </View>
@@ -328,7 +328,7 @@ export function MedicationTwin() {
                     menuTitle={t("plan.person")}
                   />
                   <View style={{ flex: 1 }} />
-                  <Text style={{ fontSize: 12, color: "$textSecondary" }}>
+                  <Text style={{ fontSize: 12, color: "textSecondary" }}>
                     {t("twin.personHint")}
                   </Text>
                 </View>
@@ -427,14 +427,14 @@ function TwinOverview({
 }) {
   const t = useTranslation();
   const percent = total > 0 ? full / total : 0;
-  const strong = low ? "$dangerStrong" : "$successStrong";
+  const strong = low ? "dangerStrong" : "successStrong";
 
   return (
     <View
       style={{
-        backgroundColor: "$surface",
+        backgroundColor: "surface",
         borderWidth: 1,
-        borderColor: "$border",
+        borderColor: "border",
         borderRadius: "card",
         borderCurve: "continuous",
         padding: "three",
@@ -455,19 +455,19 @@ function TwinOverview({
             lineHeight: 34,
             fontWeight: "800",
             letterSpacing: -0.96,
-            color: "$text",
+            color: "text",
           }}
         >
           {String(full)}
         </Text>
-        <Text style={{ fontSize: 15, color: "$textSecondary" }}>
+        <Text style={{ fontSize: 15, color: "textSecondary" }}>
           {`/ ${total}`}
         </Text>
         <View style={{ flex: 1 }} />
         <Text
           style={{
             fontSize: 13,
-            color: low && daysLeft !== null ? "$danger" : "$textSecondary",
+            color: low && daysLeft !== null ? "danger" : "textSecondary",
           }}
         >
           {daysLeft !== null
@@ -480,13 +480,13 @@ function TwinOverview({
       <ProgressBarRn
         percent={percent}
         color={strong}
-        track="$backgroundSelected"
+        track="backgroundSelected"
         height={8}
       />
       <Text
         style={{
           fontSize: 12,
-          color: low ? "$danger" : "$textSecondary",
+          color: low ? "danger" : "textSecondary",
         }}
       >
         {t("twin.summaryLine", { full, total })}
@@ -569,7 +569,7 @@ function EnableTwinCard({
             style={{
               fontSize: 13,
               lineHeight: 19,
-              color: "$textSecondary",
+              color: "textSecondary",
             }}
           >
             {t("twin.enableBody")}
@@ -613,7 +613,7 @@ function EnableTwinCard({
             ))}
           </View>
           {specError ? (
-            <Text style={{ fontSize: 13, color: "$danger" }}>
+            <Text style={{ fontSize: 13, color: "danger" }}>
               {t("twin.specInvalid")}
             </Text>
           ) : null}
@@ -670,31 +670,31 @@ function SlotSheet({
         paddingTop: "two",
         paddingBottom: "five",
         gap: "three",
-        backgroundColor: "$surface",
+        backgroundColor: "surface",
       }}
     >
-      <Text style={{ fontSize: 17, fontWeight: "700", color: "$text" }}>
+      <Text style={{ fontSize: 17, fontWeight: "700", color: "text" }}>
         {t("twin.slotTitle", { seq, slot: slotNumber })}
       </Text>
 
       {slot.status === "full" ? (
         <>
-          <Text style={{ fontSize: 14, color: "$textSecondary" }}>
+          <Text style={{ fontSize: 14, color: "textSecondary" }}>
             {hasPerson ? t("twin.slotFull") : t("twin.noPerson")}
           </Text>
           <SheetButton
             testID="twin-consume-button"
             label={t("twin.actionConsume")}
-            color={"$primary"}
-            borderColor={"$primary"}
+            color={"primary"}
+            borderColor={"primary"}
             disabled={!hasPerson}
             onPress={onConsume}
           />
           <SheetButton
             testID="twin-void-button"
             label={t("twin.actionVoid")}
-            color={"$danger"}
-            borderColor={"$border"}
+            color={"danger"}
+            borderColor={"border"}
             onPress={onVoid}
           />
         </>
@@ -702,22 +702,22 @@ function SlotSheet({
 
       {slot.status === "empty" && personName && takenAt ? (
         <>
-          <Text style={{ fontSize: 14, color: "$textSecondary" }}>
+          <Text style={{ fontSize: 14, color: "textSecondary" }}>
             {t("twin.slotTaken", {
               person: personName,
               datetime: formatTakenAt(takenAt, language),
             })}
           </Text>
           {late ? (
-            <Text style={{ fontSize: 12, color: "$warningStrong" }}>
+            <Text style={{ fontSize: 12, color: "warningStrong" }}>
               {t("twin.slotTakenLate")}
             </Text>
           ) : null}
           <SheetButton
             testID="twin-undo-button"
             label={t("twin.actionUndo")}
-            color={"$danger"}
-            borderColor={"$border"}
+            color={"danger"}
+            borderColor={"border"}
             onPress={onUndo}
           />
         </>
@@ -725,14 +725,14 @@ function SlotSheet({
 
       {slot.status === "empty" && !personName ? (
         <>
-          <Text style={{ fontSize: 14, color: "$textSecondary" }}>
+          <Text style={{ fontSize: 14, color: "textSecondary" }}>
             {t("twin.slotHistory")}
           </Text>
           <SheetButton
             testID="twin-restore-button"
             label={t("twin.actionRestore")}
-            color={"$primary"}
-            borderColor={"$primary"}
+            color={"primary"}
+            borderColor={"primary"}
             onPress={onRestore}
           />
         </>
@@ -740,14 +740,14 @@ function SlotSheet({
 
       {slot.status === "void" ? (
         <>
-          <Text style={{ fontSize: 14, color: "$textSecondary" }}>
+          <Text style={{ fontSize: 14, color: "textSecondary" }}>
             {t("twin.slotVoid")}
           </Text>
           <SheetButton
             testID="twin-restore-button"
             label={t("twin.actionRestore")}
-            color={"$primary"}
-            borderColor={"$primary"}
+            color={"primary"}
+            borderColor={"primary"}
             onPress={onRestore}
           />
         </>
@@ -781,7 +781,7 @@ function SheetButton({
       borderWidth={1}
       borderColor={borderColor}
       borderRadius="tile"
-      backgroundColor="transparent press:$backgroundSelected"
+      backgroundColor="transparent press:backgroundSelected"
       opacity={disabled ? 0.4 : 1}
       paddingBlock="three"
     >

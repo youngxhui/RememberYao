@@ -73,12 +73,10 @@ export function GlassChip({
         nativeGlass
           ? "transparent"
           : active
-            ? "$primary"
-            : "$surface press:$backgroundElement"
+            ? "primary"
+            : "surface press:backgroundElement"
       }
-      {...(nativeGlass
-        ? null
-        : { borderColor: active ? "$primary" : "$border" })}
+      {...(nativeGlass ? null : { borderColor: active ? "primary" : "border" })}
     >
       {nativeGlass ? (
         <GlassView

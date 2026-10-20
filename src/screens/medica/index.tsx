@@ -172,16 +172,16 @@ function MedicationRow({
       gap="three"
       paddingInline="three"
       paddingBlock="rowGap"
-      backgroundColor="transparent press:$backgroundSelected"
+      backgroundColor="transparent press:backgroundSelected"
     >
       <View flex={1} minWidth={0}>
-        <Text numberOfLines={1} fontSize={16} fontWeight="600" color="$text">
+        <Text numberOfLines={1} fontSize={16} fontWeight="600" color="text">
           {medication.name}
         </Text>
         <Text
           numberOfLines={1}
           fontSize={13}
-          color="$textSecondary"
+          color="textSecondary"
           marginTop="half"
         >
           {t("medication.metaLine", {
@@ -211,9 +211,9 @@ function MedicationRow({
  * 档位判断（阈值、unset 的含义）见 entities.ts 的 stockLevel。
  */
 function stockValueColor(level: StockLevel): string {
-  if (level === "critical") return "$dangerStrong";
-  if (level === "low") return "$warningStrong";
-  return "$textSecondary";
+  if (level === "critical") return "dangerStrong";
+  if (level === "low") return "warningStrong";
+  return "textSecondary";
 }
 
 function EmptyState({ body }: { body: Path }) {
@@ -233,12 +233,12 @@ function EmptyState({ body }: { body: Path }) {
       <Text
         fontSize={17}
         fontWeight="700"
-        color="$textSecondary"
+        color="textSecondary"
         textAlign="center"
       >
         {t("medication.emptyTitle")}
       </Text>
-      <Text fontSize={13} color="$textSecondary" textAlign="center">
+      <Text fontSize={13} color="textSecondary" textAlign="center">
         {t(body)}
       </Text>
       <View
@@ -251,9 +251,9 @@ function EmptyState({ body }: { body: Path }) {
         paddingBlock="two"
         borderRadius="card"
         borderCurve="continuous"
-        backgroundColor="$primary press:$primarySoft"
+        backgroundColor="primary press:primarySoft"
       >
-        <Text color="$onPrimary" fontSize={15} fontWeight="600">
+        <Text color="onPrimary" fontSize={15} fontWeight="600">
           {t("common.add")}
         </Text>
       </View>

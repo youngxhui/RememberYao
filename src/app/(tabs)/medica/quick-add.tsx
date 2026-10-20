@@ -193,10 +193,10 @@ export default function QuickAddScreen() {
               disabled={!trimmedName}
               alignSelf="stretch"
               backgroundColor={
-                trimmedName ? "$primary press:$primarySoft" : "$textSecondary"
+                trimmedName ? "primary press:primarySoft" : "textSecondary"
               }
               borderCurve="continuous"
-              color="$onPrimary"
+              color="onPrimary"
               opacity={trimmedName ? 1 : 0.5}
             >
               {t("quickAdd.next")}
@@ -211,9 +211,9 @@ export default function QuickAddScreen() {
                   setStep(3);
                 }}
                 alignSelf="stretch"
-                backgroundColor="$primary press:$primarySoft"
+                backgroundColor="primary press:primarySoft"
                 borderCurve="continuous"
-                color="$onPrimary"
+                color="onPrimary"
               >
                 {t("quickAdd.next")}
               </Button>
@@ -224,10 +224,10 @@ export default function QuickAddScreen() {
                 }}
                 alignSelf="stretch"
                 borderWidth={1}
-                borderColor="$border"
-                backgroundColor="$surface press:$backgroundSelected"
+                borderColor="border"
+                backgroundColor="surface press:backgroundSelected"
                 borderCurve="continuous"
-                color="$text"
+                color="text"
               >
                 {t("quickAdd.back")}
               </Button>
@@ -243,9 +243,9 @@ export default function QuickAddScreen() {
                 }}
                 disabled={saving}
                 alignSelf="stretch"
-                backgroundColor="$primary press:$primarySoft"
+                backgroundColor="primary press:primarySoft"
                 borderCurve="continuous"
-                color="$onPrimary"
+                color="onPrimary"
                 opacity={saving ? 0.6 : 1}
               >
                 {t("quickAdd.saveAndEnable")}
@@ -259,7 +259,7 @@ export default function QuickAddScreen() {
                   }}
                   accessibilityRole="button"
                 >
-                  <Text fontSize={14} fontWeight="600" color="$primary">
+                  <Text fontSize={14} fontWeight="600" color="primary">
                     {t("quickAdd.completeLater")}
                   </Text>
                 </View>
@@ -272,15 +272,15 @@ export default function QuickAddScreen() {
                 }}
                 alignSelf="stretch"
                 borderWidth={1}
-                borderColor="$border"
-                backgroundColor="$surface press:$backgroundSelected"
+                borderColor="border"
+                backgroundColor="surface press:backgroundSelected"
                 borderCurve="continuous"
-                color="$text"
+                color="text"
               >
                 {t("quickAdd.back")}
               </Button>
               <YStack alignItems="center" paddingBlock="two">
-                <Text fontSize={12} color="$textSecondary" textAlign="center">
+                <Text fontSize={12} color="textSecondary" textAlign="center">
                   {t("quickAdd.notifyHint")}
                 </Text>
               </YStack>
@@ -306,7 +306,7 @@ function StepName({
   medications: Medication[];
   loading: boolean;
 }) {
-  // RN TextInput 的 style 不解析 Tamagui 的 $token，输入文字色取真实值
+  // RN TextInput 的 style 不解析 Tamagui 的 token 名，输入文字色取真实值
   const theme = useTheme();
   const t = useTranslation();
 
@@ -341,7 +341,7 @@ function StepName({
                 }}
                 accessibilityRole="button"
               >
-                <Text fontSize={16} color="$text" paddingBlock="rowGap">
+                <Text fontSize={16} color="text" paddingBlock="rowGap">
                   {medication.name}
                 </Text>
               </View>
@@ -395,7 +395,7 @@ function StepSchedule({
               paddingBlock="two"
               gap="rowGap"
             >
-              <Text fontSize={15} color="$text">
+              <Text fontSize={15} color="text">
                 {t("plan.ordinal", { index: index + 1 })}
               </Text>
               <View flex={1} />
@@ -444,9 +444,9 @@ function StepConfirm({
     <>
       <Subtitle text={t("quickAdd.subtitle3")} />
       <YStack
-        backgroundColor="$surface"
+        backgroundColor="surface"
         borderWidth={1}
-        borderColor="$border"
+        borderColor="border"
         borderRadius="card"
         borderCurve="continuous"
         padding="three"
@@ -460,36 +460,31 @@ function StepConfirm({
             size={40}
           />
           <View flex={1} minWidth={0}>
-            <Text
-              numberOfLines={1}
-              fontSize={17}
-              fontWeight="700"
-              color="$text"
-            >
+            <Text numberOfLines={1} fontSize={17} fontWeight="700" color="text">
               {name}
             </Text>
-            <Text numberOfLines={1} fontSize={13} color="$textSecondary">
+            <Text numberOfLines={1} fontSize={13} color="textSecondary">
               {t("quickAdd.forSelf", { name: personName })}
             </Text>
           </View>
         </XStack>
 
         <XStack alignItems="center" gap="two">
-          <Text fontSize={15} color="$textSecondary">
+          <Text fontSize={15} color="textSecondary">
             {t("quickAdd.freqCount", { count: freq })}
           </Text>
           <View flex={1} />
-          <Text fontFamily="mono" fontSize={15} fontWeight="600" color="$text">
+          <Text fontFamily="mono" fontSize={15} fontWeight="600" color="text">
             {times.join("  ")}
           </Text>
         </XStack>
 
-        <Text fontSize={13} color="$textSecondary">
+        <Text fontSize={13} color="textSecondary">
           {t("quickAdd.doseHint", { amount: 1, unit })}
         </Text>
 
         {matched ? (
-          <Text fontSize={12} color="$primary">
+          <Text fontSize={12} color="primary">
             {t("quickAdd.existingHint", { name })}
           </Text>
         ) : null}

@@ -117,11 +117,11 @@ export function BlisterGrid({
   return (
     <View style={{ gap: "three" }}>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <Text style={{ fontSize: 15, fontWeight: "700", color: "$text" }}>
+        <Text style={{ fontSize: 15, fontWeight: "700", color: "text" }}>
           {t("twin.packChip", { seq: pack.seq })}
         </Text>
         <View style={{ flex: 1 }} />
-        <Text style={{ fontSize: 13, color: "$textSecondary" }}>
+        <Text style={{ fontSize: 13, color: "textSecondary" }}>
           {t("twin.packProgress", { used, total: slots.length })}
         </Text>
       </View>
@@ -161,7 +161,7 @@ export function BlisterGrid({
             fontFamily: "monospace",
             fontSize: 9,
             letterSpacing: 0.6,
-            color: "$textSecondary",
+            color: "textSecondary",
           }}
         >
           {medication.specification
@@ -594,7 +594,7 @@ export function SlotLegend({ pill }: { pill: PillLook }) {
           }}
         >
           {item.node}
-          <Text style={{ fontSize: 11, color: "$textSecondary" }}>
+          <Text style={{ fontSize: 11, color: "textSecondary" }}>
             {item.label}
           </Text>
         </View>

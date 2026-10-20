@@ -114,7 +114,7 @@ export default function MedicationDetailScreen() {
 
   if (loading) {
     return (
-      <View flex={1} backgroundColor="$canvas">
+      <View flex={1} backgroundColor="canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{t("common.loading")}</Stack.Title>
       </View>
@@ -123,7 +123,7 @@ export default function MedicationDetailScreen() {
 
   if (!medication) {
     return (
-      <View flex={1} backgroundColor="$canvas">
+      <View flex={1} backgroundColor="canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{t("medication.notFound")}</Stack.Title>
         <View
@@ -132,7 +132,7 @@ export default function MedicationDetailScreen() {
           justifyContent="center"
           paddingTop={120}
         >
-          <Text color="$textSecondary" fontSize={15}>
+          <Text color="textSecondary" fontSize={15}>
             {t("medication.notFound")}
           </Text>
         </View>
@@ -267,11 +267,11 @@ export default function MedicationDetailScreen() {
                     />
                   </XStack>
                   {restockError ? (
-                    <Text fontSize={13} color="$danger">
+                    <Text fontSize={13} color="danger">
                       {t("medication.restockInvalid")}
                     </Text>
                   ) : null}
-                  <Text fontSize={12} color="$textSecondary" lineHeight={18}>
+                  <Text fontSize={12} color="textSecondary" lineHeight={18}>
                     {t("medication.restockPacksHint", {
                       perPack: twin.slotsPerPack,
                       unit: medicationUnitLabel(medication.unit, t),
@@ -312,11 +312,11 @@ export default function MedicationDetailScreen() {
                     />
                   </XStack>
                   {restockError ? (
-                    <Text fontSize={13} color="$danger">
+                    <Text fontSize={13} color="danger">
                       {t("medication.restockInvalid")}
                     </Text>
                   ) : null}
-                  <Text fontSize={12} color="$textSecondary" lineHeight={18}>
+                  <Text fontSize={12} color="textSecondary" lineHeight={18}>
                     {t("medication.restockHint")}
                   </Text>
                 </View>
@@ -346,7 +346,7 @@ export default function MedicationDetailScreen() {
               onPress={() => {
                 void remove();
               }}
-              labelColor="$danger"
+              labelColor="danger"
             />
             <View alignItems="center" paddingBlock="two">
               <Text fontSize={12} textAlign="center">
@@ -391,9 +391,9 @@ function TwinEntry({
         });
       }}
       accessibilityRole="button"
-      backgroundColor="$surface press:$backgroundSelected"
+      backgroundColor="surface press:backgroundSelected"
       borderWidth={1}
-      borderColor="$border"
+      borderColor="border"
       borderRadius="card"
       borderCurve="continuous"
       padding="three"
@@ -405,10 +405,10 @@ function TwinEntry({
           color={theme.primary}
         />
         <YStack flex={1} minWidth={0}>
-          <Text numberOfLines={1} fontSize={16} fontWeight="600" color="$text">
+          <Text numberOfLines={1} fontSize={16} fontWeight="600" color="text">
             {enabled ? t("medication.twinEntry") : t("medication.twinEnable")}
           </Text>
-          <Text numberOfLines={1} fontSize={13} color="$textSecondary">
+          <Text numberOfLines={1} fontSize={13} color="textSecondary">
             {enabled
               ? openSeq !== null
                 ? t("medication.twinProgressOpen", {
@@ -452,7 +452,7 @@ function StockSummaryCard({
     return (
       <SectionCard tone="outline">
         <View padding="three">
-          <Text fontSize={14} color="$textSecondary">
+          <Text fontSize={14} color="textSecondary">
             {t("medication.stockUnsetHint")}
           </Text>
         </View>
@@ -483,7 +483,7 @@ function StockSummaryCard({
             ? t("medication.daysValue", { days: summary.daysLeft })
             : t("medication.estimateUnknown")
         }
-        valueColor={summary.low ? "$dangerStrong" : undefined}
+        valueColor={summary.low ? "dangerStrong" : undefined}
       />
     </SectionCard>
   );
@@ -519,7 +519,7 @@ function FieldRow({
       {icon ? (
         <SymbolIcon size={18} color={theme.textSecondary} name={icon} />
       ) : null}
-      <Text flex={1} fontSize={15} color="$text">
+      <Text flex={1} fontSize={15} color="text">
         {label}
       </Text>
       <Text
@@ -527,7 +527,7 @@ function FieldRow({
         flex={1}
         fontSize={15}
         fontWeight={emphasis ? "600" : "400"}
-        color={valueColor ?? (emphasis ? "$text" : "$textSecondary")}
+        color={valueColor ?? (emphasis ? "text" : "textSecondary")}
         textAlign="right"
         style={{ fontVariant: ["tabular-nums"] }}
       >
@@ -583,7 +583,7 @@ function BasicInfo({
     value: medication.prescription
       ? t("medication.prescriptionYes")
       : t("medication.prescriptionNo"),
-    valueColor: medication.prescription ? "$warningStrong" : undefined,
+    valueColor: medication.prescription ? "warningStrong" : undefined,
   });
   rows.push({
     icon: SYMBOL_ICONS.calendar,
@@ -593,7 +593,7 @@ function BasicInfo({
         ? `${formatDateKey(medication.expiryDate, language)} · ${t("medication.expired")}`
         : formatDateKey(medication.expiryDate, language)
       : t("medication.expiryUnset"),
-    valueColor: expired ? "$dangerStrong" : undefined,
+    valueColor: expired ? "dangerStrong" : undefined,
   });
 
   return (
@@ -613,10 +613,10 @@ function BasicInfo({
         <>
           <HairLine />
           <View paddingInline="three" paddingBlock="rowGap" gap="two">
-            <Text fontSize={13} fontWeight="600" color="$textSecondary">
+            <Text fontSize={13} fontWeight="600" color="textSecondary">
               {t("medication.notes")}
             </Text>
-            <Text fontSize={15} lineHeight={21} color="$text">
+            <Text fontSize={15} lineHeight={21} color="text">
               {medication.notes}
             </Text>
           </View>
@@ -644,10 +644,10 @@ function PlanSection({
     return (
       <SectionCard tone="outline">
         <View alignItems="center" padding="three" gap="two">
-          <Text fontSize={13} color="$textSecondary" textAlign="center">
+          <Text fontSize={13} color="textSecondary" textAlign="center">
             {t("medication.noTakers")}
           </Text>
-          <Text fontSize={12} color="$textSecondary" textAlign="center">
+          <Text fontSize={12} color="textSecondary" textAlign="center">
             {t("medication.noTakersHint")}
           </Text>
         </View>
@@ -675,10 +675,10 @@ function PlanSection({
               gap="rowGap"
               paddingInline="three"
               paddingBlock="rowGap"
-              backgroundColor="transparent press:$backgroundSelected"
+              backgroundColor="transparent press:backgroundSelected"
             >
               <AvatarMark
-                color={person?.avatarColor ?? "$primary"}
+                color={person?.avatarColor ?? "primary"}
                 name={person?.name ?? t("common.unknown")}
                 uri={person?.avatarUri}
                 size={36}
@@ -688,14 +688,14 @@ function PlanSection({
                   numberOfLines={1}
                   fontSize={16}
                   fontWeight="600"
-                  color="$text"
+                  color="text"
                 >
                   {person?.name ?? t("common.unknown")}
                 </Text>
                 <Text
                   numberOfLines={2}
                   fontSize={13}
-                  color="$textSecondary"
+                  color="textSecondary"
                   lineHeight={18}
                 >
                   {t("medication.doseLine", { amount: plan.doseAmount, unit })}
@@ -717,7 +717,7 @@ function PlanStatusText({ plan }: { plan: MedicationPlan }) {
   const active = planActiveOnDate(plan, todayKey());
 
   return (
-    <Text fontSize={13} color={active ? "$successStrong" : "$textSecondary"}>
+    <Text fontSize={13} color={active ? "successStrong" : "textSecondary"}>
       {planStatusLabel(plan, t)}
     </Text>
   );

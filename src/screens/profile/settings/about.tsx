@@ -53,7 +53,7 @@ export function SettingsAbout() {
             <SettingRow
               label={t("settings.version")}
               trailing={
-                <Text fontSize={13} fontFamily="mono" color="$textSecondary">
+                <Text fontSize={13} fontFamily="mono" color="textSecondary">
                   {Constants.expoConfig?.version ?? "1.0.0"}
                 </Text>
               }
@@ -64,7 +64,7 @@ export function SettingsAbout() {
             paddingInline="two"
             fontSize={13}
             lineHeight={21}
-            color="$textSecondary"
+            color="textSecondary"
             textAlign="center"
           >
             {t("settings.note")}
@@ -83,10 +83,10 @@ export function SettingsAbout() {
       >
         {showPrivacy ? (
           <View padding={20} gap={12}>
-            <Text fontSize={17} fontWeight="700" color="$text">
+            <Text fontSize={17} fontWeight="700" color="text">
               {t("settings.privacyTitle")}
             </Text>
-            <Text fontSize={14} color="$textSecondary" lineHeight={20}>
+            <Text fontSize={14} color="textSecondary" lineHeight={20}>
               {t("settings.privacyBody")}
             </Text>
             <View
@@ -95,7 +95,7 @@ export function SettingsAbout() {
                 void privacySheetRef.current?.dismiss();
               }}
               accessibilityRole="button"
-              backgroundColor="$primary press:$primarySoft"
+              backgroundColor="primary press:primarySoft"
               borderRadius="card"
               borderCurve="continuous"
               paddingBlock="three"
@@ -103,7 +103,7 @@ export function SettingsAbout() {
               justifyContent="center"
               minHeight={44}
             >
-              <Text color="$onPrimary" fontSize={15} fontWeight="600">
+              <Text color="onPrimary" fontSize={15} fontWeight="600">
                 {t("common.done")}
               </Text>
             </View>

@@ -63,7 +63,7 @@ const DEFAULT_DOSE = "1";
  */
 export default function PlanFormScreen() {
   const router = useRouter();
-  // 只剩 RnDateTimePicker 的 accentColor 要真实色值（原生视图 prop，不解析 $token）；
+  // 只剩 RnDateTimePicker 的 accentColor 要真实色值（原生视图 prop，不解析 token 名）；
   // 其余颜色一律 Tamagui token
   const theme = useTheme();
   const { t, language } = useI18n();
@@ -246,7 +246,7 @@ export default function PlanFormScreen() {
 
   if (!loaded) {
     return (
-      <View flex={1} backgroundColor="$canvas">
+      <View flex={1} backgroundColor="canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>{title}</Stack.Title>
       </View>
@@ -283,7 +283,7 @@ export default function PlanFormScreen() {
                   numberOfLines={1}
                   fontSize={17}
                   fontWeight="700"
-                  color="$text"
+                  color="text"
                 >
                   {presetPerson.name}
                 </Text>
@@ -382,7 +382,7 @@ export default function PlanFormScreen() {
                 <View key={index}>
                   {index > 0 ? <HairLine /> : null}
                   <XStack alignItems="center" paddingBlock="two" gap="rowGap">
-                    <Text fontSize={15} color="$text">
+                    <Text fontSize={15} color="text">
                       {t("plan.ordinal", { index: index + 1 })}
                     </Text>
                     <View flex={1} />
@@ -429,7 +429,7 @@ export default function PlanFormScreen() {
                     onValueChange={(date) => setEndDate(dateKey(date))}
                   />
                 ) : (
-                  <Text fontSize={15} color="$textSecondary">
+                  <Text fontSize={15} color="textSecondary">
                     {t("plan.endDateUnlimited")}
                   </Text>
                 )}
@@ -441,7 +441,7 @@ export default function PlanFormScreen() {
                   onPress={toggleEndDate}
                   accessibilityRole="button"
                 >
-                  <Text fontSize={14} fontWeight="600" color="$primary">
+                  <Text fontSize={14} fontWeight="600" color="primary">
                     {hasEndDate ? t("common.clear") : t("plan.endDateSet")}
                   </Text>
                 </View>
@@ -474,9 +474,9 @@ export default function PlanFormScreen() {
                 void save();
               }}
               alignSelf="stretch"
-              backgroundColor="$primary press:$primarySoft"
+              backgroundColor="primary press:primarySoft"
               borderCurve="continuous"
-              color="$onPrimary"
+              color="onPrimary"
             >
               {t("plan.savePlan")}
             </Button>
@@ -487,10 +487,10 @@ export default function PlanFormScreen() {
               }}
               alignSelf="stretch"
               borderWidth={1}
-              borderColor="$border"
-              backgroundColor="$surface press:$backgroundSelected"
+              borderColor="border"
+              backgroundColor="surface press:backgroundSelected"
               borderCurve="continuous"
-              color="$text"
+              color="text"
             >
               {t("common.cancel")}
             </Button>
@@ -502,7 +502,7 @@ export default function PlanFormScreen() {
                 }}
                 alignSelf="stretch"
                 backgroundColor="transparent"
-                color="$danger"
+                color="danger"
               >
                 {confirmDelete
                   ? t("common.confirmDelete")
@@ -511,7 +511,7 @@ export default function PlanFormScreen() {
             ) : null}
             <XStack alignItems="center" gap="three">
               <View flex={1} />
-              <Text fontSize={12} color="$textSecondary" textAlign="center">
+              <Text fontSize={12} color="textSecondary" textAlign="center">
                 {t("plan.saveHint")}
               </Text>
               <View flex={1} />
@@ -543,7 +543,7 @@ function CheckboxRow({
       alignItems="center"
       gap="rowGap"
       paddingBlock="two"
-      backgroundColor="transparent press:$backgroundSelected"
+      backgroundColor="transparent press:backgroundSelected"
     >
       <View
         width={22}
@@ -551,14 +551,14 @@ function CheckboxRow({
         borderRadius={6}
         borderCurve="continuous"
         borderWidth={1.5}
-        borderColor={checked ? "$primary" : "$border"}
-        backgroundColor={checked ? "$primary" : "$surface"}
+        borderColor={checked ? "primary" : "border"}
+        backgroundColor={checked ? "primary" : "surface"}
         alignItems="center"
         justifyContent="center"
       >
         {checked ? (
           <Text
-            color="$onPrimary"
+            color="onPrimary"
             fontSize={14}
             fontWeight="700"
             lineHeight={16}
@@ -569,7 +569,7 @@ function CheckboxRow({
       </View>
       <Text
         fontSize={15}
-        color={checked ? "$text" : "$textSecondary"}
+        color={checked ? "text" : "textSecondary"}
         fontWeight={checked ? "600" : "400"}
       >
         {label}
@@ -589,7 +589,7 @@ function DoseField({
   onChange: (text: string) => void;
 }) {
   const t = useTranslation();
-  // RN TextInput 的 style 不解析 Tamagui 的 $token，输入文字色取真实值
+  // RN TextInput 的 style 不解析 Tamagui 的 token 名，输入文字色取真实值
   const theme = useTheme();
   return (
     <Field

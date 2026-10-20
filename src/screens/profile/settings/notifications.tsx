@@ -124,7 +124,7 @@ export function SettingsNotifications() {
                 paddingInline={ROW_PADDING}
                 paddingBottom={ROW_PADDING}
                 fontSize={12}
-                color="$danger"
+                color="danger"
               >
                 {t("settings.permissionDenied")}
               </Text>
@@ -231,7 +231,7 @@ export function SettingsNotifications() {
       >
         {showQuietHours ? (
           <View padding={20} gap={16}>
-            <Text fontSize={17} fontWeight="700" color="$text">
+            <Text fontSize={17} fontWeight="700" color="text">
               {t("settings.quietTitle")}
             </Text>
             <View
@@ -239,7 +239,7 @@ export function SettingsNotifications() {
               alignItems="center"
               justifyContent="space-between"
             >
-              <Text fontSize={15} color="$text">
+              <Text fontSize={15} color="text">
                 {t("settings.quietEnable")}
               </Text>
               <RNSwitch
@@ -257,11 +257,11 @@ export function SettingsNotifications() {
             </View>
             {quietOn ? (
               <>
-                <Text fontSize={13} color="$textSecondary">
+                <Text fontSize={13} color="textSecondary">
                   {t("settings.quietSub")}
                 </Text>
                 <View flexDirection="row" alignItems="center" gap="two">
-                  <Text fontSize={15} color="$text">
+                  <Text fontSize={15} color="text">
                     {t("settings.quietRange")}
                   </Text>
                   <View flex={1} />
@@ -281,7 +281,7 @@ export function SettingsNotifications() {
                       );
                     }}
                   />
-                  <Text color="$textSecondary">–</Text>
+                  <Text color="textSecondary">–</Text>
                   <RnDateTimePicker
                     testID="settings-quiet-end"
                     value={timeToDate(settings.quietEnd ?? DEFAULT_QUIET_END)}
@@ -305,7 +305,7 @@ export function SettingsNotifications() {
                 void quietSheetRef.current?.dismiss();
               }}
               accessibilityRole="button"
-              backgroundColor="$primary press:$primarySoft"
+              backgroundColor="primary press:primarySoft"
               borderRadius="card"
               borderCurve="continuous"
               paddingBlock="three"
@@ -313,7 +313,7 @@ export function SettingsNotifications() {
               justifyContent="center"
               minHeight={44}
             >
-              <Text color="$onPrimary" fontSize={15} fontWeight="600">
+              <Text color="onPrimary" fontSize={15} fontWeight="600">
                 {t("common.done")}
               </Text>
             </View>

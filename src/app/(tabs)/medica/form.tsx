@@ -56,7 +56,7 @@ export default function MedicationFormScreen() {
   const router = useRouter();
   const { t, language } = useI18n();
   const picker = pickerFormat(language);
-  // 只剩两处要真实色值：RN TextInput 的 style 不解析 $token（输入文字色），
+  // 只剩两处要真实色值：RN TextInput 的 style 不解析 token 名（输入文字色），
   // RnDateTimePicker 的 accentColor 是原生视图 prop
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -356,7 +356,7 @@ export default function MedicationFormScreen() {
                 {specError ? (
                   <ErrorText text={t("medication.blisterSpecInvalid")} />
                 ) : null}
-                <Text fontSize={13} lineHeight={18} color="$textSecondary">
+                <Text fontSize={13} lineHeight={18} color="textSecondary">
                   {isEditing
                     ? hasTwin
                       ? t("medication.blisterSpecHintExisting")
@@ -418,7 +418,7 @@ export default function MedicationFormScreen() {
                     }}
                   />
                 ) : (
-                  <Text fontSize={15} color="$textSecondary">
+                  <Text fontSize={15} color="textSecondary">
                     {t("medication.expiryUnset")}
                   </Text>
                 )}
@@ -434,7 +434,7 @@ export default function MedicationFormScreen() {
                   }}
                   accessibilityRole="button"
                 >
-                  <Text fontSize={14} fontWeight="600" color="$primary">
+                  <Text fontSize={14} fontWeight="600" color="primary">
                     {expiryDate ? t("common.clear") : t("medication.expirySet")}
                   </Text>
                 </View>
@@ -458,7 +458,7 @@ export default function MedicationFormScreen() {
             </Field>
 
             <Field label={t("medication.takers")}>
-              <Text fontSize={13} lineHeight={18} color="$textSecondary">
+              <Text fontSize={13} lineHeight={18} color="textSecondary">
                 {persons.length === 0
                   ? t("medication.takersNone")
                   : t("medication.takersHint")}
@@ -494,9 +494,9 @@ export default function MedicationFormScreen() {
                 void save();
               }}
               alignSelf="stretch"
-              backgroundColor="$primary press:$primarySoft"
+              backgroundColor="primary press:primarySoft"
               borderCurve="continuous"
-              color="$onPrimary"
+              color="onPrimary"
             >
               {t("medication.saveMedication")}
             </Button>
@@ -507,15 +507,15 @@ export default function MedicationFormScreen() {
               }}
               alignSelf="stretch"
               borderWidth={1}
-              borderColor="$border"
-              backgroundColor="$surface press:$backgroundSelected"
+              borderColor="border"
+              backgroundColor="surface press:backgroundSelected"
               borderCurve="continuous"
-              color="$text"
+              color="text"
             >
               {t("common.cancel")}
             </Button>
             <YStack alignItems="center" paddingBlock="two">
-              <Text fontSize={12} color="$textSecondary" textAlign="center">
+              <Text fontSize={12} color="textSecondary" textAlign="center">
                 {t("medication.saveHint")}
               </Text>
             </YStack>

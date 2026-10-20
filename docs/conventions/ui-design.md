@@ -195,9 +195,9 @@ const theme = useTheme();
 ```tsx
 import { Button, Text, View, XStack, YStack } from "tamagui";
 
-// 颜色：token 名带 $
-<View backgroundColor="$surface" borderColor="$border" borderRadius="card" />
-<Text color="$textSecondary" fontSize={13} />
+// 颜色：token 名**不带** $（v3 起 $ 前缀已移除，写了会 warn 且解析失败）
+<View backgroundColor="surface" borderColor="border" borderRadius="card" />
+<Text color="textSecondary" fontSize={13} />
 
 // 间距 / 圆角：token 名不带 $
 <YStack gap="three" paddingInline="screen" paddingBlock="two" />
@@ -206,14 +206,14 @@ import { Button, Text, View, XStack, YStack } from "tamagui";
 
 // 按压反馈：press: 子句（Tamagui 自己接线，不要 RN Pressable 的 style 函数）
 <View onPress={...} accessibilityRole="button"
-      backgroundColor="$surface press:$backgroundSelected" />
+      backgroundColor="surface press:backgroundSelected" />
 <View onPress={...} opacity="1 press:0.85" />   // 压暗，仅实心路径可用
 
 // 按钮四档配色（屏里照抄，别另写一套）
-primary     backgroundColor="$primary"    color="$onPrimary"
-secondary   backgroundColor="$surface"    color="$text"   borderWidth={1} borderColor="$border"
-ghost       backgroundColor="transparent" color="$primary"
-destructive backgroundColor="$danger"     color="$onDanger"
+primary     backgroundColor="primary"    color="onPrimary"
+secondary   backgroundColor="surface"    color="text"   borderWidth={1} borderColor="border"
+ghost       backgroundColor="transparent" color="primary"
+destructive backgroundColor="danger"     color="onDanger"
 ```
 
 可用 token：颜色 `text` `textSecondary` `canvas` `surface` `border` `primary` `onPrimary` `primarySoft` `onFilled` `backgroundElement` `backgroundSelected` `success` `successSoft` `successStrong` `warning` `warningSoft` `warningStrong` `danger` `dangerSoft` `dangerStrong`；间距 `half` `one` `two` `three` `four` `five` `screen` `cardGap` `rowGap`；圆角 `tile` `card` `promo` `pill`。全部定义在根目录 `tamagui.config.ts`，值来自 `constants/theme.ts`。
@@ -222,7 +222,7 @@ destructive backgroundColor="$danger"     color="$onDanger"
 
 1. **token 只有一份**。颜色/间距/圆角只从 `tamagui.config.ts` 出，屏里不许写裸 hex/rgba。半透明色（`withAlpha(theme.danger, 0.06)` 那类）是算出来的值，继续走 `@/utils/color` + `useTheme()`，不进配置。
 2. **RN 专有 prop 要换名**：`paddingHorizontal` → `paddingInline`、`paddingVertical` → `paddingBlock`（`paddingTop`/`marginLeft` 这类单边的合法）。`px`/`py`/`p`/`m` 这些简写没进类型，用长拼。
-3. **这些原生组件只吃真实色值，传 `$token` 会静默失效**：`SymbolIcon` 的 `color`（SymbolView 的 tintColor）、`HugeIcon` 的 `color`（SVG stroke）、`GlassView` 的 `tintColor`、`RnDateTimePicker` 的 `accentColor`、`LinearGradient` 的 `colors`、RN `TextInput` 的 `style.color`、`ProgressBarRn` 之外的任何 RN `style`。这些地方保留 `useTheme()`。
+3. **这些原生组件只吃真实色值，传 token 名会静默失效**：`SymbolIcon` 的 `color`（SymbolView 的 tintColor）、`HugeIcon` 的 `color`（SVG stroke）、`GlassView` 的 `tintColor`、`RnDateTimePicker` 的 `accentColor`、`LinearGradient` 的 `colors`、RN `TextInput` 的 `style.color`、`ProgressBarRn` 之外的任何 RN `style`。这些地方保留 `useTheme()`。
 4. **玻璃外壳留 RN，玻璃内容用 Tamagui**。Tamagui 没有液态玻璃能力（iOS 26 的 UIGlassEffect 是 Expo 原生模块），模式固定为 `GlassView` 铺原生玻璃 + Tamagui 内容。⚠️ 玻璃祖先链上**不能改 opacity**（含按压反馈）—— opacity 过低玻璃会整层变淡，所以玻璃按钮不用 Tamagui `Button`（它的基类自带 `opacity: press:0.7`），用 Tamagui `View` + GlassView。
 5. **运行时零 bundler 配置**。`metro.config.js` / `babel.config.js` 都不需要动。要上 Tamagui 编译器（抽样式、更小的包）是另一个决定，别顺手加 `@tamagui/metro-plugin` —— 它换掉 Metro 的 babelTransformer，与项目的 reactCompiler 实验叠在一起风险大于收益。
 

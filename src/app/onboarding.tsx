@@ -101,7 +101,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <View flex={1} backgroundColor="$canvas">
+    <View flex={1} backgroundColor="canvas">
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -124,7 +124,7 @@ export default function OnboardingScreen() {
               hitSlop={Spacing.three}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
             >
-              <Text fontSize={14} color="$textSecondary">
+              <Text fontSize={14} color="textSecondary">
                 {t("onboarding.skip")}
               </Text>
             </RNPressable>
@@ -164,7 +164,7 @@ export default function OnboardingScreen() {
                   height={HERO_SIZE}
                   borderRadius={HERO_RADIUS}
                   borderCurve="continuous"
-                  backgroundColor="$primarySoft"
+                  backgroundColor="primarySoft"
                   alignItems="center"
                   justifyContent="center"
                 >
@@ -177,12 +177,12 @@ export default function OnboardingScreen() {
                 <Text
                   fontSize={26}
                   fontWeight="700"
-                  color="$text"
+                  color="text"
                   textAlign="center"
                 >
                   {t(item.titleKey)}
                 </Text>
-                <Text fontSize={14} color="$textSecondary" textAlign="center">
+                <Text fontSize={14} color="textSecondary" textAlign="center">
                   {t(item.subtitleKey)}
                 </Text>
               </View>

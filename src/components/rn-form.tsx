@@ -25,7 +25,7 @@ const TITLE_BAR_HEIGHT = 16;
 /** 标题下方的副标题（design 的 .hero-subtitle） */
 export function Subtitle({ text }: { text: string }) {
   return (
-    <Text fontSize={13} color="$textSecondary">
+    <Text fontSize={13} color="textSecondary">
       {text}
     </Text>
   );
@@ -45,17 +45,17 @@ export function FormSection({
         <View
           width={TITLE_BAR_WIDTH}
           height={TITLE_BAR_HEIGHT}
-          backgroundColor="$primary"
+          backgroundColor="primary"
           borderRadius={2}
         />
-        <Text fontSize={15} fontWeight="700" color="$text">
+        <Text fontSize={15} fontWeight="700" color="text">
           {title}
         </Text>
       </XStack>
       <YStack
-        backgroundColor="$surface"
+        backgroundColor="surface"
         borderWidth={1}
-        borderColor="$border"
+        borderColor="border"
         borderRadius="card"
         borderCurve="continuous"
         padding={CARD_PADDING}
@@ -89,7 +89,7 @@ export function Field({
 }) {
   return (
     <YStack style={[{ gap: Spacing.one }, style]} gap="one">
-      <Text fontSize={13} fontWeight="600" color="$textSecondary">
+      <Text fontSize={13} fontWeight="600" color="textSecondary">
         {label}
       </Text>
       {children}
@@ -140,7 +140,7 @@ export function ChipField({
 
 export function ErrorText({ text }: { text: string }) {
   return (
-    <Text fontSize={13} fontWeight="500" color="$danger">
+    <Text fontSize={13} fontWeight="500" color="danger">
       {text}
     </Text>
   );
@@ -149,7 +149,7 @@ export function ErrorText({ text }: { text: string }) {
 /** 提示文案：与 ErrorText 同排版，但不染危险色 —— 说明性信息用 */
 export function HintText({ text }: { text: string }) {
   return (
-    <Text fontSize={13} color="$textSecondary">
+    <Text fontSize={13} color="textSecondary">
       {text}
     </Text>
   );

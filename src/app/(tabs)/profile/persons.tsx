@@ -170,7 +170,7 @@ export default function PersonsScreen() {
 
   if (loading) {
     return (
-      <View flex={1} backgroundColor="$canvas">
+      <View flex={1} backgroundColor="canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>
           {isEditing ? t("person.editTitle") : t("person.addMember")}
@@ -181,7 +181,7 @@ export default function PersonsScreen() {
 
   if (isEditing && !editingPerson) {
     return (
-      <View flex={1} backgroundColor="$canvas">
+      <View flex={1} backgroundColor="canvas">
         <Stack.Screen.BackButton displayMode="minimal" />
         <Stack.Title large>
           {isEditing ? t("person.editTitle") : t("person.addMember")}
@@ -192,7 +192,7 @@ export default function PersonsScreen() {
           justifyContent="center"
           paddingTop={120}
         >
-          <Text color="$textSecondary" fontSize={15}>
+          <Text color="textSecondary" fontSize={15}>
             {t("person.notFound")}
           </Text>
         </View>
@@ -252,15 +252,15 @@ export default function PersonsScreen() {
                       void choosePhoto();
                     }}
                     size={false}
-                    backgroundColor="$surface press:$backgroundSelected"
+                    backgroundColor="surface press:backgroundSelected"
                     borderWidth={1}
-                    borderColor="$border"
+                    borderColor="border"
                     borderRadius="card"
                     borderCurve="continuous"
                     paddingInline="three"
                     paddingBlock="two"
                     minHeight={44}
-                    color="$text"
+                    color="text"
                     fontSize={15}
                     fontWeight="600"
                   >
@@ -280,7 +280,7 @@ export default function PersonsScreen() {
                       padding={0}
                       borderWidth={0}
                       backgroundColor="transparent"
-                      color="$danger"
+                      color="danger"
                       fontSize={14}
                       fontWeight="600"
                     >
@@ -369,8 +369,8 @@ export default function PersonsScreen() {
             }}
             size={false}
             borderWidth={0}
-            backgroundColor="$primary press:$primarySoft"
-            color="$onPrimary"
+            backgroundColor="primary press:primarySoft"
+            color="onPrimary"
             borderRadius="card"
             borderCurve="continuous"
             paddingBlock="three"

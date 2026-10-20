@@ -77,7 +77,7 @@ export default function PersonDetailScreen() {
   // 首屏还在读 SQLite：直接渲染会闪一下「用药人不存在」
   if (loading) {
     return (
-      <View flex={1} backgroundColor="$canvas">
+      <View flex={1} backgroundColor="canvas">
         <Stack.Screen.BackButton displayMode="minimal">
           {t("person.listTitle")}
         </Stack.Screen.BackButton>
@@ -88,7 +88,7 @@ export default function PersonDetailScreen() {
 
   if (!person) {
     return (
-      <View flex={1} backgroundColor="$canvas">
+      <View flex={1} backgroundColor="canvas">
         <Stack.Screen.BackButton displayMode="minimal">
           {t("person.listTitle")}
         </Stack.Screen.BackButton>
@@ -99,7 +99,7 @@ export default function PersonDetailScreen() {
           justifyContent="center"
           paddingTop={120}
         >
-          <Text color="$textSecondary">{t("person.notFound")}</Text>
+          <Text color="textSecondary">{t("person.notFound")}</Text>
         </View>
       </View>
     );
@@ -184,7 +184,7 @@ export default function PersonDetailScreen() {
           <FormSection title={t("person.plans")}>
             {personPlans.length === 0 ? (
               <YStack alignItems="center" paddingBlock="three">
-                <Text fontSize={13} color="$textSecondary" textAlign="center">
+                <Text fontSize={13} color="textSecondary" textAlign="center">
                   {t("plan.emptyAddHint")}
                 </Text>
               </YStack>
@@ -228,17 +228,17 @@ export default function PersonDetailScreen() {
               }}
               alignSelf="stretch"
               borderWidth={1}
-              borderColor="$border"
-              backgroundColor="$surface press:$backgroundSelected"
+              borderColor="border"
+              backgroundColor="surface press:backgroundSelected"
               borderCurve="continuous"
-              color="$text"
+              color="text"
             >
               {t("person.editButton")}
             </Button>
             {/* 删除是危险操作：不用主题色填充/描边，改纯文字按钮 + 危险色文字。
                 「自己」是 App 的默认用户，不是家庭成员，不给删 */}
             {isSelf ? (
-              <Text fontSize={13} color="$textSecondary" textAlign="center">
+              <Text fontSize={13} color="textSecondary" textAlign="center">
                 {t("person.selfLockedHint")}
               </Text>
             ) : (
@@ -249,7 +249,7 @@ export default function PersonDetailScreen() {
                 }}
                 alignSelf="stretch"
                 backgroundColor="transparent"
-                color="$danger"
+                color="danger"
                 opacity="1 press:0.6"
               >
                 {confirmDeletePerson
@@ -277,7 +277,7 @@ function BasicRow({ label, value }: { label: string; value: string }) {
       paddingInline="three"
       paddingBlock="rowGap"
     >
-      <Text fontSize={15} color="$textSecondary">
+      <Text fontSize={15} color="textSecondary">
         {label}
       </Text>
       <View flex={1} />
@@ -285,7 +285,7 @@ function BasicRow({ label, value }: { label: string; value: string }) {
         numberOfLines={2}
         fontSize={15}
         fontWeight="600"
-        color="$text"
+        color="text"
         textAlign="right"
         flexShrink={1}
       >
@@ -326,33 +326,33 @@ function PlanEntry({
       accessibilityRole="button"
       gap="one"
       paddingBlock="two"
-      backgroundColor="transparent press:$backgroundSelected"
+      backgroundColor="transparent press:backgroundSelected"
     >
       <XStack alignItems="center" gap="two">
         <Text
           numberOfLines={1}
           fontSize={15}
           fontWeight="600"
-          color="$text"
+          color="text"
           flexShrink={1}
         >
           {medication?.name ?? t("home.unknownMedication")}
         </Text>
         <View flex={1} />
-        <Text numberOfLines={1} fontSize={13} color="$textSecondary">
+        <Text numberOfLines={1} fontSize={13} color="textSecondary">
           {planStatusLabel(plan, t)}
         </Text>
       </XStack>
-      <Text fontSize={13} color="$textSecondary">
+      <Text fontSize={13} color="textSecondary">
         {t("medication.doseLine", { amount: plan.doseAmount, unit })}
       </Text>
-      <Text fontSize={13} color="$textSecondary">
+      <Text fontSize={13} color="textSecondary">
         {t("person.timesLine", {
           count: plan.times.length,
           times: plan.times.join(" / "),
         })}
       </Text>
-      <Text fontSize={13} color="$textSecondary">
+      <Text fontSize={13} color="textSecondary">
         {[
           t("person.startFrom", { start: plan.startDate }),
           plan.endDate

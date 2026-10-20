@@ -57,7 +57,7 @@ export function SettingRow({
   // HugeIcon 的 color 直接喂给 SVG 的 stroke，收不了 Tamagui 的 token 名，
   // 仍走 useTheme() 取真实色值
   const theme = useTheme();
-  const labelColor = disabled ? "$textSecondary" : "$text";
+  const labelColor = disabled ? "textSecondary" : "text";
 
   const body = (
     <>
@@ -75,7 +75,7 @@ export function SettingRow({
           {label}
         </Text>
         {sub ? (
-          <Text fontSize={13} color="$textSecondary">
+          <Text fontSize={13} color="textSecondary">
             {sub}
           </Text>
         ) : null}
@@ -113,7 +113,7 @@ export function SettingRow({
       onPress={onPress}
       accessibilityRole="button"
       style={rowStyle}
-      backgroundColor="$background press:$backgroundSelected"
+      backgroundColor="background press:backgroundSelected"
     >
       {body}
     </View>
@@ -127,7 +127,7 @@ export function SettingRow({
  * 所以发丝线从文本起点开始，和 iOS 的无图标分组列表一致。
  */
 export function RowDivider() {
-  return <View height={1} marginLeft={ROW_PADDING} backgroundColor="$border" />;
+  return <View height={1} marginLeft={ROW_PADDING} backgroundColor="border" />;
 }
 
 /** 行尾的等宽数值 + 展开箭头（design/settings.html 的 .setting-action） */
@@ -135,7 +135,7 @@ export function ValueAndChevron({ text }: { text: string }) {
   const theme = useTheme();
   return (
     <XStack alignItems="center" gap="two">
-      <Text fontSize={13} fontFamily="mono" color="$textSecondary">
+      <Text fontSize={13} fontFamily="mono" color="textSecondary">
         {text}
       </Text>
       <HugeIcon

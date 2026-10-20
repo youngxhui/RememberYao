@@ -75,13 +75,13 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
   return (
     <YStack gap="two">
       {rows.length === 0 ? (
-        <Text color="$textSecondary" fontSize={13}>
+        <Text color="textSecondary" fontSize={13}>
           {t("home.stockListEmpty")}
         </Text>
       ) : (
         rows.map((row) => (
           <XStack key={row.medication.id} alignItems="center" gap="two">
-            <Text numberOfLines={1} flex={1} color="$text" fontSize={14}>
+            <Text numberOfLines={1} flex={1} color="text" fontSize={14}>
               {`${row.medication.name} ${row.medication.remainingQuantity}${medicationUnitLabel(
                 row.medication.unit,
                 t,
@@ -91,7 +91,7 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
             <Text
               width={72}
               textAlign="right"
-              color={row.low ? "$warningStrong" : "$textSecondary"}
+              color={row.low ? "warningStrong" : "textSecondary"}
               fontFamily="mono"
               style={{ fontVariant: ["tabular-nums"] }}
               fontSize={12}
@@ -132,7 +132,7 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
           <YStack flex={1} minWidth={0}>
             <Text
               numberOfLines={1}
-              color="$dangerStrong"
+              color="dangerStrong"
               fontSize={14}
               fontWeight="600"
             >
@@ -146,7 +146,7 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
             <Text
               numberOfLines={2}
               marginTop={2}
-              color="$textSecondary"
+              color="textSecondary"
               fontFamily="mono"
               fontSize={12}
             >
@@ -171,8 +171,8 @@ export function StockPanel({ medications, plans }: StockPanelProps) {
             borderRadius="pill"
             borderWidth={1}
             borderColor={withAlpha(theme.dangerStrong, 0.3)}
-            backgroundColor="$surface press:$dangerSoft"
-            color="$dangerStrong"
+            backgroundColor="surface press:dangerSoft"
+            color="dangerStrong"
             fontSize={13}
             fontWeight="600"
           >
@@ -191,14 +191,14 @@ function StockBar({ percent, low }: { percent: number; low: boolean }) {
       width={72}
       height={4}
       borderRadius={2}
-      backgroundColor="$border"
+      backgroundColor="border"
       overflow="hidden"
     >
       <View
         width={`${clamped * 100}%`}
         height={4}
         borderRadius={2}
-        backgroundColor={low ? "$danger" : "$success"}
+        backgroundColor={low ? "danger" : "success"}
       />
     </View>
   );

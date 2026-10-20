@@ -23,10 +23,10 @@ export function InputShell({
       alignItems="center"
       gap={spacing}
       borderWidth={1.5}
-      borderColor="$border"
+      borderColor="border"
       borderRadius={14}
       borderCurve="continuous"
-      backgroundColor="$canvas"
+      backgroundColor="canvas"
       paddingInline="three"
       paddingBlock="rowGap"
     >

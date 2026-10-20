@@ -42,9 +42,9 @@ export function RnRoundIconButton({
       minWidth={size}
       borderRadius="pill"
       borderCurve="continuous"
-      backgroundColor="$surface press:$backgroundElement"
+      backgroundColor="surface press:backgroundElement"
       borderWidth={1}
-      borderColor="$border"
+      borderColor="border"
       alignItems="center"
       justifyContent="center"
     >

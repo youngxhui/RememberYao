@@ -39,15 +39,15 @@ import { withAlpha } from "@/utils/color";
  * token 名见根目录 tamagui.config.ts（值来自 src/constants/theme.ts）。
  */
 const BUTTON_VARIANTS = {
-  primary: { backgroundColor: "$primary", color: "$onPrimary" },
+  primary: { backgroundColor: "primary", color: "onPrimary" },
   secondary: {
-    backgroundColor: "$surface",
-    color: "$text",
+    backgroundColor: "surface",
+    color: "text",
     borderWidth: 1,
-    borderColor: "$border",
+    borderColor: "border",
   },
-  ghost: { backgroundColor: "transparent", color: "$primary" },
-  destructive: { backgroundColor: "$danger", color: "$onDanger" },
+  ghost: { backgroundColor: "transparent", color: "primary" },
+  destructive: { backgroundColor: "danger", color: "onDanger" },
 } as const;
 
 /**
@@ -124,7 +124,7 @@ export default function PlaygroundScreen() {
         {/* 首屏加载没结束时不显示空态；组件自带「暂无药品档案」空态 */}
         {loading ? (
           <Padded>
-            <Text style={{ color: "$textSecondary" }}>{t("home.loading")}</Text>
+            <Text style={{ color: "textSecondary" }}>{t("home.loading")}</Text>
           </Padded>
         ) : (
           <>
@@ -158,7 +158,7 @@ export default function PlaygroundScreen() {
             <Padded>
               <View style={{ marginTop: Spacing.five, gap: Spacing.four }}>
                 <Text
-                  style={[styles.sectionLabelText, { color: "$textSecondary" }]}
+                  style={[styles.sectionLabelText, { color: "textSecondary" }]}
                 >
                   {t("common.playgroundTamaguiButton")}
                 </Text>
@@ -167,7 +167,7 @@ export default function PlaygroundScreen() {
                 <View style={{ gap: Spacing.two }}>
                   <Text
                     style={{
-                      color: "$text",
+                      color: "text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
@@ -204,7 +204,7 @@ export default function PlaygroundScreen() {
                 <View style={{ gap: Spacing.two }}>
                   <Text
                     style={{
-                      color: "$text",
+                      color: "text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
@@ -241,7 +241,7 @@ export default function PlaygroundScreen() {
                 <View style={{ gap: Spacing.two }}>
                   <Text
                     style={{
-                      color: "$text",
+                      color: "text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
@@ -280,7 +280,7 @@ export default function PlaygroundScreen() {
                       {saving ? "saving" : "loading"}
                     </Button>
                   </View>
-                  <Text style={{ color: "$textSecondary", fontSize: 13 }}>
+                  <Text style={{ color: "textSecondary", fontSize: 13 }}>
                     {t("common.playgroundLastPressed", { target: lastPressed })}
                   </Text>
                 </View>
@@ -294,7 +294,7 @@ export default function PlaygroundScreen() {
               >
                 {/* 渲染后端提示 */}
                 <Text
-                  style={[styles.sectionLabelText, { color: "$textSecondary" }]}
+                  style={[styles.sectionLabelText, { color: "textSecondary" }]}
                 >
                   {nativeSupported
                     ? "LiquidGlass: 原生 UIGlassEffect (iOS 26+)"
@@ -324,14 +324,14 @@ export default function PlaygroundScreen() {
                       opacity="1 press:0.7"
                       backgroundColor={
                         variant === v
-                          ? "$primary"
+                          ? "primary"
                           : withAlpha(theme.primary, 0.12)
                       }
                     >
                       <Text
                         fontSize={14}
                         fontWeight="600"
-                        color={variant === v ? "$onPrimary" : "$primary"}
+                        color={variant === v ? "onPrimary" : "primary"}
                       >
                         {v === "regular" ? "Regular" : "Clear"}
                       </Text>
@@ -358,7 +358,7 @@ export default function PlaygroundScreen() {
               <View style={{ marginTop: Spacing.five, gap: Spacing.four }}>
                 <Text
                   style={{
-                    color: "$textSecondary",
+                    color: "textSecondary",
                     fontSize: 13,
                     fontWeight: "600",
                   }}
@@ -370,7 +370,7 @@ export default function PlaygroundScreen() {
                 <View style={{ gap: Spacing.two }}>
                   <Text
                     style={{
-                      color: "$text",
+                      color: "text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
@@ -400,7 +400,7 @@ export default function PlaygroundScreen() {
                         opacity="1 press:0.7"
                         backgroundColor={
                           glassCardVariant === v
-                            ? "$primary"
+                            ? "primary"
                             : withAlpha(theme.primary, 0.12)
                         }
                       >
@@ -408,7 +408,7 @@ export default function PlaygroundScreen() {
                           fontSize={14}
                           fontWeight="600"
                           color={
-                            glassCardVariant === v ? "$onPrimary" : "$primary"
+                            glassCardVariant === v ? "onPrimary" : "primary"
                           }
                         >
                           {v === "regular" ? "Regular" : "Clear"}
@@ -418,18 +418,18 @@ export default function PlaygroundScreen() {
                   </View>
                   <ContentGlass
                     variant={glassCardVariant}
-                    tint={"$primary"}
+                    tint={"primary"}
                     cornerRadius={Radius.card}
                     style={{ padding: Spacing.three }}
                     fallbackStyle={{
-                      backgroundColor: "$surface",
+                      backgroundColor: "surface",
                       borderWidth: 1,
-                      borderColor: "$border",
+                      borderColor: "border",
                     }}
                   >
                     <Text
                       style={{
-                        color: "$text",
+                        color: "text",
                         fontSize: 15,
                         fontWeight: "600",
                       }}
@@ -438,7 +438,7 @@ export default function PlaygroundScreen() {
                     </Text>
                     <Text
                       style={{
-                        color: "$textSecondary",
+                        color: "textSecondary",
                         fontSize: 13,
                         marginTop: Spacing.one,
                       }}
@@ -452,7 +452,7 @@ export default function PlaygroundScreen() {
                 <View style={{ gap: Spacing.two }}>
                   <Text
                     style={{
-                      color: "$text",
+                      color: "text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
@@ -489,7 +489,7 @@ export default function PlaygroundScreen() {
                 <View style={{ gap: Spacing.two }}>
                   <Text
                     style={{
-                      color: "$text",
+                      color: "text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
@@ -526,7 +526,7 @@ export default function PlaygroundScreen() {
                 <View style={{ gap: Spacing.two }}>
                   <Text
                     style={{
-                      color: "$text",
+                      color: "text",
                       fontSize: 15,
                       fontWeight: "600",
                     }}
@@ -537,12 +537,12 @@ export default function PlaygroundScreen() {
                     <Padded>
                       <View
                         style={{
-                          backgroundColor: "$primarySoft",
+                          backgroundColor: "primarySoft",
                           padding: Spacing.two,
                           borderRadius: Radius.card,
                         }}
                       >
-                        <Text style={{ color: "$primary", fontSize: 14 }}>
+                        <Text style={{ color: "primary", fontSize: 14 }}>
                           Padded 区块（内缩 {Spacing.screen}pt）
                         </Text>
                       </View>
@@ -551,11 +551,11 @@ export default function PlaygroundScreen() {
                     <FullBleed>
                       <View
                         style={{
-                          backgroundColor: "$warningSoft",
+                          backgroundColor: "warningSoft",
                           padding: Spacing.two,
                         }}
                       >
-                        <Text style={{ color: "$warning", fontSize: 14 }}>
+                        <Text style={{ color: "warning", fontSize: 14 }}>
                           FullBleed 区块（顶到左右缘）
                         </Text>
                       </View>
@@ -580,7 +580,7 @@ export default function PlaygroundScreen() {
               <View style={{ marginTop: Spacing.five }}>
                 <Text
                   style={{
-                    color: "$textSecondary",
+                    color: "textSecondary",
                     fontSize: 13,
                     marginBottom: Spacing.two,
                   }}
@@ -595,7 +595,7 @@ export default function PlaygroundScreen() {
                   onChanged={reload}
                 />
                 {pendingCount === 0 ? (
-                  <Text style={{ color: "$textSecondary", fontSize: 13 }}>
+                  <Text style={{ color: "textSecondary", fontSize: 13 }}>
                     {t("common.playgroundEmpty")}
                   </Text>
                 ) : null}

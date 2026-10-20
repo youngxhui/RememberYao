@@ -70,7 +70,7 @@ export default function RecordsScreen() {
           <View
             flexDirection="row"
             alignItems="center"
-            backgroundColor="$backgroundElement"
+            backgroundColor="backgroundElement"
             borderRadius="card"
             padding="two"
           >
@@ -80,7 +80,7 @@ export default function RecordsScreen() {
               onPress={() => setDate((d) => addDays(d, -1))}
             />
             <View flex={1} alignItems="center">
-              <Text fontSize={15} fontWeight="600" color="$text">
+              <Text fontSize={15} fontWeight="600" color="text">
                 {formatDateLabel(date, language)}
               </Text>
             </View>
@@ -96,15 +96,15 @@ export default function RecordsScreen() {
           {!loading && total > 0 ? (
             <View
               marginTop="three"
-              backgroundColor="$primarySoft"
+              backgroundColor="primarySoft"
               borderRadius="card"
               padding="three"
             >
               <View flexDirection="row" alignItems="flex-end" gap="one">
-                <Text fontSize={28} fontWeight="700" color="$text">
+                <Text fontSize={28} fontWeight="700" color="text">
                   {`${rate}%`}
                 </Text>
-                <Text fontSize={13} color="$textSecondary" marginBottom={2}>
+                <Text fontSize={13} color="textSecondary" marginBottom={2}>
                   {t("records.adherence")}
                 </Text>
               </View>
@@ -116,7 +116,7 @@ export default function RecordsScreen() {
                   height={8}
                 />
               </View>
-              <Text marginTop="two" fontSize={12} color="$textSecondary">
+              <Text marginTop="two" fontSize={12} color="textSecondary">
                 {t("records.summary", { total, taken, missed, skipped })}
               </Text>
             </View>
@@ -166,7 +166,7 @@ function NavButton({
       // 可用时按压压到 0.7 —— 与迁移前 Pressable 的 style 函数等价
       opacity={disabled ? 0.3 : "1 press:0.7"}
     >
-      <Text fontSize={20} color="$primary" fontWeight="700">
+      <Text fontSize={20} color="primary" fontWeight="700">
         {label}
       </Text>
     </View>

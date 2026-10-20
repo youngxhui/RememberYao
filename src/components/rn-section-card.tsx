@@ -24,12 +24,12 @@ export function SectionCard({
 }) {
   return (
     <YStack
-      backgroundColor={tone === "outline" ? "$surface" : "$backgroundElement"}
+      backgroundColor={tone === "outline" ? "surface" : "backgroundElement"}
       borderRadius="card"
       borderCurve="continuous"
       overflow="hidden"
       {...(tone === "outline"
-        ? { borderWidth: 1, borderColor: "$border" }
+        ? { borderWidth: 1, borderColor: "border" }
         : null)}
     >
       {children}
@@ -52,7 +52,7 @@ export function SectionTitle({ children }: { children: string }) {
       paddingBottom="two"
       paddingLeft={4}
       fontSize={13}
-      color="$textSecondary"
+      color="textSecondary"
       fontWeight="500"
     >
       {children}
@@ -62,7 +62,7 @@ export function SectionTitle({ children }: { children: string }) {
 
 /** 分组行之间的发丝线 */
 export function HairLine() {
-  return <View height={1} backgroundColor="$backgroundSelected" />;
+  return <View height={1} backgroundColor="backgroundSelected" />;
 }
 
 /**
@@ -88,14 +88,14 @@ export function InfoRow({
       paddingBlock="rowGap"
       gap="three"
     >
-      <Text flex={1} fontSize={15} color="$text">
+      <Text flex={1} fontSize={15} color="text">
         {label}
       </Text>
       <Text
         numberOfLines={2}
         flex={1}
         fontSize={15}
-        color={valueColor ?? "$textSecondary"}
+        color={valueColor ?? "textSecondary"}
         textAlign="right"
       >
         {value}

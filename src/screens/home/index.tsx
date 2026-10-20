@@ -109,7 +109,7 @@ export function Home() {
         <Stack.Title large>{t("home.title")}</Stack.Title>
         <ScreenScaffold>
           <Padded>
-            <Text color="$textSecondary">{t("home.loading")}</Text>
+            <Text color="textSecondary">{t("home.loading")}</Text>
           </Padded>
         </ScreenScaffold>
       </>
@@ -181,20 +181,20 @@ function HeroHeader() {
             lineHeight={58}
             fontWeight="800"
             letterSpacing={-2}
-            color="$text"
+            color="text"
           >
             {String(day)}
           </Text>
           <Text
             fontSize={20}
             fontWeight="600"
-            color="$textSecondary"
+            color="textSecondary"
             marginBottom={2}
           >
             {t("home.monthDay", { month })}
           </Text>
         </XStack>
-        <Text fontSize={15} fontWeight="500" color="$textSecondary">
+        <Text fontSize={15} fontWeight="500" color="textSecondary">
           {t("home.weekdayToday", { weekday })}
         </Text>
       </YStack>
@@ -296,7 +296,7 @@ function NotificationBanner() {
     <XStack
       alignItems="center"
       gap="rowGap"
-      backgroundColor="$dangerSoft"
+      backgroundColor="dangerSoft"
       padding="three"
       borderRadius="card"
     >
@@ -306,10 +306,10 @@ function NotificationBanner() {
         color={theme.danger}
       />
       <YStack flex={1}>
-        <Text fontSize={14} fontWeight="600" color="$text">
+        <Text fontSize={14} fontWeight="600" color="text">
           {t("home.notificationOff")}
         </Text>
-        <Text fontSize={12} color="$textSecondary">
+        <Text fontSize={12} color="textSecondary">
           {t("home.notificationOffBody")}
         </Text>
       </YStack>
@@ -322,7 +322,7 @@ function NotificationBanner() {
         padding={0}
         borderWidth={0}
         backgroundColor="transparent"
-        color="$danger"
+        color="danger"
         fontSize={13}
         fontWeight="600"
       >
@@ -334,7 +334,7 @@ function NotificationBanner() {
 
 function SectionTitle({ title }: { title: string }) {
   return (
-    <Text fontSize={17} fontWeight="600" color="$text">
+    <Text fontSize={17} fontWeight="600" color="text">
       {title}
     </Text>
   );
@@ -366,13 +366,13 @@ function FirstRunEmpty({ onAdd }: { onAdd: () => void }) {
           color={theme.primary}
         />
       </View>
-      <Text fontSize={22} fontWeight="800" color="$text" textAlign="center">
+      <Text fontSize={22} fontWeight="800" color="text" textAlign="center">
         {t("home.emptyTitle")}
       </Text>
       <Text
         fontSize={14}
         lineHeight={20}
-        color="$textSecondary"
+        color="textSecondary"
         textAlign="center"
       >
         {t("home.emptyBody")}
@@ -382,8 +382,8 @@ function FirstRunEmpty({ onAdd }: { onAdd: () => void }) {
         onPress={onAdd}
         size={false}
         borderWidth={0}
-        backgroundColor="$primary press:$primarySoft"
-        color="$onPrimary"
+        backgroundColor="primary press:primarySoft"
+        color="onPrimary"
         borderRadius="card"
         borderCurve="continuous"
         paddingInline="three"
@@ -394,7 +394,7 @@ function FirstRunEmpty({ onAdd }: { onAdd: () => void }) {
       >
         {t("home.emptyAction")}
       </Button>
-      <Text fontSize={12} color="$textSecondary" textAlign="center">
+      <Text fontSize={12} color="textSecondary" textAlign="center">
         {t("home.privacyNote")}
       </Text>
     </YStack>
@@ -420,12 +420,12 @@ function NoScheduleToday() {
       <Text
         fontSize={15}
         fontWeight="600"
-        color="$textSecondary"
+        color="textSecondary"
         textAlign="center"
       >
         {t("home.noSchedule")}
       </Text>
-      <Text fontSize={13} color="$textSecondary" textAlign="center">
+      <Text fontSize={13} color="textSecondary" textAlign="center">
         {t("home.noScheduleHint")}
       </Text>
     </YStack>

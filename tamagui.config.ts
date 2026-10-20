@@ -29,7 +29,8 @@ type Scheme = (typeof Colors)["light"] | (typeof Colors)["dark"];
  * theme 键名分两类，都不能改：
  * - 连字符形式（background / border-color / outline-color…）是 Tamagui 内置样式
  *   读的，Button / Input 的底、悬停、按压、焦点环全走它们；
- * - 其余是主题色表，屏幕里写 `$primary` / `$textSecondary` 时查的就是这些，
+ * - 其余是主题色表，屏幕里写 `primary` / `textSecondary` 这类**裸名**时查的就是这些
+ *   （v3 的 token 引用不带 `$`，写 `$primary` 只会拿到一条 warn 且解析不出颜色），
  *   与 `src/constants/theme.ts` 的键一一对应（驼峰保留原样）。
  */
 function buildTheme(c: Scheme): Record<string, string> {

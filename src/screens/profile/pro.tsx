@@ -155,7 +155,7 @@ export function ProScreen() {
           {notice ? <NoticeBanner notice={notice} /> : null}
 
           {/* 页面说明：一句话讲清这屏是干什么的（跟随 Stack.Title 之下） */}
-          <Text fontSize={13} color="$textSecondary">
+          <Text fontSize={13} color="textSecondary">
             {t("pro.subtitle")}
           </Text>
 
@@ -167,7 +167,7 @@ export function ProScreen() {
                 <SettingRow
                   label={t("pro.status")}
                   trailing={
-                    <Text fontSize={15} color="$textSecondary">
+                    <Text fontSize={15} color="textSecondary">
                       {t("common.loading")}
                     </Text>
                   }
@@ -187,7 +187,7 @@ export function ProScreen() {
                     trailing={
                       <Text
                         fontSize={15}
-                        color={isPro ? "$success" : "$textSecondary"}
+                        color={isPro ? "success" : "textSecondary"}
                       >
                         {!available
                           ? t("pro.statusUnavailable")
@@ -203,7 +203,7 @@ export function ProScreen() {
                       <SettingRow
                         label={t("pro.currentPlan")}
                         trailing={
-                          <Text fontSize={15} color="$textSecondary">
+                          <Text fontSize={15} color="textSecondary">
                             {t(
                               planKeyFromProductId(
                                 entitlement.productIdentifier,
@@ -216,7 +216,7 @@ export function ProScreen() {
                       <SettingRow
                         label={t("pro.expires")}
                         trailing={
-                          <Text fontSize={15} color="$textSecondary">
+                          <Text fontSize={15} color="textSecondary">
                             {expiresText ?? t("pro.expiresNever")}
                           </Text>
                         }
@@ -264,8 +264,8 @@ export function ProScreen() {
                   onPress={() => {
                     void handleUpgrade();
                   }}
-                  backgroundColor="$primary press:$primarySoft"
-                  color="$onPrimary"
+                  backgroundColor="primary press:primarySoft"
+                  color="onPrimary"
                   borderRadius="card"
                   borderCurve="continuous"
                   paddingBlock="three"
@@ -273,7 +273,7 @@ export function ProScreen() {
                   opacity={busy !== null ? 0.6 : 1}
                   alignSelf="stretch"
                 >
-                  <Text color="$onPrimary" fontSize={17} fontWeight="700">
+                  <Text color="onPrimary" fontSize={17} fontWeight="700">
                     {busy === "upgrade"
                       ? t("common.loading")
                       : t("pro.upgrade")}
@@ -289,7 +289,7 @@ export function ProScreen() {
                   }}
                   trailing={
                     busy === "restore" ? (
-                      <Text fontSize={13} color="$textSecondary">
+                      <Text fontSize={13} color="textSecondary">
                         {t("pro.restoring")}
                       </Text>
                     ) : undefined
@@ -309,7 +309,7 @@ export function ProScreen() {
                 >
                   {t("pro.terms")}
                 </ExternalLink>
-                <Text fontSize={13} color="$textSecondary">
+                <Text fontSize={13} color="textSecondary">
                   ·
                 </Text>
                 <ExternalLink
@@ -322,14 +322,14 @@ export function ProScreen() {
               <Text
                 fontSize={12}
                 lineHeight={18}
-                color="$textSecondary"
+                color="textSecondary"
                 textAlign="center"
               >
                 {t("pro.termsHint")}
               </Text>
             </View>
           ) : (
-            <Text fontSize={13} color="$textSecondary" textAlign="center">
+            <Text fontSize={13} color="textSecondary" textAlign="center">
               {t("pro.unavailableHint")}
             </Text>
           )}
@@ -352,7 +352,7 @@ function BenefitRow({ text }: { text: string }) {
       paddingBlock="rowGap"
     >
       <SymbolIcon name={SYMBOL_ICONS.check} size={16} color={theme.primary} />
-      <Text flex={1} fontSize={15} color="$text">
+      <Text flex={1} fontSize={15} color="text">
         {text}
       </Text>
     </XStack>
@@ -364,12 +364,12 @@ function NoticeBanner({ notice }: { notice: Notice }) {
   const success = notice.tone === "success";
   return (
     <View
-      backgroundColor={success ? "$successSoft" : "$dangerSoft"}
+      backgroundColor={success ? "successSoft" : "dangerSoft"}
       borderRadius="tile"
       paddingInline="three"
       paddingBlock="two"
     >
-      <Text fontSize={13} color={success ? "$success" : "$danger"}>
+      <Text fontSize={13} color={success ? "success" : "danger"}>
         {notice.text}
       </Text>
     </View>

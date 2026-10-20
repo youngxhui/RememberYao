@@ -13,7 +13,7 @@ import { useTheme } from "@/hooks/use-theme";
  * 滚动容器仍是 RN 的 `ScrollView`：`contentInsetAdjustmentBehavior` 与
  * `keyboardShouldPersistTaps` 是 RN 专属 prop，Tamagui 的 ScrollView 不透传，
  * 而这两条是 AGENTS.md 的硬规则（安全区 / 可滚动表单）。Tamagui 的样式 prop
- * 收的是 token 名（`"$canvas"`），喂给 RN 组件不解析，所以这里仍走 `useTheme()`
+ * 收的是 token 名（`"canvas"`），喂给 RN 组件不解析，所以这里仍走 `useTheme()`
  * 取真实色值。
  */
 export function ScreenScaffold({

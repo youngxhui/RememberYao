@@ -163,7 +163,7 @@ function WeekOverview({ stats }: { stats: WeekStats }) {
       <XStack alignItems="center" gap="two">
         <SectionTitle title={t("profile.weekOverview")} />
         <View flex={1} />
-        <Text fontSize={12} fontFamily="mono" color="$textSecondary">
+        <Text fontSize={12} fontFamily="mono" color="textSecondary">
           {t("profile.plannedCount", { count: stats.planned })}
         </Text>
       </XStack>
@@ -176,7 +176,7 @@ function WeekOverview({ stats }: { stats: WeekStats }) {
         <StatCard
           value={String(stats.missed)}
           label={t("profile.missed")}
-          valueColor={stats.missed > 0 ? "$danger" : undefined}
+          valueColor={stats.missed > 0 ? "danger" : undefined}
         />
       </XStack>
     </YStack>
@@ -195,9 +195,9 @@ function StatCard({
   return (
     <YStack
       flex={1}
-      backgroundColor="$surface"
+      backgroundColor="surface"
       borderWidth={1}
-      borderColor="$border"
+      borderColor="border"
       borderRadius="card"
       borderCurve="continuous"
       paddingBlock="three"
@@ -209,7 +209,7 @@ function StatCard({
         lineHeight={30}
         fontWeight="800"
         letterSpacing={-0.84}
-        color={valueColor ?? "$text"}
+        color={valueColor ?? "text"}
         textAlign="center"
       >
         {value}
@@ -217,7 +217,7 @@ function StatCard({
       <Text
         fontSize={13}
         fontWeight="500"
-        color="$textSecondary"
+        color="textSecondary"
         textAlign="center"
       >
         {label}
@@ -342,9 +342,9 @@ function MemberCard({
       testID={`profile-member-${person.id}`}
       onPress={onPress}
       accessibilityRole="button"
-      backgroundColor="$surface press:$backgroundSelected"
+      backgroundColor="surface press:backgroundSelected"
       borderWidth={1}
-      borderColor="$border"
+      borderColor="border"
       borderRadius="card"
       borderCurve="continuous"
       paddingInline="screen"
@@ -359,13 +359,13 @@ function MemberCard({
         size={44}
       />
       <YStack flex={1} minWidth={0}>
-        <Text numberOfLines={1} fontSize={17} fontWeight="700" color="$text">
+        <Text numberOfLines={1} fontSize={17} fontWeight="700" color="text">
           {person.name}
         </Text>
         <Text
           numberOfLines={1}
           fontSize={13}
-          color="$textSecondary"
+          color="textSecondary"
           marginTop={2}
         >
           {t("person.planCount", { count: planCount })}
@@ -420,7 +420,7 @@ function MemberBadge({ tone }: { tone: MemberTone }) {
 
 function SectionTitle({ title }: { title: string }) {
   return (
-    <Text fontSize={17} fontWeight="700" color="$text">
+    <Text fontSize={17} fontWeight="700" color="text">
       {title}
     </Text>
   );
@@ -430,7 +430,7 @@ function SectionTitle({ title }: { title: string }) {
 function Hint({ text }: { text: string }) {
   return (
     <YStack alignItems="center" paddingBlock="three">
-      <Text fontSize={13} color="$textSecondary" textAlign="center">
+      <Text fontSize={13} color="textSecondary" textAlign="center">
         {text}
       </Text>
     </YStack>
